@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Ungroup New Tabs",
+  "version": "1.3",
+  "author": "guidance.studio",
+  "description": "Automatically removes new tabs from the tab group they are created in, and places them at the end of the tab list.",
+  "permissions": [
+    "tabs",
+    "tabGroups"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "128": "icon128.png"
+  }
+}
