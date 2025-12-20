@@ -1,27 +1,34 @@
 {
   "manifest_version": 3,
   "name": "Guidance Tab Manager",
-  "version": "1.6",
+  "version": "1.8",
   "author": "guidance.studio",
-  "description": "Automatically removes new tabs from the tab group they are created in, and provides an optional interface enhancement for vertical tabs.",
+  "description": "Automatically removes new tabs from groups and provides a horizontal interface enhancement.",
   "permissions": [
     "tabs",
     "tabGroups",
-    "scripting" 
+    "scripting",
+    "windows"
   ],
   "host_permissions": [
-    "<all_urls>" 
+    "<all_urls>"
   ],
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run _:at": "document_idle"
     }
   ],
   "background": {
     "service_worker": "background.js"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["site_overrides.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "icons": {
     "128": "icon128.png"
   }

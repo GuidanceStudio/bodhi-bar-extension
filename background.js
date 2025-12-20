@@ -1,181 +1,781 @@
-// --- 1. CONFIGURATION & UTILS ---
-
-let isSorting = false; // Prevents infinite loops during tab movement
-
 /**
- * Robust check for system/internal pages.
+ * BACKGROUND.JS - Tab Zoning (v9.24)
+ *
+ * + Injects site_overrides.js into all frames on completed navigations
+ *   so overrides are always available even when content_scripts ordering
+ *   / injection is flaky in Brave.
+ *
+ * + CLOSE_TAB action for UI "X" button.
+ *
+ * --- Integrated for Level 2 UI (Groups with favicons) ---
+ * GET_UNGROUPED_TABS now includes, for each group in allTabGroups, a "tabs" array
+ * with the group's tabs (tabToItem shape). This enables Level 2 to render all
+ * favicons inside each group tile without extra per-group requests.
  */
-function isSystemPage(url) {
-    if (!url) return false;
-    const systemPrefixes = [
-        'chrome://', 
-        'brave://', 
-        'about:', 
-        'chrome-extension://', 
-        'edge://', 
-        'devtools://'
-    ];
-    return systemPrefixes.some(prefix => url.startsWith(prefix));
+
+const DEBUG = true;
+const TAG = '[TZ]';
+const log = (...a) => DEBUG && console.log(TAG, ...a);
+const warn = (...a) => DEBUG && console.warn(TAG, ...a);
+
+const SYSTEM_PREFIXES = [
+  'chrome://', 'brave://', 'about:',
+  'chrome-extension://', 'brave-extension://',
+  'edge://', 'devtools://', 'extension://'
+];
+
+const DEBOUNCE_MS = 80;
+const DRAG_SETTLE_MS = 350;
+const QUIET_MS = 450;
+const COOLDOWN_MS = 250;
+
+const STABLE = { SAMPLE_GAP_MS: 120, MAX_ATTEMPTS: 6, REQUIRED_MATCHES: 2 };
+
+const RETRY_DELAYS_MS = [80, 160, 320, 640, 1200, 2000];
+
+const NEW_TAB_DEGROUP_TTL_MS = 7000; // only consider tabs "new" for this long
+
+// NEW: Grace period after startup/enable to avoid ungrouping restored session tabs.
+const STARTUP_GRACE_MS = 20000;
+
+// ---- Overrides injection (site_overrides.js) ----
+const OVERRIDES_FILE = 'site_overrides.js';
+const overridesInjected = new Map(); // tabId -> lastInjectedUrl
+
+function isHttpUrl(url = '') {
+  return /^https?:\/\//i.test(url);
 }
 
-/**
- * Map tab data for the UI.
- */
-const mapTab = (tab) => ({
-    id: tab.id,
-    title: tab.title,
-    url: tab.url,
-    favIconUrl: tab.favIconUrl,
-    groupId: tab.groupId,
-    index: tab.index
-});
+function effectiveUrl(tab) {
+  return tab?.url || tab?.pendingUrl || '';
+}
 
-/**
- * Notify all content scripts to refresh the UI bar.
- */
-function notifyTabs() {
-    chrome.tabs.query({}, (tabs) => {
-        tabs.forEach(tab => {
-            if (tab.url && (tab.url.startsWith('http') || tab.url.startsWith('file'))) {
-                chrome.tabs.sendMessage(tab.id, { action: "REFRESH_BAR" }).catch(() => {});
-            }
-        });
+function canInjectIntoUrl(url = '') {
+  if (!url) return false;
+  if (!isHttpUrl(url)) return false;
+  if (SYSTEM_PREFIXES.some(prefix => url.startsWith(prefix))) return false;
+  return true;
+}
+
+async function injectOverrides(tabId, url) {
+  if (tabId == null) return;
+  if (!canInjectIntoUrl(url)) return;
+
+  if (overridesInjected.get(tabId) === url) return;
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      files: [OVERRIDES_FILE]
     });
+    overridesInjected.set(tabId, url);
+    log('overrides injected', { tabId, url });
+  } catch (e) {
+    // Expected on some restricted pages / timing edges.
+    warn('overrides inject failed', { tabId, url, message: String(e?.message || e) });
+  }
 }
 
-// --- 2. CORE ENFORCEMENT LOGIC (THE WALL) ---
+chrome.tabs.onRemoved.addListener((tabId) => {
+  overridesInjected.delete(tabId);
+});
 
-/**
- * Ensures that all Web tabs are on the left and all System tabs are on the right.
- * This is called on move, update, and creation.
- */
-async function enforceTabOrder(windowId) {
-    if (isSorting) return; // Skip if we are already moving tabs
-    isSorting = true;
+// ---- UI bridge / receiver (content.js) ----
+const TZ_PORT_NAME = 'TZ_UI_PORT';
 
-    chrome.tabs.query({ windowId: windowId }, (tabs) => {
-        // 1. Sort tabs by their current index to understand current sequence
-        tabs.sort((a, b) => a.index - b.index);
+// throttle REFRESH_BAR broadcasts (so we don't spam content scripts)
+const UI_REFRESH_DEBOUNCE_MS = 120;
+const uiRefreshTimers = new Map(); // windowId -> timerId
 
-        // 2. Identify the boundary: find the index of the first system tab
-        const firstSystemTab = tabs.find(t => isSystemPage(t.url));
-        
-        if (firstSystemTab) {
-            const boundaryIndex = firstSystemTab.index;
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-            // Check if any Web tab is positioned AFTER the first system tab
-            const misplacedWebTab = tabs.find(t => !isSystemPage(t.url) && t.index > boundaryIndex);
-
-            if (misplacedWebTab) {
-                // Move the misplaced web tab to the boundary position
-                // This will push the system tabs to the right
-                chrome.tabs.move(misplacedWebTab.id, { index: boundaryIndex }, () => {
-                    isSorting = false;
-                    enforceTabOrder(windowId); // Recursive check until order is perfect
-                });
-                return;
-            }
-        }
-        
-        // 3. Check if a System tab is misplaced (e.g., dragged to the start)
-        // If a system tab is followed by a web tab, it's misplaced.
-        const misplacedSystemTab = tabs.find((t, i) => 
-            isSystemPage(t.url) && tabs[i + 1] && !isSystemPage(tabs[i + 1].url)
-        );
-
-        if (misplacedSystemTab) {
-            chrome.tabs.move(misplacedSystemTab.id, { index: -1 }, () => {
-                isSorting = false;
-                enforceTabOrder(windowId);
-            });
-            return;
-        }
-
-        isSorting = false;
-        notifyTabs(); // Refresh UI after sorting is done
-    });
+function isSystemPage(tab) {
+  const url = effectiveUrl(tab);
+  return !!url && SYSTEM_PREFIXES.some(prefix => url.startsWith(prefix));
 }
 
-// --- 3. EVENT LISTENERS ---
+function isDraggingError(e) {
+  const msg = String(e?.message || e || '');
+  return msg.includes('Tabs cannot be edited right now');
+}
 
-// Handle new tab creation
-chrome.tabs.onCreated.addListener((tab) => {
-    // Ungroup immediately if necessary
-    if (tab.groupId !== -1) chrome.tabs.ungroup(tab.id);
-    
-    // Give the browser a moment to resolve the URL before enforcing order
-    setTimeout(() => {
-        enforceTabOrder(tab.windowId);
-    }, 200);
-});
+async function queryOrderedTabs(windowId) {
+  return (await chrome.tabs.query({ windowId })).slice().sort((a, b) => a.index - b.index);
+}
 
-// Detect manual movement
-chrome.tabs.onMoved.addListener((tabId, moveInfo) => {
-    enforceTabOrder(moveInfo.windowId);
-});
+async function getLayoutSignature(windowId) {
+  const tabs = await queryOrderedTabs(windowId);
+  const sig = tabs.map(t => `${t.id}:${t.groupId}:${t.pinned ? 1 : 0}`).join('|');
+  return { sig, tabs };
+}
 
-// Detect URL changes (e.g. if a site becomes 'brave://settings')
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.url || changeInfo.status === 'complete') {
-        enforceTabOrder(tab.windowId);
+async function waitForStableLayout(windowId) {
+  let lastSig = null;
+  let matches = 0;
+  let lastTabs = null;
+
+  for (let attempt = 1; attempt <= STABLE.MAX_ATTEMPTS; attempt++) {
+    const { sig, tabs } = await getLayoutSignature(windowId);
+    lastTabs = tabs;
+
+    const same = (sig === lastSig);
+    matches = same ? (matches + 1) : 0;
+
+    log('stable', { windowId, attempt, same, matches });
+
+    if (matches >= (STABLE.REQUIRED_MATCHES - 1)) return { stable: true, tabs };
+    lastSig = sig;
+    await sleep(STABLE.SAMPLE_GAP_MS);
+  }
+
+  return { stable: false, tabs: lastTabs };
+}
+
+// ---------------- Scheduler state ----------------
+const state = {
+  isEnforcing: false,
+  pendingWindows: new Set(),
+  debounceTimers: new Map(),
+  dragTimers: new Map(),
+  lastMotionAt: new Map(),
+  lastEnforceAt: new Map(),
+  retryState: new Map(),
+  newlyCreated: new Map(), // tabId -> createdAt
+
+  // NEW: used to suppress "new tab" degroup during session restore/startup.
+  startupAt: Date.now(),
+};
+
+function inStartupGrace() {
+  return (Date.now() - (state.startupAt || 0)) < STARTUP_GRACE_MS;
+}
+
+function markNewTab(tabId) {
+  if (tabId == null) return;
+  state.newlyCreated.set(tabId, Date.now());
+}
+
+function isNewTab(tabId) {
+  const t = state.newlyCreated.get(tabId);
+  if (!t) return false;
+  if ((Date.now() - t) > NEW_TAB_DEGROUP_TTL_MS) {
+    state.newlyCreated.delete(tabId);
+    return false;
+  }
+  return true;
+}
+
+function forgetTab(tabId) {
+  state.newlyCreated.delete(tabId);
+}
+
+function markMotion(windowId) {
+  if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return;
+  state.lastMotionAt.set(windowId, Date.now());
+}
+
+function msSinceMotion(windowId) {
+  const t = state.lastMotionAt.get(windowId);
+  return t ? (Date.now() - t) : Infinity;
+}
+
+function inCooldown(windowId) {
+  const t = state.lastEnforceAt.get(windowId) || 0;
+  return (Date.now() - t) < COOLDOWN_MS;
+}
+
+function schedule(windowId, reason) {
+  if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return;
+  state.pendingWindows.add(windowId);
+  drain();
+}
+
+function scheduleDebounced(windowId, reason) {
+  if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return;
+
+  const prev = state.debounceTimers.get(windowId);
+  if (prev) clearTimeout(prev);
+
+  const t = setTimeout(() => {
+    state.debounceTimers.delete(windowId);
+    schedule(windowId, reason || 'debounced');
+  }, DEBOUNCE_MS);
+
+  state.debounceTimers.set(windowId, t);
+}
+
+function scheduleAfterDrag(windowId, reason) {
+  if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return;
+
+  const prev = state.dragTimers.get(windowId);
+  if (prev) clearTimeout(prev);
+
+  const t = setTimeout(() => {
+    state.dragTimers.delete(windowId);
+    schedule(windowId, reason || 'dragSettle');
+  }, DRAG_SETTLE_MS);
+
+  state.dragTimers.set(windowId, t);
+}
+
+function clearRetry(windowId) {
+  const st = state.retryState.get(windowId);
+  if (!st) return;
+  if (st.timer != null) clearTimeout(st.timer);
+  state.retryState.delete(windowId);
+}
+
+function scheduleRetry(windowId, reason) {
+  if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return;
+
+  const cur = state.retryState.get(windowId) || { tries: 0, timer: null };
+  if (cur.timer != null) return;
+
+  const delay = RETRY_DELAYS_MS[Math.min(cur.tries, RETRY_DELAYS_MS.length - 1)];
+  cur.tries += 1;
+
+  log('retry', { windowId, delay, tries: cur.tries, reason });
+
+  cur.timer = setTimeout(() => {
+    cur.timer = null;
+    state.retryState.set(windowId, cur);
+    schedule(windowId, `retry#${cur.tries}`);
+  }, delay);
+
+  state.retryState.set(windowId, cur);
+}
+
+// ---------------- UI refresh broadcast helpers ----------------
+async function broadcastRefresh(windowId) {
+  if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return;
+
+  const tabs = await chrome.tabs.query({ windowId });
+  for (const t of tabs) {
+    if (!t?.id) continue;
+    try {
+      await chrome.tabs.sendMessage(t.id, { action: 'REFRESH_BAR' });
+    } catch {
+      // ignore: content script not injected (system pages / extension pages / restricted hosts)
     }
+  }
+}
+
+function scheduleUiRefresh(windowId, reason) {
+  if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return;
+
+  const prev = uiRefreshTimers.get(windowId);
+  if (prev) clearTimeout(prev);
+
+  const t = setTimeout(() => {
+    uiRefreshTimers.delete(windowId);
+    broadcastRefresh(windowId).catch(() => {});
+  }, UI_REFRESH_DEBOUNCE_MS);
+
+  uiRefreshTimers.set(windowId, t);
+}
+
+// ---------------- Core enforcement drain ----------------
+async function drain() {
+  if (state.isEnforcing) return;
+
+  const it = state.pendingWindows.values().next();
+  if (it.done) return;
+
+  const windowId = it.value;
+  state.pendingWindows.delete(windowId);
+
+  if (inCooldown(windowId)) {
+    setTimeout(() => schedule(windowId, 'cooldown'), COOLDOWN_MS);
+    return;
+  }
+
+  const since = msSinceMotion(windowId);
+  if (since < QUIET_MS) {
+    const wait = Math.max(40, QUIET_MS - since);
+    log('gate:quiet', { windowId, wait });
+    setTimeout(() => schedule(windowId, 'quietGate'), wait);
+    return;
+  }
+
+  const st = await waitForStableLayout(windowId);
+  log('stableResult', { windowId, stable: st.stable });
+  if (!st.stable) {
+    setTimeout(() => schedule(windowId, 'unstable'), 220);
+    return;
+  }
+
+  state.isEnforcing = true;
+  try {
+    state.lastEnforceAt.set(windowId, Date.now());
+
+    const result = await enforceRound(windowId);
+    if (result?.ok && !result?.locked) clearRetry(windowId);
+
+    if ((result?.movedTabs || 0) + (result?.movedGroups || 0) > 0) {
+      scheduleAfterDrag(windowId, 'followUp');
+    }
+
+    scheduleUiRefresh(windowId, 'afterEnforce');
+  } finally {
+    state.isEnforcing = false;
+    if (state.pendingWindows.size) drain();
+  }
+}
+
+// ---------------- Core enforcement ----------------
+async function enforceRound(windowId) {
+  log('ENFORCE begin', { windowId });
+
+  let ordered = await queryOrderedTabs(windowId);
+  const refresh = async () => { ordered = await queryOrderedTabs(windowId); };
+
+  const isGrouped = (t) => t.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE;
+  const isUngrouped = (t) => !t.pinned && !isGrouped(t);
+
+  // Step 0) Ungroup ONLY newly created tabs that ended up inside a group.
+  // NEW: during startup/session restore, skip this to avoid ungrouping restored group tabs.
+  if (!inStartupGrace()) {
+    let ungroupedNew = 0;
+
+    for (const [tabId, createdAt] of state.newlyCreated.entries()) {
+      if ((Date.now() - createdAt) > NEW_TAB_DEGROUP_TTL_MS) state.newlyCreated.delete(tabId);
+    }
+
+    for (const t of ordered) {
+      if (t.pinned) continue;
+      if (!isGrouped(t)) continue;
+      if (!isNewTab(t.id)) continue;
+
+      warn('DEGROUP new-tab', { tabId: t.id, groupId: t.groupId, url: effectiveUrl(t) });
+      await chrome.tabs.ungroup(t.id);
+      forgetTab(t.id);
+      ungroupedNew += 1;
+    }
+
+    if (ungroupedNew) await refresh();
+  } else {
+    log('startupGrace: skip DEGROUP new-tab', { windowId, graceMs: STARTUP_GRACE_MS });
+  }
+
+  const isUngroupedWeb = (t) => isUngrouped(t) && !isSystemPage(t);
+  const isUngroupedSystem = (t) => isUngrouped(t) && isSystemPage(t);
+
+  const firstIndex = (pred) => {
+    const idx = ordered.findIndex(pred);
+    return idx === -1 ? ordered.length : idx;
+  };
+
+  async function moveTabSafe(tabId, index, reason) {
+    const before = ordered.find(t => t.id === tabId);
+    const beforeG = before?.groupId;
+
+    log('MOVE', { reason, tabId, from: before?.index, to: index, beforeG });
+
+    await chrome.tabs.move(tabId, { index });
+    await refresh();
+
+    const after = ordered.find(t => t.id === tabId);
+    const afterG = after?.groupId;
+
+    const becameGrouped =
+      (beforeG === chrome.tabGroups.TAB_GROUP_ID_NONE) &&
+      (afterG != null && afterG !== chrome.tabGroups.TAB_GROUP_ID_NONE);
+
+    if (becameGrouped) {
+      warn('AUTO-GROUP -> ungroup', { tabId, beforeG, afterG });
+      await chrome.tabs.ungroup(tabId);
+      await refresh();
+    }
+  }
+
+  try {
+    let movedTabs = 0;
+    let movedGroups = 0;
+
+    // 1) Pinned -> prefix
+    {
+      let firstNonPinnedPos = firstIndex(t => !t.pinned);
+
+      for (let i = firstNonPinnedPos; i < ordered.length; i++) {
+        const t = ordered[i];
+        if (!t.pinned) continue;
+
+        await moveTabSafe(t.id, firstNonPinnedPos, 'pinned->prefix');
+        movedTabs += 1;
+
+        firstNonPinnedPos = firstIndex(x => !x.pinned);
+        i = firstNonPinnedPos;
+      }
+    }
+
+    await refresh();
+    const afterPinned = firstIndex(t => !t.pinned);
+
+    // 2) Compact groups after pinned
+    {
+      const groupOrder = [];
+      const seen = new Set();
+
+      for (const t of ordered) {
+        if (t.pinned || !isGrouped(t) || seen.has(t.groupId)) continue;
+        seen.add(t.groupId);
+        groupOrder.push(t.groupId);
+      }
+
+      let target = afterPinned;
+      for (const gid of groupOrder) {
+        const firstTabIdx = ordered.findIndex(t => t.groupId === gid);
+        if (firstTabIdx === -1) continue;
+
+        if (firstTabIdx !== target) {
+          log('MOVE group', { groupId: gid, to: target });
+          await chrome.tabGroups.move(gid, { index: target });
+          movedGroups += 1;
+          await refresh();
+        }
+
+        const size = ordered.filter(t => t.groupId === gid).length;
+        target += size;
+      }
+    }
+
+    await refresh();
+
+    // 3) Eject ungrouped from group block
+    {
+      const groupedCount = ordered.filter(t => !t.pinned && isGrouped(t)).length;
+      let endOfGroups = afterPinned + groupedCount;
+
+      for (let i = afterPinned; i < endOfGroups && i < ordered.length; i++) {
+        const t = ordered[i];
+        if (!isUngrouped(t)) continue;
+
+        await moveTabSafe(t.id, endOfGroups, 'ejectUngroupedFromGroupBlock');
+        movedTabs += 1;
+
+        await refresh();
+        const groupedCount2 = ordered.filter(x => !t.pinned && isGrouped(x)).length;
+        endOfGroups = afterPinned + groupedCount2;
+        i = afterPinned - 1;
+      }
+    }
+
+    // 4) Reorder ungrouped (web before system) after groups
+    {
+      const afterGroups = afterPinned + ordered.filter(t => !t.pinned && isGrouped(t)).length;
+
+      const ungrouped = ordered.filter(t => isUngrouped(t));
+      const desiredIds = [
+        ...ungrouped.filter(isUngroupedWeb).map(t => t.id),
+        ...ungrouped.filter(isUngroupedSystem).map(t => t.id),
+      ];
+
+      for (let k = 0; k < desiredIds.length; k++) {
+        const wantId = desiredIds[k];
+        const pos = afterGroups + k;
+        if (ordered[pos]?.id === wantId) continue;
+
+        await moveTabSafe(wantId, pos, 'ungrouped:webBeforeSystem');
+        movedTabs += 1;
+      }
+    }
+
+    log('ENFORCE end', { windowId, movedTabs, movedGroups });
+    return { ok: true, locked: false, movedTabs, movedGroups };
+  } catch (e) {
+    if (isDraggingError(e)) {
+      warn('ENFORCE lock', { windowId, message: String(e?.message || e) });
+      scheduleRetry(windowId, 'edit-lock');
+      return { ok: true, locked: true, movedTabs: 0, movedGroups: 0 };
+    }
+    warn('ENFORCE error', { windowId, message: String(e?.message || e) }, e);
+    throw e;
+  }
+}
+
+// ---------------- UI query helpers (for content.js) ----------------
+async function getActiveTab() {
+  const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  return tabs && tabs.length ? tabs[0] : null;
+}
+
+async function getAllGroupsInWindow(windowId) {
+  const groups = await chrome.tabGroups.query({ windowId });
+  return groups || [];
+}
+
+async function getTabsInWindow(windowId) {
+  const tabs = await chrome.tabs.query({ windowId });
+  return tabs || [];
+}
+
+function tabToItem(t) {
+  return {
+    id: t.id,
+    index: t.index,
+    title: t.title || '',
+    url: t.url || '',
+    favIconUrl: t.favIconUrl || '',
+    pinned: !!t.pinned,
+    groupId: (typeof t.groupId === 'number' ? t.groupId : -1),
+  };
+}
+
+async function buildUngroupedPayload() {
+  const active = await getActiveTab();
+  if (!active) {
+    return {
+      currentTabId: null,
+      currentTabTitle: '',
+      isCurrentTabGrouped: false,
+      pinnedTabs: [],
+      webTabs: [],
+      systemTabs: [],
+      allTabGroups: []
+    };
+  }
+
+  const windowId = active.windowId;
+  const [tabs, groups] = await Promise.all([
+    getTabsInWindow(windowId),
+    getAllGroupsInWindow(windowId)
+  ]);
+
+  const pinnedTabs = [];
+  const webTabs = [];
+  const systemTabs = [];
+
+  // NEW: groupId -> array(tabItem)
+  const groupTabsMap = new Map();
+
+  for (const t of tabs) {
+    const item = tabToItem(t);
+
+    if (item.pinned) {
+      pinnedTabs.push(item);
+      continue;
+    }
+
+    // Collect grouped tabs for Level 2 (groups list with favicons)
+    if (item.groupId != null && item.groupId !== -1) {
+      if (!groupTabsMap.has(item.groupId)) groupTabsMap.set(item.groupId, []);
+      groupTabsMap.get(item.groupId).push(item);
+      continue;
+    }
+
+    // Only UNGROUPED in Level 1:
+    if (isSystemPage(t)) systemTabs.push(item);
+    else webTabs.push(item);
+  }
+
+  const allTabGroups = (groups || []).map(g => ({
+    id: g.id,
+    title: g.title || 'Group',
+    color: g.color || 'default',
+    collapsed: !!g.collapsed,
+    // NEW: include tabs for this group (sorted)
+    tabs: (groupTabsMap.get(g.id) || []).slice().sort((a, b) => (a.index ?? 0) - (b.index ?? 0)),
+  }));
+
+  const isCurrentTabGrouped = typeof active.groupId === 'number' && active.groupId !== -1;
+
+  return {
+    currentTabId: active.id,
+    currentTabTitle: active.title || '',
+    isCurrentTabGrouped,
+    pinnedTabs: pinnedTabs.sort((a, b) => a.index - b.index),
+    webTabs: webTabs.sort((a, b) => a.index - b.index),
+    systemTabs: systemTabs.sort((a, b) => a.index - b.index),
+    allTabGroups
+  };
+}
+
+async function buildGroupTabsPayload(groupId) {
+  const active = await getActiveTab();
+  if (!active) return { tabs: [], groupTitle: 'Group' };
+
+  const windowId = active.windowId;
+
+  const [tabs, groups] = await Promise.all([
+    chrome.tabs.query({ windowId, groupId }),
+    chrome.tabGroups.query({ windowId })
+  ]);
+
+  const group = (groups || []).find(g => g.id === groupId);
+  const groupTitle = group?.title || 'Group';
+
+  const outTabs = (tabs || []).map(tabToItem);
+
+  return { tabs: outTabs, groupTitle };
+}
+
+async function switchToTab(tabId) {
+  if (tabId == null) return;
+  try {
+    await chrome.tabs.update(tabId, { active: true });
+  } catch {
+    // ignore
+  }
+}
+
+async function openNewTab() {
+  await chrome.tabs.create({});
+}
+
+// ---------------- Receiver: Port + Messages ----------------
+chrome.runtime.onConnect.addListener((port) => {
+  if (!port || port.name !== TZ_PORT_NAME) return;
+
+  port.onMessage.addListener((msg) => {
+    if (msg?.action === '__TZ_HANDSHAKE__') {
+      try { port.postMessage({ action: '__TZ_HANDSHAKE_OK__' }); } catch { /* ignore */ }
+    }
+  });
 });
-
-// UI Sync only
-chrome.tabs.onRemoved.addListener(notifyTabs);
-chrome.tabs.onActivated.addListener(notifyTabs);
-
-// --- 4. MESSAGE HANDLER (API) ---
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "GET_UNGROUPED_TABS") {
-        const currentTab = sender.tab;
-        if (!currentTab) return;
+  (async () => {
+    try {
+      const action = request?.action;
 
-        chrome.tabs.query({ windowId: currentTab.windowId }, (allTabs) => {
-            chrome.tabGroups.query({ windowId: currentTab.windowId }, (allGroups) => {
-                const ungrouped = allTabs.filter(t => t.groupId === -1);
-                sendResponse({
-                    currentTabId: currentTab.id,
-                    isCurrentTabGrouped: currentTab.groupId !== -1,
-                    currentTabTitle: currentTab.title,
-                    webTabs: ungrouped.filter(t => !isSystemPage(t.url)).map(mapTab),
-                    systemTabs: ungrouped.filter(t => isSystemPage(t.url)).map(mapTab),
-                    allTabGroups: allGroups
-                });
-            });
-        });
-        return true;
-    }
+      if (action === 'GET_UNGROUPED_TABS') {
+        const payload = await buildUngroupedPayload();
+        sendResponse(payload);
+        return;
+      }
 
-    if (request.action === "GET_GROUP_TABS") {
-        chrome.tabs.query({ groupId: request.groupId }, (tabs) => {
-            chrome.tabGroups.get(request.groupId, (group) => {
-                sendResponse({
-                    tabs: tabs.map(mapTab),
-                    groupTitle: group ? group.title : "Group Tabs",
-                    groupColor: group ? group.color : "grey"
-                });
-            });
-        });
-        return true;
-    }
+      if (action === 'GET_GROUP_TABS') {
+        const payload = await buildGroupTabsPayload(request.groupId);
+        sendResponse(payload);
+        return;
+      }
 
-    if (request.action === "SWITCH_TAB") {
-        chrome.tabs.update(request.tabId, { active: true });
-        return true;
-    }
+      if (action === 'SWITCH_TAB') {
+        await switchToTab(request.tabId);
+        const active = await getActiveTab();
+        if (active?.windowId != null) scheduleUiRefresh(active.windowId, 'SWITCH_TAB');
+        sendResponse({ ok: true });
+        return;
+      }
 
-    if (request.action === "OPEN_NEW_TAB") {
-        chrome.tabs.create({});
-        return true;
-    }
+      if (action === 'OPEN_NEW_TAB') {
+        await openNewTab();
+        const active = await getActiveTab();
+        if (active?.windowId != null) scheduleUiRefresh(active.windowId, 'OPEN_NEW_TAB');
+        sendResponse({ ok: true });
+        return;
+      }
 
-    if (request.action === "FOCUS_GROUP") {
-        chrome.tabGroups.update(request.groupId, { collapsed: false });
-        chrome.tabs.query({ groupId: request.groupId }, (tabs) => {
-            if (tabs.length > 0) chrome.tabs.update(tabs[0].id, { active: true });
-        });
-        return true;
+      if (action === 'CLOSE_TAB') {
+        const tabId = request.tabId;
+        if (tabId != null) {
+          try { await chrome.tabs.remove(tabId); } catch { /* ignore */ }
+        }
+        const active = await getActiveTab();
+        if (active?.windowId != null) scheduleUiRefresh(active.windowId, 'CLOSE_TAB');
+        sendResponse({ ok: true });
+        return;
+      }
+
+      sendResponse(null);
+    } catch {
+      sendResponse(null);
     }
+  })();
+
+  return true;
+});
+
+// ---------------- Events ----------------
+function touch(windowId, reason, { motion = false, drag = false } = {}) {
+  if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return;
+  if (motion) markMotion(windowId);
+  scheduleDebounced(windowId, reason);
+  if (drag) scheduleAfterDrag(windowId, reason);
+
+  scheduleUiRefresh(windowId, reason);
+}
+
+chrome.tabs.onCreated.addListener(tab => {
+  markNewTab(tab.id);
+  log('EV onCreated', { tabId: tab.id, windowId: tab.windowId, openerTabId: tab.openerTabId, index: tab.index });
+  touch(tab.windowId, 'onCreated');
+});
+
+chrome.tabs.onMoved.addListener((tabId, info) => {
+  log('EV onMoved', { tabId, windowId: info.windowId, from: info.fromIndex, to: info.toIndex });
+  touch(info.windowId, 'onMoved', { motion: true, drag: true });
+});
+
+chrome.tabs.onAttached.addListener((tabId, info) => {
+  log('EV onAttached', { tabId, windowId: info.newWindowId, index: info.newPosition });
+  touch(info.newWindowId, 'onAttached', { motion: true, drag: true });
+});
+
+chrome.tabs.onDetached.addListener((tabId, info) => {
+  log('EV onDetached', { tabId, windowId: info.oldWindowId, index: info.oldPosition });
+  touch(info.oldWindowId, 'onDetached', { motion: true, drag: true });
+});
+
+chrome.tabs.onRemoved.addListener((tabId, info) => {
+  forgetTab(tabId);
+  log('EV onRemoved', { tabId, windowId: info.windowId, isWindowClosing: info.isWindowClosing });
+  touch(info.windowId, 'onRemoved');
+});
+
+chrome.tabs.onActivated.addListener((info) => {
+  log('EV onActivated', { tabId: info.tabId, windowId: info.windowId });
+  touch(info.windowId, 'onActivated');
+});
+
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  log('EV onFocusChanged', { windowId });
+  touch(windowId, 'onFocusChanged');
+});
+
+if (chrome.tabs?.onHighlighted?.addListener) {
+  chrome.tabs.onHighlighted.addListener((info) => {
+    log('EV onHighlighted', { windowId: info.windowId, tabIds: info.tabIds });
+    touch(info.windowId, 'onHighlighted');
+  });
+}
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  const interesting = !!(changeInfo.url || changeInfo.status || changeInfo.title);
+  if (!interesting) return;
+
+  log('EV onUpdated', { tabId, windowId: tab.windowId, keys: Object.keys(changeInfo || {}) });
+
+  // Try to inject overrides on "complete" (best effort).
+  if (changeInfo.status === 'complete') {
+    injectOverrides(tabId, effectiveUrl(tab)).catch(() => {});
+  }
+
+  touch(tab.windowId, 'onUpdated');
+});
+
+if (chrome.tabGroups?.onMoved?.addListener) {
+  chrome.tabGroups.onMoved.addListener((group) => {
+    log('EV tabGroups.onMoved', { groupId: group?.id, windowId: group?.windowId, index: group?.index });
+    touch(group?.windowId, 'tabGroups.onMoved', { motion: true, drag: true });
+  });
+}
+
+if (chrome.tabGroups?.onUpdated?.addListener) {
+  chrome.tabGroups.onUpdated.addListener((groupId, changeInfo) => {
+    log('EV tabGroups.onUpdated', { groupId, changeKeys: Object.keys(changeInfo || {}) });
+    chrome.windows.getAll({}, wins => wins.forEach(w => touch(w.id, 'tabGroups.onUpdated', { motion: true, drag: true })));
+  });
+}
+
+chrome.runtime.onStartup.addListener(() => {
+  state.startupAt = Date.now();
+  log('EV onStartup');
+  chrome.windows.getAll({}, wins => wins.forEach(w => scheduleDebounced(w.id, 'onStartup')));
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+  state.startupAt = Date.now();
+  log('EV onInstalled');
+  chrome.windows.getAll({}, wins => wins.forEach(w => scheduleDebounced(w.id, 'onInstalled')));
 });
