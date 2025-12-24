@@ -781,6 +781,117 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
       }
 
+      if (action === 'GROUP_TAB') {
+        const tabId = request.tabId;
+        const groupId = request.groupId;
+        if (tabId == null || groupId == null) {
+          sendResponse({ ok: false, error: 'Missing tabId/groupId' });
+          return;
+        }
+        try {
+          const tab = await chrome.tabs.get(tabId);
+          if (!tab?.id || tab.windowId == null) {
+            sendResponse({ ok: false, error: 'Tab not found' });
+            return;
+          }
+          if (tab.pinned) {
+            sendResponse({ ok: false, error: 'Pinned tabs cannot be grouped' });
+            return;
+          }
+          if (isSystemPage(tab)) {
+            sendResponse({ ok: false, error: 'System tabs cannot be grouped' });
+            return;
+          }
+
+          // Ensure the group exists in the same window (avoid cross-window grouping).
+          const groups = await chrome.tabGroups.query({ windowId: tab.windowId });
+          const ok = (groups || []).some(g => g.id === groupId);
+          if (!ok) {
+            sendResponse({ ok: false, error: 'Group not found in this window' });
+            return;
+          }
+
+          // Prevent Step-0 "new tab degroup" from undoing the user's explicit grouping.
+          forgetTab(tabId);
+
+          await chrome.tabs.group({ tabIds: [tabId], groupId });
+          touch(tab.windowId, 'GROUP_TAB', { motion: true, drag: true });
+          sendResponse({ ok: true });
+          return;
+        } catch (e) {
+          warn('GROUP_TAB error', { tabId, groupId, message: String(e?.message || e) });
+          sendResponse({ ok: false, error: 'GROUP_TAB failed' });
+          return;
+        }
+      }
+
+      if (action === 'GROUP_TAB_NEW') {
+        const tabId = request.tabId;
+        const title = String(request.title || '').trim();
+        const color = String(request.color || 'blue').trim();
+        if (tabId == null || !title) {
+          sendResponse({ ok: false, error: 'Missing tabId/title' });
+          return;
+        }
+        try {
+          const tab = await chrome.tabs.get(tabId);
+          if (!tab?.id || tab.windowId == null) {
+            sendResponse({ ok: false, error: 'Tab not found' });
+            return;
+          }
+          if (tab.pinned) {
+            sendResponse({ ok: false, error: 'Pinned tabs cannot be grouped' });
+            return;
+          }
+          if (isSystemPage(tab)) {
+            sendResponse({ ok: false, error: 'System tabs cannot be grouped' });
+            return;
+          }
+
+          forgetTab(tabId);
+
+          const newGroupId = await chrome.tabs.group({ tabIds: [tabId] });
+          try {
+            await chrome.tabGroups.update(newGroupId, { title, color });
+          } catch (e) {
+            // If color invalid, at least set the title.
+            try { await chrome.tabGroups.update(newGroupId, { title }); } catch {}
+            warn('GROUP_TAB_NEW update failed', { newGroupId, message: String(e?.message || e) });
+          }
+
+          touch(tab.windowId, 'GROUP_TAB_NEW', { motion: true, drag: true });
+          sendResponse({ ok: true, groupId: newGroupId });
+          return;
+        } catch (e) {
+          warn('GROUP_TAB_NEW error', { tabId, message: String(e?.message || e) });
+          sendResponse({ ok: false, error: 'GROUP_TAB_NEW failed' });
+          return;
+        }
+      }
+
+      if (action === 'UNGROUP_TAB') {
+        const tabId = request.tabId;
+        if (tabId == null) {
+          sendResponse({ ok: false, error: 'Missing tabId' });
+          return;
+        }
+        try {
+          const tab = await chrome.tabs.get(tabId);
+          if (!tab?.id || tab.windowId == null) {
+            sendResponse({ ok: false, error: 'Tab not found' });
+            return;
+          }
+          await chrome.tabs.ungroup(tabId);
+          touch(tab.windowId, 'UNGROUP_TAB', { motion: true, drag: true });
+          sendResponse({ ok: true });
+          return;
+        } catch (e) {
+          warn('UNGROUP_TAB error', { tabId, message: String(e?.message || e) });
+          sendResponse({ ok: false, error: 'UNGROUP_TAB failed' });
+          return;
+        }
+      }
+
       sendResponse(null);
     } catch {
       sendResponse(null);
