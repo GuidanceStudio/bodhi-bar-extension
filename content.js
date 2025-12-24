@@ -228,14 +228,14 @@ function ensureSizingStyle() {
       all: initial;
       position:fixed;
       z-index:2147483647;
-      width:260px;
-      max-height:320px;
+      width:240px;
+      max-height:300px;
       overflow:auto;
       background:#1f1f1f;
       border:1px solid #333;
       border-radius:8px;
       box-shadow:0 8px 30px rgba(0,0,0,0.45);
-      padding:10px;
+      padding:6px;
       font-family:${GLOBAL_FONT};
       color:#fff;
       box-sizing:border-box;
@@ -545,69 +545,50 @@ function openGroupPopover(anchorEl, tabId) {
   pop.className = 'tz-popover';
   pop.onmousedown = (e) => { e.stopPropagation(); };
 
-  // Position near the anchor
-  const r = anchorEl.getBoundingClientRect();
-  const top = Math.min(window.innerHeight - 340, Math.max(8, r.bottom + 6));
-  const left = Math.min(window.innerWidth - 280, Math.max(8, r.left - 120));
-  pop.style.top = `${top}px`;
-  pop.style.left = `${left}px`;
-
-  // Header row: title + "New" button (menu-first UX)
-  const header = document.createElement('div');
-  header.className = 'row';
-  header.style.marginBottom = '8px';
-  header.style.justifyContent = 'space-between';
-
-  const headerText = document.createElement('div');
-  headerText.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;`;
-  headerText.textContent = 'Add to group';
-
-  const newBtn = document.createElement('div');
-  newBtn.className = 'btn';
-  newBtn.textContent = 'New';
-  newBtn.style.padding = '4px 8px';
-
-  header.appendChild(headerText);
-  header.appendChild(newBtn);
-  pop.appendChild(header);
-
-  const divider = document.createElement('div');
-  divider.style.cssText = `all: initial; height:1px; background:#333; margin:8px 0; display:block;`;
-  pop.appendChild(divider);
+  // Anchor the menu to the "+" button (dropdown).
+  // We append hidden first to measure size and clamp to viewport.
+  pop.style.visibility = 'hidden';
+  pop.style.top = '0px';
+  pop.style.left = '0px';
 
   const groupsContainer = document.createElement('div');
   groupsContainer.style.cssText = `all: initial; display:block;`;
   pop.appendChild(groupsContainer);
 
+  // Menu item: New group...
+  const newItem = document.createElement('div');
+  newItem.className = 'group-item';
+  const newSw = document.createElement('div');
+  newSw.className = 'swatch';
+  newSw.style.background = INDICATOR_COLOR;
+  const newTx = document.createElement('div');
+  newTx.textContent = 'New group…';
+  newTx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;`;
+  newItem.appendChild(newSw);
+  newItem.appendChild(newTx);
+  groupsContainer.appendChild(newItem);
+
   const groups = Array.isArray(cachedTabGroups) ? cachedTabGroups : [];
-  if (!groups.length) {
-    const empty = document.createElement('div');
-    empty.className = 'row';
-    empty.style.opacity = '0.8';
-    empty.textContent = 'No existing groups in this window.';
-    groupsContainer.appendChild(empty);
-  } else {
-    groups.forEach(g => {
-      const item = document.createElement('div');
-      item.className = 'group-item';
-      const sw = document.createElement('div');
-      sw.className = 'swatch';
-      sw.style.background = GROUP_COLOR_MAP[g.color] || GROUP_COLOR_MAP.default;
-      const tx = document.createElement('div');
-      tx.textContent = g.title || 'Group';
-      tx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;`;
-      item.appendChild(sw);
-      item.appendChild(tx);
-      item.onclick = async (e) => {
-        e.stopPropagation(); e.preventDefault();
-        suppressClickUntil = Date.now() + 700;
-        await safeRuntimeSendMessageWithRetry({ action: 'GROUP_TAB', tabId, groupId: g.id }, 3);
-        closeActivePopover();
-        handleStateChange();
-      };
-      groupsContainer.appendChild(item);
-    });
-  }
+  groups.forEach(g => {
+    const item = document.createElement('div');
+    item.className = 'group-item';
+    const sw = document.createElement('div');
+    sw.className = 'swatch';
+    sw.style.background = GROUP_COLOR_MAP[g.color] || GROUP_COLOR_MAP.default;
+    const tx = document.createElement('div');
+    tx.textContent = g.title || 'Group';
+    tx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;`;
+    item.appendChild(sw);
+    item.appendChild(tx);
+    item.onclick = async (e) => {
+      e.stopPropagation(); e.preventDefault();
+      suppressClickUntil = Date.now() + 700;
+      await safeRuntimeSendMessageWithRetry({ action: 'GROUP_TAB', tabId, groupId: g.id }, 3);
+      closeActivePopover();
+      handleStateChange();
+    };
+    groupsContainer.appendChild(item);
+  });
 
   // New group panel (hidden until "New" is clicked)
   const createPanel = document.createElement('div');
@@ -649,7 +630,6 @@ function openGroupPopover(anchorEl, tabId) {
     e.stopPropagation(); e.preventDefault();
     inp.value = '';
     createPanel.style.display = 'none';
-    newBtn.style.display = '';
   };
 
   newRow.appendChild(inp);
@@ -659,15 +639,33 @@ function openGroupPopover(anchorEl, tabId) {
   createPanel.appendChild(newRow);
   pop.appendChild(createPanel);
 
-  newBtn.onclick = (e) => {
+  newItem.onclick = (e) => {
     e.stopPropagation(); e.preventDefault();
     createPanel.style.display = 'block';
-    newBtn.style.display = 'none';
     setTimeout(() => { try { inp.focus(); } catch {} }, 0);
   };
 
   activePopover = pop;
   document.body.appendChild(pop);
+
+  // Now that it's in the DOM, compute a tight dropdown position anchored to the "+".
+  const r = anchorEl.getBoundingClientRect();
+  const pr = pop.getBoundingClientRect();
+
+  let left = r.left;
+  let top = r.bottom + 6;
+
+  // Clamp to viewport with small margins.
+  const margin = 8;
+  left = Math.max(margin, Math.min(left, window.innerWidth - pr.width - margin));
+  // If not enough space below, open upward.
+  if (top + pr.height + margin > window.innerHeight) {
+    top = Math.max(margin, r.top - pr.height - 6);
+  }
+
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+  pop.style.visibility = 'visible';
   document.addEventListener('mousedown', onDocMouseDown, true);
   document.addEventListener('keydown', onDocKeyDown, true);
 
