@@ -552,16 +552,69 @@ function openGroupPopover(anchorEl, tabId) {
   pop.style.top = `${top}px`;
   pop.style.left = `${left}px`;
 
-  const title = document.createElement('div');
-  title.className = 'row';
-  title.style.marginBottom = '8px';
-  title.textContent = 'Add to group';
-  pop.appendChild(title);
+  // Header row: title + "New" button (menu-first UX)
+  const header = document.createElement('div');
+  header.className = 'row';
+  header.style.marginBottom = '8px';
+  header.style.justifyContent = 'space-between';
 
-  // New group UI
+  const headerText = document.createElement('div');
+  headerText.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;`;
+  headerText.textContent = 'Add to group';
+
+  const newBtn = document.createElement('div');
+  newBtn.className = 'btn';
+  newBtn.textContent = 'New';
+  newBtn.style.padding = '4px 8px';
+
+  header.appendChild(headerText);
+  header.appendChild(newBtn);
+  pop.appendChild(header);
+
+  const divider = document.createElement('div');
+  divider.style.cssText = `all: initial; height:1px; background:#333; margin:8px 0; display:block;`;
+  pop.appendChild(divider);
+
+  const groupsContainer = document.createElement('div');
+  groupsContainer.style.cssText = `all: initial; display:block;`;
+  pop.appendChild(groupsContainer);
+
+  const groups = Array.isArray(cachedTabGroups) ? cachedTabGroups : [];
+  if (!groups.length) {
+    const empty = document.createElement('div');
+    empty.className = 'row';
+    empty.style.opacity = '0.8';
+    empty.textContent = 'No existing groups in this window.';
+    groupsContainer.appendChild(empty);
+  } else {
+    groups.forEach(g => {
+      const item = document.createElement('div');
+      item.className = 'group-item';
+      const sw = document.createElement('div');
+      sw.className = 'swatch';
+      sw.style.background = GROUP_COLOR_MAP[g.color] || GROUP_COLOR_MAP.default;
+      const tx = document.createElement('div');
+      tx.textContent = g.title || 'Group';
+      tx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;`;
+      item.appendChild(sw);
+      item.appendChild(tx);
+      item.onclick = async (e) => {
+        e.stopPropagation(); e.preventDefault();
+        suppressClickUntil = Date.now() + 700;
+        await safeRuntimeSendMessageWithRetry({ action: 'GROUP_TAB', tabId, groupId: g.id }, 3);
+        closeActivePopover();
+        handleStateChange();
+      };
+      groupsContainer.appendChild(item);
+    });
+  }
+
+  // New group panel (hidden until "New" is clicked)
+  const createPanel = document.createElement('div');
+  createPanel.style.cssText = `all: initial; display:none; margin-top:10px;`;
+
   const newRow = document.createElement('div');
   newRow.className = 'row';
-  newRow.style.marginBottom = '10px';
 
   const inp = document.createElement('input');
   inp.type = 'text';
@@ -589,52 +642,36 @@ function openGroupPopover(anchorEl, tabId) {
     handleStateChange();
   };
 
+  const cancelBtn = document.createElement('div');
+  cancelBtn.className = 'btn';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.onclick = (e) => {
+    e.stopPropagation(); e.preventDefault();
+    inp.value = '';
+    createPanel.style.display = 'none';
+    newBtn.style.display = '';
+  };
+
   newRow.appendChild(inp);
   newRow.appendChild(sel);
   newRow.appendChild(createBtn);
-  pop.appendChild(newRow);
+  newRow.appendChild(cancelBtn);
+  createPanel.appendChild(newRow);
+  pop.appendChild(createPanel);
 
-  const divider = document.createElement('div');
-  divider.style.cssText = `all: initial; height:1px; background:#333; margin:8px 0; display:block;`;
-  pop.appendChild(divider);
-
-  const groups = Array.isArray(cachedTabGroups) ? cachedTabGroups : [];
-  if (!groups.length) {
-    const empty = document.createElement('div');
-    empty.className = 'row';
-    empty.style.opacity = '0.8';
-    empty.textContent = 'No existing groups in this window.';
-    pop.appendChild(empty);
-  } else {
-    groups.forEach(g => {
-      const item = document.createElement('div');
-      item.className = 'group-item';
-      const sw = document.createElement('div');
-      sw.className = 'swatch';
-      sw.style.background = GROUP_COLOR_MAP[g.color] || GROUP_COLOR_MAP.default;
-      const tx = document.createElement('div');
-      tx.textContent = g.title || 'Group';
-      tx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;`;
-      item.appendChild(sw);
-      item.appendChild(tx);
-      item.onclick = async (e) => {
-        e.stopPropagation(); e.preventDefault();
-        suppressClickUntil = Date.now() + 700;
-        await safeRuntimeSendMessageWithRetry({ action: 'GROUP_TAB', tabId, groupId: g.id }, 3);
-        closeActivePopover();
-        handleStateChange();
-      };
-      pop.appendChild(item);
-    });
-  }
+  newBtn.onclick = (e) => {
+    e.stopPropagation(); e.preventDefault();
+    createPanel.style.display = 'block';
+    newBtn.style.display = 'none';
+    setTimeout(() => { try { inp.focus(); } catch {} }, 0);
+  };
 
   activePopover = pop;
   document.body.appendChild(pop);
   document.addEventListener('mousedown', onDocMouseDown, true);
   document.addEventListener('keydown', onDocKeyDown, true);
 
-  // Focus input for quick create
-  setTimeout(() => { try { inp.focus(); } catch {} }, 0);
+  // Menu-first UX: no auto-focus (only when user clicks "New")
 }
 
 function createLevel2Favicon(tab, { interactive = true } = {}) {
