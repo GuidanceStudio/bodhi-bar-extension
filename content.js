@@ -276,6 +276,14 @@ function ensureSizingStyle() {
       box-sizing:border-box;
     }
     [data-tz-popover="1"] .btn:hover{ background:#3a3a3a; }
+    [data-tz-popover="1"] .btn-primary{
+      background:${INDICATOR_COLOR};
+      border-color:${INDICATOR_COLOR};
+    }
+    [data-tz-popover="1"] .btn-primary:hover{
+      background:#0267b2;
+      border-color:#0267b2;
+    }
     [data-tz-popover="1"] .group-item{
       all: initial;
       display:flex;
@@ -600,17 +608,21 @@ function openGroupPopover(anchorEl, tabId) {
 
   // New group panel (hidden until "New" is clicked)
   const createPanel = document.createElement('div');
-  createPanel.style.cssText = `all: initial; display:none; margin-top:0;`;
+  createPanel.style.cssText = `all: initial; display:none; margin-top:0; width:100%; box-sizing:border-box;`;
 
-  const newRow = document.createElement('div');
-  newRow.className = 'row';
+  // Vertical form: title, color (full-width dropdown), create (primary), cancel (secondary)
+  const form = document.createElement('div');
+  form.style.cssText = `all: initial; display:flex; flex-direction:column; gap:8px; width:100%; box-sizing:border-box;`;
 
   const inp = document.createElement('input');
   inp.type = 'text';
   inp.placeholder = 'New group title';
-  inp.style.flex = '1 1 auto';
+  inp.style.width = '100%';
+  inp.style.boxSizing = 'border-box';
 
   const sel = document.createElement('select');
+  sel.style.width = '100%';
+  sel.style.boxSizing = 'border-box';
   const colors = ['grey','blue','red','yellow','green','pink','purple','cyan','orange'];
   colors.forEach(c => {
     const o = document.createElement('option');
@@ -619,8 +631,11 @@ function openGroupPopover(anchorEl, tabId) {
   });
 
   const createBtn = document.createElement('div');
-  createBtn.className = 'btn';
+  createBtn.className = 'btn btn-primary';
   createBtn.textContent = 'Create';
+  createBtn.style.width = '100%';
+  createBtn.style.boxSizing = 'border-box';
+  createBtn.style.textAlign = 'center';
   createBtn.onclick = async (e) => {
     e.stopPropagation(); e.preventDefault();
     const t = (inp.value || '').trim();
@@ -634,6 +649,9 @@ function openGroupPopover(anchorEl, tabId) {
   const cancelBtn = document.createElement('div');
   cancelBtn.className = 'btn';
   cancelBtn.textContent = 'Cancel';
+  cancelBtn.style.width = '100%';
+  cancelBtn.style.boxSizing = 'border-box';
+  cancelBtn.style.textAlign = 'center';
   cancelBtn.onclick = (e) => {
     e.stopPropagation(); e.preventDefault();
     inp.value = '';
@@ -641,11 +659,11 @@ function openGroupPopover(anchorEl, tabId) {
     groupsContainer.style.display = 'block';
   };
 
-  newRow.appendChild(inp);
-  newRow.appendChild(sel);
-  newRow.appendChild(createBtn);
-  newRow.appendChild(cancelBtn);
-  createPanel.appendChild(newRow);
+  form.appendChild(inp);
+  form.appendChild(sel);
+  form.appendChild(createBtn);
+  form.appendChild(cancelBtn);
+  createPanel.appendChild(form);
   pop.appendChild(createPanel);
 
   newItem.onclick = (e) => {
@@ -1430,6 +1448,133 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
   bar.appendChild(container);
 
   updateDynamicLayout();
+}
+
+// -------------------------------
+// Drag & drop (tabs reorder only within same "nature")
+// pinned <-> pinned, web <-> web, system <-> system, group tabs <-> same group
+// -------------------------------
+const dragState = {
+  sourceTabId: null,
+  sourceKind: null,   // 'pinned' | 'web' | 'system' | 'group'
+  sourceGroupId: null,
+  overEl: null,
+  placement: null,    // 'before' | 'after'
+};
+
+function closestDraggableTabEl(node) {
+  if (!node || !node.closest) return null;
+  return node.closest('[data-tz-draggable="tab"][data-tab-id]');
+}
+
+function clearDropIndicator() {
+  if (!dragState.overEl) return;
+  dragState.overEl.classList.remove('tz-drop-before', 'tz-drop-after');
+  dragState.overEl.style.boxShadow = '';
+  dragState.overEl = null;
+  dragState.placement = null;
+}
+
+function setDropIndicator(el, placement) {
+  if (!el) return;
+  if (dragState.overEl && dragState.overEl !== el) clearDropIndicator();
+  dragState.overEl = el;
+  dragState.placement = placement;
+  el.classList.toggle('tz-drop-before', placement === 'before');
+  el.classList.toggle('tz-drop-after', placement === 'after');
+  el.style.boxShadow = (placement === 'before')
+    ? `inset 0 2px 0 0 ${INDICATOR_COLOR}`
+    : `inset 0 -2px 0 0 ${INDICATOR_COLOR}`;
+}
+
+function canDropOn(targetEl) {
+  if (!targetEl) return false;
+  const targetKind = targetEl.dataset.tzKind || '';
+  if (!dragState.sourceTabId || !dragState.sourceKind) return false;
+  if (targetEl.dataset.tabId === dragState.sourceTabId) return false;
+  if (targetKind !== dragState.sourceKind) return false;
+  if (dragState.sourceKind === 'group') {
+    const tgtG = targetEl.dataset.groupId || '';
+    return !!tgtG && tgtG === (dragState.sourceGroupId || '');
+  }
+  return true;
+}
+
+async function handleMoveTab(sourceTabId, targetTabId, placement) {
+  suppressClickUntil = Date.now() + 700;
+  await safeRuntimeSendMessageWithRetry({
+    action: 'MOVE_TAB',
+    tabId: Number(sourceTabId),
+    targetTabId: Number(targetTabId),
+    placement
+  }, 3);
+  handleStateChange(); // refresh current view (Level 1/2/3)
+}
+
+function installDragAndDropHandlers() {
+  const bar = document.getElementById(TZ_BAR_ID);
+  if (!bar) return;
+  if (bar.dataset.tzDndInstalled === '1') return;
+  bar.dataset.tzDndInstalled = '1';
+
+  bar.addEventListener('dragstart', (e) => {
+    const el = closestDraggableTabEl(e.target);
+    if (!el) return;
+
+    dragState.sourceTabId = el.dataset.tabId;
+    dragState.sourceKind = el.dataset.tzKind || null;
+    dragState.sourceGroupId = el.dataset.groupId || null;
+
+    el.classList.add('tz-dragging');
+    el.style.opacity = '0.65';
+    suppressClickUntil = Date.now() + 700;
+
+    try {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragState.sourceTabId);
+    } catch { /* ignore */ }
+  }, true);
+
+  bar.addEventListener('dragover', (e) => {
+    if (!dragState.sourceTabId) return;
+    const el = closestDraggableTabEl(e.target);
+    if (!el) return;
+    if (!canDropOn(el)) return;
+
+    e.preventDefault(); // required to allow drop
+
+    const r = el.getBoundingClientRect();
+    const mid = r.top + (r.height / 2);
+    const placement = (e.clientY < mid) ? 'before' : 'after';
+    setDropIndicator(el, placement);
+  }, true);
+
+  bar.addEventListener('drop', (e) => {
+    if (!dragState.sourceTabId) return;
+    const el = closestDraggableTabEl(e.target);
+    if (!el || !canDropOn(el)) return;
+
+    e.preventDefault();
+
+    const targetTabId = el.dataset.tabId;
+    const placement = dragState.placement || 'before';
+
+    clearDropIndicator();
+    handleMoveTab(dragState.sourceTabId, targetTabId, placement).catch(() => {});
+  }, true);
+
+  bar.addEventListener('dragend', () => {
+    const dragging = bar.querySelector('.tz-dragging');
+    if (dragging) {
+      dragging.classList.remove('tz-dragging');
+      dragging.style.opacity = '';
+    }
+    clearDropIndicator();
+    dragState.sourceTabId = null;
+    dragState.sourceKind = null;
+    dragState.sourceGroupId = null;
+    suppressClickUntil = Date.now() + 500;
+  }, true);
 }
 
 // -------------------------------
