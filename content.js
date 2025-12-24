@@ -197,6 +197,12 @@ function ensureSizingStyle() {
     #ungroup-automatic-tab-bar [data-tz-draggable="tab"].tz-drop-after{
       box-shadow: inset 0 -2px 0 0 ${INDICATOR_COLOR} !important;
     }
+
+    /* Make HTML5 dragging start reliably on Chromium/WebKit */
+    #ungroup-automatic-tab-bar [data-tz-draggable="tab"]{
+      -webkit-user-drag: element;
+      user-drag: element;
+    }
   `;
   document.head?.appendChild(style);
 }
@@ -319,6 +325,9 @@ function getFallbackFaviconDataUrl() {
 function createFaviconElement(tab) {
   const favicon = document.createElement('img');
   favicon.className = 'tab-favicon';
+  // Prevent native image dragging from stealing the drag gesture from the tab tile.
+  favicon.draggable = false;
+  favicon.setAttribute('draggable', 'false');
   favicon.referrerPolicy = 'no-referrer';
   favicon.decoding = 'async';
   favicon.loading = 'lazy';
@@ -406,6 +415,7 @@ function createPinnedFavicon(tab, isCurrent) {
   wrap.className = 'tz-pin-fav-wrap';
   wrap.title = tab.title || tab.url || '';
   wrap.draggable = true;
+  wrap.setAttribute('draggable', 'true');
   wrap.dataset.tzDraggable = 'tab';
   wrap.dataset.tabId = String(tab.id);
   wrap.dataset.tzKind = 'pinned';
@@ -438,6 +448,7 @@ function createTabButton(tab, isCurrent, kind = 'web') {
   btn.className = 'tz-tab-btn';
   btn.title = tab.title || tab.url || "";
   btn.draggable = true;
+  btn.setAttribute('draggable', 'true');
   btn.dataset.tzDraggable = 'tab';
   btn.dataset.tabId = String(tab.id);
   btn.dataset.tzKind = kind;
@@ -1081,6 +1092,7 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       // -----------------------
       itemBtn.className = 'tz-tab-btn';
       itemBtn.draggable = true;
+      itemBtn.setAttribute('draggable', 'true');
       itemBtn.dataset.tzDraggable = 'tab';
       itemBtn.dataset.tabId = String(item.id);
       itemBtn.dataset.tzKind = 'group';
@@ -1092,6 +1104,7 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       const label = titleSpan;
       label.style.marginLeft = 'var(--tz-icon-gap)';
       label.style.color = '#fff';
+      label.style.pointerEvents = 'none';
       itemBtn.appendChild(label);
 
       itemBtn.appendChild(createCloseButton(item.id));
