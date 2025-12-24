@@ -709,6 +709,78 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return;
       }
 
+      if (action === 'MOVE_TAB') {
+        const tabId = request.tabId;
+        const targetTabId = request.targetTabId;
+        const placement = request.placement; // 'before' | 'after'
+
+        if (tabId == null || targetTabId == null) {
+          sendResponse({ ok: false, error: 'Missing tabId/targetTabId' });
+          return;
+        }
+        if (placement !== 'before' && placement !== 'after') {
+          sendResponse({ ok: false, error: 'Invalid placement' });
+          return;
+        }
+
+        try {
+          const [src, tgt] = await Promise.all([
+            chrome.tabs.get(tabId),
+            chrome.tabs.get(targetTabId),
+          ]);
+
+          if (!src || !tgt || src.windowId == null || tgt.windowId == null || src.windowId !== tgt.windowId) {
+            sendResponse({ ok: false, error: 'Tabs must be in the same window' });
+            return;
+          }
+
+          // Enforce "same nature" even if UI tries to do something else.
+          if (!!src.pinned !== !!tgt.pinned) {
+            sendResponse({ ok: false, error: 'Pinned mismatch' });
+            return;
+          }
+
+          const srcG = (typeof src.groupId === 'number') ? src.groupId : -1;
+          const tgtG = (typeof tgt.groupId === 'number') ? tgt.groupId : -1;
+          if (srcG !== tgtG) {
+            sendResponse({ ok: false, error: 'Group mismatch' });
+            return;
+          }
+
+          // If ungrouped + unpinned, enforce web/system separation.
+          if (!src.pinned && srcG === chrome.tabGroups.TAB_GROUP_ID_NONE) {
+            const srcSys = isSystemPage(src);
+            const tgtSys = isSystemPage(tgt);
+            if (srcSys !== tgtSys) {
+              sendResponse({ ok: false, error: 'Category mismatch (web/system)' });
+              return;
+            }
+          }
+
+          // Compute destination index accounting for index shift when moving forward.
+          let index = tgt.index + (placement === 'after' ? 1 : 0);
+          if (typeof src.index === 'number' && typeof tgt.index === 'number' && src.index < index) index -= 1;
+          if (index < 0) index = 0;
+
+          await chrome.tabs.move(tabId, { index });
+
+          // Re-apply rules after manual reorder.
+          touch(src.windowId, 'MOVE_TAB', { motion: true, drag: true });
+
+          sendResponse({ ok: true });
+          return;
+        } catch (e) {
+          if (isDraggingError(e)) {
+            try { scheduleRetry(sender?.tab?.windowId, 'MOVE_TAB lock'); } catch {}
+            sendResponse({ ok: false, error: 'LOCKED' });
+            return;
+          }
+          warn('MOVE_TAB error', { tabId, targetTabId, placement, message: String(e?.message || e) });
+          sendResponse({ ok: false, error: 'MOVE_TAB failed' });
+          return;
+        }
+      }
+
       sendResponse(null);
     } catch {
       sendResponse(null);
