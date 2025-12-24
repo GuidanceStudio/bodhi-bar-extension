@@ -458,6 +458,7 @@ function createTabButton(tab, isCurrent, kind = 'web') {
     `height:100%; width:var(--tz-tab-w); display:flex; align-items:center;` +
     `padding:0 var(--tz-pad-x); margin:0 var(--tz-gap-x);` +
     `flex:0 0 auto; overflow:hidden; cursor:pointer; user-select:none;` +
+    `-webkit-user-drag:element;` +
     `background:${isCurrent ? '#3a3a3a' : '#282828'};` +
     `color:${isCurrent ? '#ffffff' : '#cccccc'};` +
     `border-bottom:var(--tz-ind-h) solid ${isCurrent ? INDICATOR_COLOR : 'transparent'};` +
@@ -1093,6 +1094,7 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       itemBtn.className = 'tz-tab-btn';
       itemBtn.draggable = true;
       itemBtn.setAttribute('draggable', 'true');
+      itemBtn.style.setProperty('-webkit-user-drag', 'element');
       itemBtn.dataset.tzDraggable = 'tab';
       itemBtn.dataset.tabId = String(item.id);
       itemBtn.dataset.tzKind = 'group';
@@ -1144,6 +1146,7 @@ function closestDraggableTabEl(node) {
 function clearDropIndicator() {
   if (!dragState.overEl) return;
   dragState.overEl.classList.remove('tz-drop-before', 'tz-drop-after');
+  dragState.overEl.style.boxShadow = '';
   dragState.overEl = null;
   dragState.placement = null;
 }
@@ -1155,6 +1158,9 @@ function setDropIndicator(el, placement) {
   dragState.placement = placement;
   el.classList.toggle('tz-drop-before', placement === 'before');
   el.classList.toggle('tz-drop-after', placement === 'after');
+  el.style.boxShadow = (placement === 'before')
+    ? `inset 0 2px 0 0 ${INDICATOR_COLOR}`
+    : `inset 0 -2px 0 0 ${INDICATOR_COLOR}`;
 }
 
 function canDropOn(targetEl) {
@@ -1196,6 +1202,7 @@ function installDragAndDropHandlers() {
     dragState.sourceGroupId = el.dataset.groupId || null;
 
     el.classList.add('tz-dragging');
+    el.style.opacity = '0.65';
     suppressClickUntil = Date.now() + 700;
 
     try {
@@ -1234,7 +1241,10 @@ function installDragAndDropHandlers() {
 
   bar.addEventListener('dragend', () => {
     const dragging = bar.querySelector('.tz-dragging');
-    if (dragging) dragging.classList.remove('tz-dragging');
+    if (dragging) {
+      dragging.classList.remove('tz-dragging');
+      dragging.style.opacity = '';
+    }
     clearDropIndicator();
     dragState.sourceTabId = null;
     dragState.sourceKind = null;
