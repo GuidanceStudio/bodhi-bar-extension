@@ -223,8 +223,8 @@ function ensureSizingStyle() {
       user-drag: element;
     }
 
-    /* Group picker popover */
-    #ungroup-automatic-tab-bar .tz-popover{
+    /* Group picker popover (appended to body, so must not depend on being inside the bar) */
+    [data-tz-popover="1"]{
       all: initial;
       position:fixed;
       z-index:2147483647;
@@ -240,7 +240,7 @@ function ensureSizingStyle() {
       color:#fff;
       box-sizing:border-box;
     }
-    #ungroup-automatic-tab-bar .tz-popover .row{
+    [data-tz-popover="1"] .row{
       all: initial;
       display:flex;
       align-items:center;
@@ -250,8 +250,8 @@ function ensureSizingStyle() {
       color:#fff;
       box-sizing:border-box;
     }
-    #ungroup-automatic-tab-bar .tz-popover input,
-    #ungroup-automatic-tab-bar .tz-popover select{
+    [data-tz-popover="1"] input,
+    [data-tz-popover="1"] select{
       all: initial;
       font-family:${GLOBAL_FONT};
       font-size:13px;
@@ -262,7 +262,7 @@ function ensureSizingStyle() {
       padding:6px 8px;
       box-sizing:border-box;
     }
-    #ungroup-automatic-tab-bar .tz-popover .btn{
+    [data-tz-popover="1"] .btn{
       all: initial;
       font-family:${GLOBAL_FONT};
       font-size:13px;
@@ -275,8 +275,8 @@ function ensureSizingStyle() {
       user-select:none;
       box-sizing:border-box;
     }
-    #ungroup-automatic-tab-bar .tz-popover .btn:hover{ background:#3a3a3a; }
-    #ungroup-automatic-tab-bar .tz-popover .group-item{
+    [data-tz-popover="1"] .btn:hover{ background:#3a3a3a; }
+    [data-tz-popover="1"] .group-item{
       all: initial;
       display:flex;
       align-items:center;
@@ -290,8 +290,8 @@ function ensureSizingStyle() {
       color:#fff;
       box-sizing:border-box;
     }
-    #ungroup-automatic-tab-bar .tz-popover .group-item:hover{ background:#333; }
-    #ungroup-automatic-tab-bar .tz-popover .swatch{
+    [data-tz-popover="1"] .group-item:hover{ background:#333; }
+    [data-tz-popover="1"] .swatch{
       all: initial;
       width:10px;
       height:10px;
@@ -543,6 +543,7 @@ function openGroupPopover(anchorEl, tabId) {
 
   const pop = document.createElement('div');
   pop.className = 'tz-popover';
+  pop.dataset.tzPopover = '1';
   pop.onmousedown = (e) => { e.stopPropagation(); };
 
   // Anchor the menu to the "+" button (dropdown).
@@ -981,7 +982,7 @@ function findTopFixedHeaderCandidates(barRect, barH) {
 function applyShiftToCandidate(cand, barH) {
   const el = cand.el;
   const cs = cand.cs;
-  if (_tzShifted.has(el)) return;
+  if (_tzShiftED.has(el)) return;
 
   const prev = {
     top: el.style.top || null,
