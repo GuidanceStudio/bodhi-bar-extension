@@ -137,6 +137,7 @@ const state = {
   pendingWindows: new Set(),
   debounceTimers: new Map(),
   dragTimers: new Map(),
+  startupDelayTimers: new Map(), // windowId -> timerId (delay enforcement until after startup grace)
   lastMotionAt: new Map(),
   lastEnforceAt: new Map(),
   retryState: new Map(),
@@ -148,6 +149,30 @@ const state = {
 
 function inStartupGrace() {
   return (Date.now() - (state.startupAt || 0)) < STARTUP_GRACE_MS;
+}
+
+function remainingStartupGraceMs() {
+  const elapsed = Date.now() - (state.startupAt || 0);
+  return Math.max(0, STARTUP_GRACE_MS - elapsed);
+}
+
+function scheduleAfterStartupGrace(windowId, reason = 'startupGrace') {
+  if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return;
+  if (!inStartupGrace()) return;
+
+  // Ensure only one pending timer per window.
+  const prev = state.startupDelayTimers.get(windowId);
+  if (prev) return;
+
+  const delay = remainingStartupGraceMs() + 120; // small buffer past grace boundary
+  log('gate:startupGrace', { windowId, delay, reason });
+
+  const t = setTimeout(() => {
+    state.startupDelayTimers.delete(windowId);
+    schedule(windowId, `${reason}:afterGrace`);
+  }, delay);
+
+  state.startupDelayTimers.set(windowId, t);
 }
 
 function markNewTab(tabId) {
@@ -283,6 +308,13 @@ async function drain() {
 
   const windowId = it.value;
   state.pendingWindows.delete(windowId);
+
+  // During startup/session restore, Chrome may still be assigning groupId/index.
+  // Avoid enforcing (moving tabs/groups) until after grace to prevent accidental ungrouping.
+  if (inStartupGrace()) {
+    scheduleAfterStartupGrace(windowId, 'drain');
+    return;
+  }
 
   if (inCooldown(windowId)) {
     setTimeout(() => schedule(windowId, 'cooldown'), COOLDOWN_MS);
