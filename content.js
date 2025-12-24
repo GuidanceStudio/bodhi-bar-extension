@@ -58,6 +58,7 @@ let currentViewedGroupId = null;
 let cachedTabGroups = [];
 let isInternalResize = false;
 let suppressClickUntil = 0; // avoid accidental SWITCH_TAB right after drag end/drop
+let activePopover = null;
 
 // ---- Port/handshake state ----
 let tzPort = null;
@@ -202,6 +203,83 @@ function ensureSizingStyle() {
     #ungroup-automatic-tab-bar [data-tz-draggable="tab"]{
       -webkit-user-drag: element;
       user-drag: element;
+    }
+
+    /* Group picker popover */
+    #ungroup-automatic-tab-bar .tz-popover{
+      all: initial;
+      position:fixed;
+      z-index:2147483647;
+      width:260px;
+      max-height:320px;
+      overflow:auto;
+      background:#1f1f1f;
+      border:1px solid #333;
+      border-radius:8px;
+      box-shadow:0 8px 30px rgba(0,0,0,0.45);
+      padding:10px;
+      font-family:${GLOBAL_FONT};
+      color:#fff;
+      box-sizing:border-box;
+    }
+    #ungroup-automatic-tab-bar .tz-popover .row{
+      all: initial;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-family:${GLOBAL_FONT};
+      font-size:13px;
+      color:#fff;
+      box-sizing:border-box;
+    }
+    #ungroup-automatic-tab-bar .tz-popover input,
+    #ungroup-automatic-tab-bar .tz-popover select{
+      all: initial;
+      font-family:${GLOBAL_FONT};
+      font-size:13px;
+      color:#fff;
+      background:#2a2a2a;
+      border:1px solid #444;
+      border-radius:6px;
+      padding:6px 8px;
+      box-sizing:border-box;
+    }
+    #ungroup-automatic-tab-bar .tz-popover .btn{
+      all: initial;
+      font-family:${GLOBAL_FONT};
+      font-size:13px;
+      color:#fff;
+      background:#2f2f2f;
+      border:1px solid #444;
+      border-radius:6px;
+      padding:6px 8px;
+      cursor:pointer;
+      user-select:none;
+      box-sizing:border-box;
+    }
+    #ungroup-automatic-tab-bar .tz-popover .btn:hover{ background:#3a3a3a; }
+    #ungroup-automatic-tab-bar .tz-popover .group-item{
+      all: initial;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 6px;
+      border-radius:6px;
+      cursor:pointer;
+      user-select:none;
+      font-family:${GLOBAL_FONT};
+      font-size:13px;
+      color:#fff;
+      box-sizing:border-box;
+    }
+    #ungroup-automatic-tab-bar .tz-popover .group-item:hover{ background:#333; }
+    #ungroup-automatic-tab-bar .tz-popover .swatch{
+      all: initial;
+      width:10px;
+      height:10px;
+      border-radius:3px;
+      flex:0 0 10px;
+      box-sizing:border-box;
     }
   `;
   document.head?.appendChild(style);
@@ -384,6 +462,166 @@ function createCloseButton(tabId) {
   return x;
 }
 
+function createGroupButton(tabId) {
+  const b = document.createElement('div');
+  b.className = 'tz-group-btn';
+  b.textContent = 'Group…';
+  b.title = 'Add tab to a group';
+  b.style.cssText =
+    `all: initial; margin-left:auto; flex:0 0 auto;` +
+    `display:flex; align-items:center; justify-content:center;` +
+    `height:18px; padding:0 8px; border-radius:4px;` +
+    `font-family:${GLOBAL_FONT}; font-size:12px; line-height:1;` +
+    `cursor:pointer; user-select:none;` +
+    `background:#2f2f2f; border:1px solid #444; color:#fff;`;
+  b.onmouseover = () => { b.style.background = '#3a3a3a'; };
+  b.onmouseout = () => { b.style.background = '#2f2f2f'; };
+  b.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
+  b.onclick = (e) => { e.stopPropagation(); e.preventDefault(); openGroupPopover(b, tabId); };
+  return b;
+}
+
+function createUngroupButton(tabId) {
+  const b = document.createElement('div');
+  b.className = 'tz-ungroup-btn';
+  b.textContent = 'Ungroup';
+  b.title = 'Remove from group';
+  b.style.cssText =
+    `all: initial; margin-left:auto; flex:0 0 auto;` +
+    `display:flex; align-items:center; justify-content:center;` +
+    `height:18px; padding:0 8px; border-radius:4px;` +
+    `font-family:${GLOBAL_FONT}; font-size:12px; line-height:1;` +
+    `cursor:pointer; user-select:none;` +
+    `background:#2f2f2f; border:1px solid #444; color:#fff;`;
+  b.onmouseover = () => { b.style.background = '#3a3a3a'; };
+  b.onmouseout = () => { b.style.background = '#2f2f2f'; };
+  b.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
+  b.onclick = async (e) => {
+    e.stopPropagation(); e.preventDefault();
+    suppressClickUntil = Date.now() + 700;
+    await safeRuntimeSendMessageWithRetry({ action: 'UNGROUP_TAB', tabId }, 3);
+    handleStateChange();
+  };
+  return b;
+}
+
+function closeActivePopover() {
+  if (!activePopover) return;
+  try { activePopover.remove(); } catch {}
+  activePopover = null;
+  document.removeEventListener('mousedown', onDocMouseDown, true);
+  document.removeEventListener('keydown', onDocKeyDown, true);
+}
+
+function onDocMouseDown(e) {
+  if (!activePopover) return;
+  if (activePopover.contains(e.target)) return;
+  closeActivePopover();
+}
+
+function onDocKeyDown(e) {
+  if (e.key === 'Escape') closeActivePopover();
+}
+
+function openGroupPopover(anchorEl, tabId) {
+  closeActivePopover();
+
+  const pop = document.createElement('div');
+  pop.className = 'tz-popover';
+  pop.onmousedown = (e) => { e.stopPropagation(); };
+
+  // Position near the anchor
+  const r = anchorEl.getBoundingClientRect();
+  const top = Math.min(window.innerHeight - 340, Math.max(8, r.bottom + 6));
+  const left = Math.min(window.innerWidth - 280, Math.max(8, r.left - 120));
+  pop.style.top = `${top}px`;
+  pop.style.left = `${left}px`;
+
+  const title = document.createElement('div');
+  title.className = 'row';
+  title.style.marginBottom = '8px';
+  title.textContent = 'Add to group';
+  pop.appendChild(title);
+
+  // New group UI
+  const newRow = document.createElement('div');
+  newRow.className = 'row';
+  newRow.style.marginBottom = '10px';
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.placeholder = 'New group title';
+  inp.style.flex = '1 1 auto';
+
+  const sel = document.createElement('select');
+  const colors = ['grey','blue','red','yellow','green','pink','purple','cyan','orange'];
+  colors.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    sel.appendChild(o);
+  });
+
+  const createBtn = document.createElement('div');
+  createBtn.className = 'btn';
+  createBtn.textContent = 'Create';
+  createBtn.onclick = async (e) => {
+    e.stopPropagation(); e.preventDefault();
+    const t = (inp.value || '').trim();
+    if (!t) return;
+    suppressClickUntil = Date.now() + 700;
+    await safeRuntimeSendMessageWithRetry({ action: 'GROUP_TAB_NEW', tabId, title: t, color: sel.value }, 3);
+    closeActivePopover();
+    handleStateChange();
+  };
+
+  newRow.appendChild(inp);
+  newRow.appendChild(sel);
+  newRow.appendChild(createBtn);
+  pop.appendChild(newRow);
+
+  const divider = document.createElement('div');
+  divider.style.cssText = `all: initial; height:1px; background:#333; margin:8px 0; display:block;`;
+  pop.appendChild(divider);
+
+  const groups = Array.isArray(cachedTabGroups) ? cachedTabGroups : [];
+  if (!groups.length) {
+    const empty = document.createElement('div');
+    empty.className = 'row';
+    empty.style.opacity = '0.8';
+    empty.textContent = 'No existing groups in this window.';
+    pop.appendChild(empty);
+  } else {
+    groups.forEach(g => {
+      const item = document.createElement('div');
+      item.className = 'group-item';
+      const sw = document.createElement('div');
+      sw.className = 'swatch';
+      sw.style.background = GROUP_COLOR_MAP[g.color] || GROUP_COLOR_MAP.default;
+      const tx = document.createElement('div');
+      tx.textContent = g.title || 'Group';
+      tx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;`;
+      item.appendChild(sw);
+      item.appendChild(tx);
+      item.onclick = async (e) => {
+        e.stopPropagation(); e.preventDefault();
+        suppressClickUntil = Date.now() + 700;
+        await safeRuntimeSendMessageWithRetry({ action: 'GROUP_TAB', tabId, groupId: g.id }, 3);
+        closeActivePopover();
+        handleStateChange();
+      };
+      pop.appendChild(item);
+    });
+  }
+
+  activePopover = pop;
+  document.body.appendChild(pop);
+  document.addEventListener('mousedown', onDocMouseDown, true);
+  document.addEventListener('keydown', onDocKeyDown, true);
+
+  // Focus input for quick create
+  setTimeout(() => { try { inp.focus(); } catch {} }, 0);
+}
+
 function createLevel2Favicon(tab, { interactive = true } = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'tz-lvl2-fav-wrap';
@@ -480,6 +718,7 @@ function createTabButton(tab, isCurrent, kind = 'web') {
   text.style.pointerEvents = 'none';
   btn.appendChild(text);
 
+  if (kind === 'web') btn.appendChild(createGroupButton(tab.id));
   btn.appendChild(createCloseButton(tab.id));
   btn.onclick = () => handleTabClick(tab.id);
   return btn;
@@ -1109,6 +1348,7 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       label.style.pointerEvents = 'none';
       itemBtn.appendChild(label);
 
+      itemBtn.appendChild(createUngroupButton(item.id));
       itemBtn.appendChild(createCloseButton(item.id));
       itemBtn.onclick = () => handleTabClick(item.id);
     } else {
