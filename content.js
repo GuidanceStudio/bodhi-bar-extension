@@ -133,13 +133,31 @@ function ensureSizingStyle() {
       color:#bdbdbd;
       transition:opacity 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
     }
+    /* Group "+" button: same hover behavior as X */
+    #ungroup-automatic-tab-bar .tz-group-btn{
+      opacity:0 !important;
+      pointer-events:none !important;
+      background:transparent;
+      color:#bdbdbd;
+      transition:opacity 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
+    }
     #ungroup-automatic-tab-bar .tz-tab-btn:hover .tz-close-x{
       opacity:1 !important;
       pointer-events:auto !important;
       background:#3a3a3a;
       color:#ffffff;
     }
+    #ungroup-automatic-tab-bar .tz-tab-btn:hover .tz-group-btn{
+      opacity:1 !important;
+      pointer-events:auto !important;
+      background:#3a3a3a;
+      color:#ffffff;
+    }
     #ungroup-automatic-tab-bar .tz-tab-btn:hover .tz-close-x:hover{
+      background:#4a4a4a;
+      transform:scale(1.03);
+    }
+    #ungroup-automatic-tab-bar .tz-tab-btn:hover .tz-group-btn:hover{
       background:#4a4a4a;
       transform:scale(1.03);
     }
@@ -465,17 +483,14 @@ function createCloseButton(tabId) {
 function createGroupButton(tabId) {
   const b = document.createElement('div');
   b.className = 'tz-group-btn';
-  b.textContent = 'Group…';
-  b.title = 'Add tab to a group';
+  b.textContent = '+';
+  b.title = 'Add to group';
   b.style.cssText =
-    `all: initial; margin-left:auto; flex:0 0 auto;` +
+    `margin-left:0; flex:0 0 auto;` +
     `display:flex; align-items:center; justify-content:center;` +
-    `height:18px; padding:0 8px; border-radius:4px;` +
-    `font-family:${GLOBAL_FONT}; font-size:12px; line-height:1;` +
-    `cursor:pointer; user-select:none;` +
-    `background:#2f2f2f; border:1px solid #444; color:#fff;`;
-  b.onmouseover = () => { b.style.background = '#3a3a3a'; };
-  b.onmouseout = () => { b.style.background = '#2f2f2f'; };
+    `width:18px; height:18px; border-radius:4px;` +
+    `font-family:${GLOBAL_FONT}; font-size:16px; line-height:1;` +
+    `cursor:pointer; user-select:none;`;
   b.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
   b.onclick = (e) => { e.stopPropagation(); e.preventDefault(); openGroupPopover(b, tabId); };
   return b;
@@ -718,8 +733,14 @@ function createTabButton(tab, isCurrent, kind = 'web') {
   text.style.pointerEvents = 'none';
   btn.appendChild(text);
 
-  if (kind === 'web') btn.appendChild(createGroupButton(tab.id));
-  btn.appendChild(createCloseButton(tab.id));
+  const actions = document.createElement('div');
+  actions.style.cssText =
+    `all: initial; margin-left:auto; flex:0 0 auto; display:flex; align-items:center; gap:6px;` +
+    `height:18px;`;
+  if (kind === 'web') actions.appendChild(createGroupButton(tab.id));
+  actions.appendChild(createCloseButton(tab.id));
+  btn.appendChild(actions);
+
   btn.onclick = () => handleTabClick(tab.id);
   return btn;
 }
