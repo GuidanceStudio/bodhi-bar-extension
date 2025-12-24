@@ -556,19 +556,6 @@ function openGroupPopover(anchorEl, tabId) {
   groupsContainer.style.cssText = `all: initial; display:block;`;
   pop.appendChild(groupsContainer);
 
-  // Menu item: New group...
-  const newItem = document.createElement('div');
-  newItem.className = 'group-item';
-  const newSw = document.createElement('div');
-  newSw.className = 'swatch';
-  newSw.style.background = INDICATOR_COLOR;
-  const newTx = document.createElement('div');
-  newTx.textContent = 'New group…';
-  newTx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;`;
-  newItem.appendChild(newSw);
-  newItem.appendChild(newTx);
-  groupsContainer.appendChild(newItem);
-
   const groups = Array.isArray(cachedTabGroups) ? cachedTabGroups : [];
   groups.forEach(g => {
     const item = document.createElement('div');
@@ -591,9 +578,29 @@ function openGroupPopover(anchorEl, tabId) {
     groupsContainer.appendChild(item);
   });
 
+  // Menu item: New group… (LAST option, with "+" only)
+  const newItem = document.createElement('div');
+  newItem.className = 'group-item';
+  newItem.style.marginTop = groups.length ? '6px' : '0';
+
+  const plus = document.createElement('div');
+  plus.textContent = '+';
+  plus.style.cssText =
+    `all: initial; width:10px; text-align:center;` +
+    `font-family:${GLOBAL_FONT}; font-size:16px; font-weight:700;` +
+    `color:${INDICATOR_COLOR}; line-height:1;`;
+
+  const newTx = document.createElement('div');
+  newTx.textContent = 'New group…';
+  newTx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;`;
+
+  newItem.appendChild(plus);
+  newItem.appendChild(newTx);
+  groupsContainer.appendChild(newItem);
+
   // New group panel (hidden until "New" is clicked)
   const createPanel = document.createElement('div');
-  createPanel.style.cssText = `all: initial; display:none; margin-top:10px;`;
+  createPanel.style.cssText = `all: initial; display:none; margin-top:0;`;
 
   const newRow = document.createElement('div');
   newRow.className = 'row';
@@ -631,6 +638,7 @@ function openGroupPopover(anchorEl, tabId) {
     e.stopPropagation(); e.preventDefault();
     inp.value = '';
     createPanel.style.display = 'none';
+    groupsContainer.style.display = 'block';
   };
 
   newRow.appendChild(inp);
@@ -642,6 +650,7 @@ function openGroupPopover(anchorEl, tabId) {
 
   newItem.onclick = (e) => {
     e.stopPropagation(); e.preventDefault();
+    groupsContainer.style.display = 'none';
     createPanel.style.display = 'block';
     setTimeout(() => { try { inp.focus(); } catch {} }, 0);
   };
@@ -982,7 +991,7 @@ function findTopFixedHeaderCandidates(barRect, barH) {
 function applyShiftToCandidate(cand, barH) {
   const el = cand.el;
   const cs = cand.cs;
-  if (_tzShiftED.has(el)) return;
+  if (_tzShifted.has(el)) return;
 
   const prev = {
     top: el.style.top || null,
