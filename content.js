@@ -218,7 +218,7 @@ function ensureSizingStyle() {
     }
 
     /* Make HTML5 dragging start reliably on Chromium/WebKit */
-    #ungroup-automatic-tab-bar [data-tz-draggable="tab"]{
+    #ungroup-automatic-tab-bar [data-tz-draggable]{
       -webkit-user-drag: element;
       user-drag: element;
     }
@@ -1144,7 +1144,7 @@ function applyPageShift() {
 // -------------------------------
 function ensureBar() {
   ensureSizingStyle();
-  applyZoomCompensatedMetrics(false);
+  applyZoomCompensatedMetrics(true);
 
   let bar = document.getElementById('ungroup-automatic-tab-bar');
   if (bar && !document.body?.contains(bar)) {
@@ -1383,6 +1383,12 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       const groupColorHex = GROUP_COLOR_MAP[item.color] || GROUP_COLOR_MAP.default;
       itemBtn.style.borderBottom = `var(--tz-ind-h) solid ${groupColorHex}`;
       itemBtn.style.color = groupColorHex;
+      itemBtn.className = 'tz-tab-btn';
+      itemBtn.draggable = true;
+      itemBtn.setAttribute('draggable', 'true');
+      itemBtn.style.setProperty('-webkit-user-drag', 'element');
+      itemBtn.dataset.tzDraggable = 'group';
+      itemBtn.dataset.groupId = String(item.id);
 
       itemBtn.appendChild(titleSpan);
 
@@ -1455,16 +1461,20 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
 // pinned <-> pinned, web <-> web, system <-> system, group tabs <-> same group
 // -------------------------------
 const dragState = {
+  sourceType: null,   // 'tab' | 'group'
   sourceTabId: null,
   sourceKind: null,   // 'pinned' | 'web' | 'system' | 'group'
   sourceGroupId: null,
+  sourceGroupTileId: null, // Level-2 group tile drag
   overEl: null,
   placement: null,    // 'before' | 'after'
 };
 
 function closestDraggableTabEl(node) {
   if (!node || !node.closest) return null;
-  return node.closest('[data-tz-draggable="tab"][data-tab-id]');
+  return node.closest(
+    '[data-tz-draggable="tab"][data-tab-id], [data-tz-draggable="group"][data-group-id]'
+  );
 }
 
 function clearDropIndicator() {
@@ -1489,6 +1499,15 @@ function setDropIndicator(el, placement) {
 
 function canDropOn(targetEl) {
   if (!targetEl) return false;
+  // Group reorder (Level 2)
+  if (dragState.sourceType === 'group') {
+    if (targetEl.dataset.tzDraggable !== 'group') return false;
+    if (navigationState !== NAV_LEVELS.LEVEL_2) return false;
+    const tgtId = targetEl.dataset.groupId || '';
+    return !!tgtId && tgtId !== String(dragState.sourceGroupTileId || '');
+  }
+
+  // Tab reorder (Level 1 + Level 3)
   const targetKind = targetEl.dataset.tzKind || '';
   if (!dragState.sourceTabId || !dragState.sourceKind) return false;
   if (targetEl.dataset.tabId === dragState.sourceTabId) return false;
@@ -1502,139 +1521,21 @@ function canDropOn(targetEl) {
 
 async function handleMoveTab(sourceTabId, targetTabId, placement) {
   suppressClickUntil = Date.now() + 700;
-  await safeRuntimeSendMessageWithRetry({
-    action: 'MOVE_TAB',
-    tabId: Number(sourceTabId),
-    targetTabId: Number(targetTabId),
-    placement
-  }, 3);
-  handleStateChange(); // refresh current view (Level 1/2/3)
-}
-
-function installDragAndDropHandlers() {
-  const bar = document.getElementById(TZ_BAR_ID);
-  if (!bar) return;
-  if (bar.dataset.tzDndInstalled === '1') return;
-  bar.dataset.tzDndInstalled = '1';
-
-  bar.addEventListener('dragstart', (e) => {
-    const el = closestDraggableTabEl(e.target);
-    if (!el) return;
-
-    dragState.sourceTabId = el.dataset.tabId;
-    dragState.sourceKind = el.dataset.tzKind || null;
-    dragState.sourceGroupId = el.dataset.groupId || null;
-
-    el.classList.add('tz-dragging');
-    el.style.opacity = '0.65';
-    suppressClickUntil = Date.now() + 700;
-
-    try {
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', dragState.sourceTabId);
-    } catch { /* ignore */ }
-  }, true);
-
-  bar.addEventListener('dragover', (e) => {
-    if (!dragState.sourceTabId) return;
-    const el = closestDraggableTabEl(e.target);
-    if (!el) return;
-    if (!canDropOn(el)) return;
-
-    e.preventDefault(); // required to allow drop
-
-    const r = el.getBoundingClientRect();
-    const mid = r.top + (r.height / 2);
-    const placement = (e.clientY < mid) ? 'before' : 'after';
-    setDropIndicator(el, placement);
-  }, true);
-
-  bar.addEventListener('drop', (e) => {
-    if (!dragState.sourceTabId) return;
-    const el = closestDraggableTabEl(e.target);
-    if (!el || !canDropOn(el)) return;
-
-    e.preventDefault();
-
-    const targetTabId = el.dataset.tabId;
-    const placement = dragState.placement || 'before';
-
-    clearDropIndicator();
-    handleMoveTab(dragState.sourceTabId, targetTabId, placement).catch(() => {});
-  }, true);
-
-  bar.addEventListener('dragend', () => {
-    const dragging = bar.querySelector('.tz-dragging');
-    if (dragging) {
-      dragging.classList.remove('tz-dragging');
-      dragging.style.opacity = '';
-    }
-    clearDropIndicator();
-    dragState.sourceTabId = null;
-    dragState.sourceKind = null;
-    dragState.sourceGroupId = null;
-    suppressClickUntil = Date.now() + 500;
-  }, true);
-}
-
-// -------------------------------
-// Drag & drop (tabs reorder only within same "nature")
-// pinned <-> pinned, web <-> web, system <-> system, group tabs <-> same group
-// -------------------------------
-const dragState = {
-  sourceTabId: null,
-  sourceKind: null,   // 'pinned' | 'web' | 'system' | 'group'
-  sourceGroupId: null,
-  overEl: null,
-  placement: null,    // 'before' | 'after'
-};
-
-function closestDraggableTabEl(node) {
-  if (!node || !node.closest) return null;
-  return node.closest('[data-tz-draggable="tab"][data-tab-id]');
-}
-
-function clearDropIndicator() {
-  if (!dragState.overEl) return;
-  dragState.overEl.classList.remove('tz-drop-before', 'tz-drop-after');
-  dragState.overEl.style.boxShadow = '';
-  dragState.overEl = null;
-  dragState.placement = null;
-}
-
-function setDropIndicator(el, placement) {
-  if (!el) return;
-  if (dragState.overEl && dragState.overEl !== el) clearDropIndicator();
-  dragState.overEl = el;
-  dragState.placement = placement;
-  el.classList.toggle('tz-drop-before', placement === 'before');
-  el.classList.toggle('tz-drop-after', placement === 'after');
-  el.style.boxShadow = (placement === 'before')
-    ? `inset 0 2px 0 0 ${INDICATOR_COLOR}`
-    : `inset 0 -2px 0 0 ${INDICATOR_COLOR}`;
-}
-
-function canDropOn(targetEl) {
-  if (!targetEl) return false;
-  const targetKind = targetEl.dataset.tzKind || '';
-  if (!dragState.sourceTabId || !dragState.sourceKind) return false;
-  if (targetEl.dataset.tabId === dragState.sourceTabId) return false;
-  if (targetKind !== dragState.sourceKind) return false;
-  if (dragState.sourceKind === 'group') {
-    const tgtG = targetEl.dataset.groupId || '';
-    return !!tgtG && tgtG === (dragState.sourceGroupId || '');
+  if (dragState.sourceType === 'group') {
+    await safeRuntimeSendMessageWithRetry({
+      action: 'MOVE_GROUP',
+      groupId: Number(sourceTabId),
+      targetGroupId: Number(targetTabId),
+      placement
+    }, 3);
+  } else {
+    await safeRuntimeSendMessageWithRetry({
+      action: 'MOVE_TAB',
+      tabId: Number(sourceTabId),
+      targetTabId: Number(targetTabId),
+      placement
+    }, 3);
   }
-  return true;
-}
-
-async function handleMoveTab(sourceTabId, targetTabId, placement) {
-  suppressClickUntil = Date.now() + 700;
-  await safeRuntimeSendMessageWithRetry({
-    action: 'MOVE_TAB',
-    tabId: Number(sourceTabId),
-    targetTabId: Number(targetTabId),
-    placement
-  }, 3);
   handleStateChange(); // refresh current view (Level 1/2/3)
 }
 
@@ -1648,9 +1549,19 @@ function installDragAndDropHandlers() {
     const el = closestDraggableTabEl(e.target);
     if (!el) return;
 
-    dragState.sourceTabId = el.dataset.tabId;
-    dragState.sourceKind = el.dataset.tzKind || null;
-    dragState.sourceGroupId = el.dataset.groupId || null;
+    if (el.dataset.tzDraggable === 'group') {
+      dragState.sourceType = 'group';
+      dragState.sourceGroupTileId = el.dataset.groupId;
+      dragState.sourceTabId = null;
+      dragState.sourceKind = null;
+      dragState.sourceGroupId = null;
+    } else {
+      dragState.sourceType = 'tab';
+      dragState.sourceTabId = el.dataset.tabId;
+      dragState.sourceKind = el.dataset.tzKind || null;
+      dragState.sourceGroupId = el.dataset.groupId || null;
+      dragState.sourceGroupTileId = null;
+    }
 
     el.classList.add('tz-dragging');
     el.style.opacity = '0.65';
@@ -1658,12 +1569,13 @@ function installDragAndDropHandlers() {
 
     try {
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', dragState.sourceTabId);
+      const payload = (dragState.sourceType === 'group') ? (dragState.sourceGroupTileId || '') : (dragState.sourceTabId || '');
+      e.dataTransfer.setData('text/plain', payload);
     } catch { /* ignore */ }
   }, true);
 
   bar.addEventListener('dragover', (e) => {
-    if (!dragState.sourceTabId) return;
+    if (!dragState.sourceTabId && !dragState.sourceGroupTileId) return;
     const el = closestDraggableTabEl(e.target);
     if (!el) return;
     if (!canDropOn(el)) return;
@@ -1677,17 +1589,18 @@ function installDragAndDropHandlers() {
   }, true);
 
   bar.addEventListener('drop', (e) => {
-    if (!dragState.sourceTabId) return;
+    if (!dragState.sourceTabId && !dragState.sourceGroupTileId) return;
     const el = closestDraggableTabEl(e.target);
     if (!el || !canDropOn(el)) return;
 
     e.preventDefault();
 
-    const targetTabId = el.dataset.tabId;
+    const targetTabId = (dragState.sourceType === 'group') ? el.dataset.groupId : el.dataset.tabId;
     const placement = dragState.placement || 'before';
 
     clearDropIndicator();
-    handleMoveTab(dragState.sourceTabId, targetTabId, placement).catch(() => {});
+    const sourceId = (dragState.sourceType === 'group') ? dragState.sourceGroupTileId : dragState.sourceTabId;
+    handleMoveTab(sourceId, targetTabId, placement).catch(() => {});
   }, true);
 
   bar.addEventListener('dragend', () => {
@@ -1697,9 +1610,11 @@ function installDragAndDropHandlers() {
       dragging.style.opacity = '';
     }
     clearDropIndicator();
+    dragState.sourceType = null;
     dragState.sourceTabId = null;
     dragState.sourceKind = null;
     dragState.sourceGroupId = null;
+    dragState.sourceGroupTileId = null;
     suppressClickUntil = Date.now() + 500;
   }, true);
 }
