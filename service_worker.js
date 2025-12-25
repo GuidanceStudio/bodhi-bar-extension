@@ -63,7 +63,8 @@ async function buildUngroupedPayload() {
       index: t.index,
       title: t.title || '',
       url: t.url || '',
-      favIconUrl: t.favIconUrl || ''
+      favIconUrl: t.favIconUrl || '',
+      groupId: t.groupId
     };
 
     if (isSystemUrl(t.url || '')) systemTabs.push(item);

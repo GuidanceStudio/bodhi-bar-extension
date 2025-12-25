@@ -598,8 +598,7 @@ function openGroupPopover(anchorEl, tabId) {
     `font-family:${GLOBAL_FONT}; font-size:16px; font-weight:700;` +
     `color:${INDICATOR_COLOR}; line-height:1;`;
 
-  const newTx = document.createElement('div');
-  newTx.textContent = 'New group…';
+  const newTx = document.textContent = 'New group…';
   newTx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;`;
 
   newItem.appendChild(plus);
@@ -759,7 +758,7 @@ function getDisplayedTitle(title) {
 // -------------------------------
 // Level 1 helpers (unchanged)
 // -------------------------------
-function createTabButton(tab, isCurrent, kind = 'web') {
+function createTabButton(tab, isCurrent, kind = 'web', isLevel1 = false) {
   const btn = document.createElement('div');
   btn.className = 'tz-tab-btn';
   btn.title = tab.title || tab.url || "";
@@ -801,7 +800,11 @@ function createTabButton(tab, isCurrent, kind = 'web') {
     `all: initial; margin-left:auto; flex:0 0 auto; display:flex; align-items:center; gap:6px;` +
     `height:18px;`;
   if (kind === 'web') actions.appendChild(createGroupButton(tab.id));
-  actions.appendChild(createCloseButton(tab.id));
+  
+  const isTabInGroup = tab.groupId !== -1 && tab.groupId != null;
+  if (!(isLevel1 && isTabInGroup)) {
+    actions.appendChild(createCloseButton(tab.id));
+  }
   btn.appendChild(actions);
 
   btn.onclick = () => handleTabClick(tab.id);
@@ -1248,13 +1251,13 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
   // CHANGED: pinned shown as favicon-only (not as tab tiles)
   pinnedSorted.forEach(tab => scrollContainer.appendChild(createPinnedFavicon(tab, tab.id === currentTabId)));
 
-  webSorted.forEach(tab => scrollContainer.appendChild(createTabButton(tab, tab.id === currentTabId, 'web')));
+  webSorted.forEach(tab => scrollContainer.appendChild(createTabButton(tab, tab.id === currentTabId, 'web', true)));
 
   scrollContainer.appendChild(createInlinePlusWrapper());
 
   if (sysSorted.length > 0) {
     scrollContainer.appendChild(createSeparator());
-    sysSorted.forEach(tab => scrollContainer.appendChild(createTabButton(tab, tab.id === currentTabId, 'system')));
+    sysSorted.forEach(tab => scrollContainer.appendChild(createTabButton(tab, tab.id === currentTabId, 'system', true)));
   }
 
   scrollContainer.appendChild(createStickyPlus());
