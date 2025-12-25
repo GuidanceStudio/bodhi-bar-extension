@@ -683,6 +683,19 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
     sel.appendChild(o);
   });
 
+  // Inline selected-color preview square (left of the color picker)
+  const colorRow = document.createElement('div');
+  colorRow.className = 'row';
+  colorRow.style.cssText = `all: initial; display:flex; align-items:center; gap:8px; width:100%; box-sizing:border-box;`;
+
+  const colorPreview = document.createElement('div');
+  colorPreview.className = 'swatch';
+  colorPreview.style.cssText = `all: initial; width:12px; height:12px; border-radius:3px; flex:0 0 12px; box-sizing:border-box; background:${GROUP_COLOR_MAP[sel.value] || GROUP_COLOR_MAP.default};`;
+
+  const updatePreview = () => { colorPreview.style.background = GROUP_COLOR_MAP[sel.value] || GROUP_COLOR_MAP.default; };
+  sel.addEventListener('change', updatePreview);
+  updatePreview();
+
   const createBtn = document.createElement('div');
   createBtn.className = 'btn btn-primary';
   createBtn.textContent = 'Create';
@@ -713,7 +726,9 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
   };
 
   form.appendChild(inp);
-  form.appendChild(sel);
+  colorRow.appendChild(colorPreview);
+  colorRow.appendChild(sel);
+  form.appendChild(colorRow);
   form.appendChild(createBtn);
   form.appendChild(cancelBtn);
   createPanel.appendChild(form);
