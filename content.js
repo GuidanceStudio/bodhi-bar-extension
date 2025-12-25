@@ -336,6 +336,14 @@ function ensureSizingStyle() {
       overflow:hidden;
       cursor:text;
     }
+    #ungroup-automatic-tab-bar .tz-search:not(.expanded){
+      border-color:transparent;
+      background:transparent;
+      padding:0 6px;
+    }
+    #ungroup-automatic-tab-bar .tz-search:not(.expanded) .icon{
+      font-size:22px;
+    }
     #ungroup-automatic-tab-bar .tz-search.expanded{
       width:260px;
       background:#222;
@@ -349,6 +357,8 @@ function ensureSizingStyle() {
       flex:0 0 auto;
       user-select:none;
     }
+    #ungroup-automatic-tab-bar .tz-search:not(.expanded) input{ display:none; }
+    #ungroup-automatic-tab-bar .tz-search:not(.expanded) .clear{ display:none !important; }
     #ungroup-automatic-tab-bar .tz-search input{
       all: initial;
       font-family:${GLOBAL_FONT};
@@ -620,6 +630,7 @@ function openSearchPopover(anchorEl) {
 
   const pop = document.createElement('div');
   pop.dataset.tzPopover = '1';
+  pop.style.width = 'min(980px, calc(100vw - 16px))';
   pop.style.visibility = 'hidden';
   pop.style.top = '0px';
   pop.style.left = '0px';
@@ -660,7 +671,9 @@ function openSearchPopover(anchorEl) {
       favWrap.appendChild(fav);
 
       const tx = document.createElement('div');
-      tx.textContent = tab.title || tab.url || '';
+      const url = tab.url || tab.pendingUrl || '';
+      const title = tab.title || '';
+      tx.textContent = url ? `${title} (${url})` : title;
       tx.style.cssText =
         `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;` +
         `overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto; min-width:0;`;
@@ -1404,7 +1417,7 @@ function createSearchBar() {
   icon.textContent = SEARCH_ICON;
   // Match the minimal look of other controls (no emoji-like rendering)
   icon.style.cssText =
-    `all: initial; font-family:${GLOBAL_FONT}; font-size:20px; line-height:1;` +
+    `all: initial; font-family:${GLOBAL_FONT}; font-size:${searchExpanded ? '20px' : '22px'}; line-height:1;` +
     `color:${INDICATOR_COLOR}; flex:0 0 auto; user-select:none;`;
   wrap.appendChild(icon);
 
@@ -1414,6 +1427,7 @@ function createSearchBar() {
   input.value = searchQuery;
   input.autocomplete = 'off';
   input.spellcheck = false;
+  input.style.display = searchExpanded ? 'block' : 'none';
   input.onmousedown = (e) => { e.stopPropagation(); };
   input.onclick = (e) => { e.stopPropagation(); };
   input.oninput = () => {
@@ -1425,6 +1439,7 @@ function createSearchBar() {
       searchQuery = '';
       searchExpanded = false;
       collapse.style.display = 'none';
+      input.style.display = 'none';
       closeActiveSearchPopover();
       if (navigationState === NAV_LEVELS.LEVEL_1) requestTabList();
     }
@@ -1457,6 +1472,7 @@ function createSearchBar() {
       searchExpanded = true;
       wrap.classList.add('expanded');
       collapse.style.display = 'block';
+      input.style.display = 'block';
       setTimeout(() => { try { input.focus(); } catch {} }, 0);
       openSearchPopover(wrap);
     } else {
