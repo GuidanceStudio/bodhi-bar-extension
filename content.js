@@ -732,7 +732,7 @@ function createPinnedFavicon(tab, isCurrent) {
   wrap.draggable = true;
   wrap.setAttribute('draggable', 'true');
   wrap.dataset.tzDraggable = 'tab';
-  wrap.dataset.tabId = String(tab.id);
+  wrap.dataset.tabid = String(tab.id);
   wrap.dataset.tzKind = 'pinned';
 
   if (isCurrent) {
@@ -765,7 +765,7 @@ function createTabButton(tab, isCurrent, kind = 'web', isLevel1 = false) {
   btn.draggable = true;
   btn.setAttribute('draggable', 'true');
   btn.dataset.tzDraggable = 'tab';
-  btn.dataset.tabId = String(tab.id);
+  btn.dataset.tabid = String(tab.id);
   btn.dataset.tzKind = kind;
 
   btn.style.cssText =
@@ -1391,7 +1391,7 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       itemBtn.setAttribute('draggable', 'true');
       itemBtn.style.setProperty('-webkit-user-drag', 'element');
       itemBtn.dataset.tzDraggable = 'group';
-      itemBtn.dataset.groupId = String(item.id);
+      itemBtn.dataset.groupid = String(item.id);
 
       itemBtn.appendChild(titleSpan);
 
@@ -1428,9 +1428,9 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       itemBtn.setAttribute('draggable', 'true');
       itemBtn.style.setProperty('-webkit-user-drag', 'element');
       itemBtn.dataset.tzDraggable = 'tab';
-      itemBtn.dataset.tabId = String(item.id);
+      itemBtn.dataset.tabid = String(item.id);
       itemBtn.dataset.tzKind = 'group';
-      itemBtn.dataset.groupId = String(item.groupId ?? currentViewedGroupId ?? '');
+      itemBtn.dataset.groupid = String(item.groupId ?? currentViewedGroupId ?? '');
 
       // IMPORTANT: favicon is ALWAYS inserted and forced visible
       itemBtn.appendChild(createLevel2Favicon(item, { interactive: false }));
@@ -1477,7 +1477,7 @@ const dragState = {
 function closestDraggableTabEl(node) {
   if (!node || !node.closest) return null;
   return node.closest(
-    '[data-tz-draggable="tab"][data-tab-id], [data-tz-draggable="group"][data-group-id]'
+    '[data-tz-draggable="tab"][data-tabid], [data-tz-draggable="group"][data-groupid]'
   );
 }
 
@@ -1505,20 +1505,20 @@ function canDropOn(targetEl) {
   if (!targetEl) return false;
   // Group reorder (Level 2)
   if (dragState.sourceType === 'group') {
-    if (targetEl.dataset.groupId === dragState.sourceGroupTileId) return false;
+    if (targetEl.dataset.groupid === dragState.sourceGroupTileId) return false;
     if (targetEl.dataset.tzDraggable !== 'group') return false;
     if (navigationState !== NAV_LEVELS.LEVEL_2) return false;
-    const tgtId = targetEl.dataset.groupId || '';
+    const tgtId = targetEl.dataset.groupid || '';
     return !!tgtId && tgtId !== String(dragState.sourceGroupTileId || '');
   }
 
   // Tab reorder (Level 1 + Level 3)
   const targetKind = targetEl.dataset.tzKind || '';
   if (!dragState.sourceTabId || !dragState.sourceKind) return false;
-  if (targetEl.dataset.tabId === dragState.sourceTabId) return false;
+  if (targetEl.dataset.tabid === dragState.sourceTabId) return false;
   if (targetKind !== dragState.sourceKind) return false;
   if (dragState.sourceKind === 'group') {
-    const tgtG = targetEl.dataset.groupId || '';
+    const tgtG = targetEl.dataset.groupid || '';
     return !!tgtG && tgtG === (dragState.sourceGroupId || '');
   }
   return true;
@@ -1556,15 +1556,15 @@ function installDragAndDropHandlers() {
 
     if (el.dataset.tzDraggable === 'group') {
       dragState.sourceType = 'group';
-      dragState.sourceGroupTileId = el.dataset.groupId;
+      dragState.sourceGroupTileId = el.dataset.groupid;
       dragState.sourceTabId = null;
       dragState.sourceKind = null;
       dragState.sourceGroupId = null;
     } else {
       dragState.sourceType = 'tab';
-      dragState.sourceTabId = el.dataset.tabId;
+      dragState.sourceTabId = el.dataset.tabid;
       dragState.sourceKind = el.dataset.tzKind || null;
-      dragState.sourceGroupId = el.dataset.groupId || null;
+      dragState.sourceGroupId = el.dataset.groupid || null;
       dragState.sourceGroupTileId = null;
     }
 
@@ -1600,7 +1600,7 @@ function installDragAndDropHandlers() {
 
     e.preventDefault();
 
-    const targetTabId = (dragState.sourceType === 'group') ? el.dataset.groupId : el.dataset.tabId;
+    const targetTabId = (dragState.sourceType === 'group') ? el.dataset.groupid : el.dataset.tabid;
     const placement = dragState.placement || 'before';
 
     dragState.lastTargetId = targetTabId;
