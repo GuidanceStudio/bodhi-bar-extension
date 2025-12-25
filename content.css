@@ -592,3 +592,211 @@
   cursor: pointer;
   user-select: none;
 }
+
+/* ========================================
+   Favicon (generic)
+   ======================================== */
+#ungroup-automatic-tab-bar .tab-favicon {
+  width: var(--tz-fav);
+  height: var(--tz-fav);
+  flex: 0 0 var(--tz-fav);
+  display: block;
+  pointer-events: none;
+}
+
+/* ========================================
+   Close button
+   ======================================== */
+#ungroup-automatic-tab-bar .tz-close-x {
+  all: initial;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ========================================
+   Group button (+)
+   ======================================== */
+#ungroup-automatic-tab-bar .tz-group-btn {
+  all: initial;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Level-3 menu button (-) */
+#ungroup-automatic-tab-bar .tz-group-btn.tz-menu-btn {
+  font-size: 18px;
+  color: #bdbdbd;
+}
+
+/* ========================================
+   Search icon
+   ======================================== */
+#ungroup-automatic-tab-bar .tz-search .icon {
+  all: initial;
+  font-family: Arial, sans-serif;
+  font-size: 32px;
+  line-height: 1;
+  color: #0078d4;
+  flex: 0 0 auto;
+  user-select: none;
+  cursor: pointer;
+}
+
+#ungroup-automatic-tab-bar .tz-search:not(.expanded) .icon {
+  margin-top: -4px;
+}
+
+/* ========================================
+   Level-2 favicon (inside group tile)
+   ======================================== */
+#ungroup-automatic-tab-bar .tz-lvl2-fav-wrap .tab-favicon {
+  width: var(--tz-lvl2-fav);
+  height: var(--tz-lvl2-fav);
+  flex: 0 0 var(--tz-lvl2-fav);
+}
+
+/* ========================================
+   Popover icon (+ / -)
+   ======================================== */
+[data-tz-popover="1"] .popover-icon {
+  all: initial;
+  width: 10px;
+  text-align: center;
+  font-family: Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ========================================
+   Search popover favicon wrapper
+   ======================================== */
+[data-tz-popover="1"] .tz-search-fav-wrap {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  flex: 0 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+[data-tz-popover="1"] .tz-search-fav-wrap .tab-favicon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  pointer-events: none;
+}
+
+/* ========================================
+   Search popover text
+   ======================================== */
+[data-tz-popover="1"] .tz-search-text {
+  all: initial;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ========================================
+   Popover empty/no-match message
+   ======================================== */
+[data-tz-popover="1"] .tz-popover-empty {
+  all: initial;
+  padding: 8px 6px;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  color: #bdbdbd;
+}
+
+/* ========================================
+   Popover form elements
+   ======================================== */
+[data-tz-popover="1"] .tz-popover-form {
+  all: initial;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+[data-tz-popover="1"] .tz-popover-form input,
+[data-tz-popover="1"] .tz-popover-form select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+[data-tz-popover="1"] .tz-color-row {
+  all: initial;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+[data-tz-popover="1"] .tz-color-preview {
+  all: initial;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: 0 0 12px;
+  box-sizing: border-box;
+}
+
+[data-tz-popover="1"] .tz-popover-panel {
+  all: initial;
+  display: none;
+  margin-top: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+[data-tz-popover="1"] .tz-groups-container {
+  all: initial;
+  display: block;
+}
+
+/* ========================================
+   Popover text labels
+   ======================================== */
+[data-tz-popover="1"] .tz-popover-label {
+  all: initial;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-tz-popover="1"] .tz-popover-label.muted {
+  color: #bdbdbd;
+}
