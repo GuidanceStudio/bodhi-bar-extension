@@ -20,7 +20,7 @@ const MAX_TITLE_LENGTH = 30;
 const INDICATOR_COLOR = '#0078d4';
 const BACK_ARROW = '◀';
 const GLOBAL_FONT = 'Arial, sans-serif';
-const SEARCH_ICON = '🔍';
+const SEARCH_ICON = '⌕';
 
 const GROUP_COLOR_MAP = {
   grey: '#5f6368', blue: '#8ab4f8', red: '#f28b82', yellow: '#fdd663',
@@ -546,8 +546,8 @@ function getSearchResults() {
   const out = [];
   for (const t of (cachedAllTabs || [])) {
     if (!t?.id || seen.has(t.id)) continue;
-    const title = normalizeForSearch(t.title || t.url || '');
-    if (title.includes(q)) {
+    const hay = normalizeForSearch(`${t.title || ''} - ${t.url || ''}`);
+    if (hay.includes(q)) {
       out.push(t);
       seen.add(t.id);
     }
@@ -1385,6 +1385,10 @@ function createSearchBar() {
   const icon = document.createElement('div');
   icon.className = 'icon';
   icon.textContent = SEARCH_ICON;
+  // Match the minimal look of other controls (no emoji-like rendering)
+  icon.style.cssText =
+    `all: initial; font-family:${GLOBAL_FONT}; font-size:16px; line-height:1;` +
+    `color:#bdbdbd; flex:0 0 auto; user-select:none;`;
   wrap.appendChild(icon);
 
   const input = document.createElement('input');
