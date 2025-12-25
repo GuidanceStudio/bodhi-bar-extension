@@ -56,6 +56,7 @@ const NAV_LEVELS = {
 let navigationState = NAV_LEVELS.LEVEL_1;
 let currentViewedGroupId = null;
 let cachedTabGroups = [];
+const POPOVER_SECTION_GAP_PX = 6;
 let isInternalResize = false;
 let suppressClickUntil = 0; // avoid accidental SWITCH_TAB right after drag end/drop
 let activePopover = null;
@@ -616,7 +617,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
     groupsContainer.appendChild(unItem);
 
     const sep = document.createElement('div');
-    sep.style.cssText = `all: initial; height:1px; background:#333; margin:6px 0;`;
+    sep.style.cssText = `all: initial; height:1px; background:#333; margin:${POPOVER_SECTION_GAP_PX}px 0;`;
     groupsContainer.appendChild(sep);
   }
 
@@ -646,7 +647,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
   // Menu item: New group… (LAST option, with "+" only)
   const newItem = document.createElement('div');
   newItem.className = 'group-item';
-  newItem.style.marginTop = groups.length ? '6px' : '0';
+  newItem.style.marginTop = groups.length ? `${POPOVER_SECTION_GAP_PX}px` : '0';
 
   const plus = createPopoverIcon('+');
 
