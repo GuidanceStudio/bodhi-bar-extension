@@ -322,7 +322,7 @@ function ensureSizingStyle() {
       box-sizing:border-box;
       height:calc(var(--tz-h) - 10px);
       margin-left:6px;
-      margin-right:var(--tz-gap-x);
+      margin-right:12px; /* Changed from var(--tz-gap-x) */
       display:flex;
       align-items:center;
       gap:8px;
@@ -345,14 +345,13 @@ function ensureSizingStyle() {
       cursor:pointer;
     }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) .icon{
-      font-size:35px;
-      position:relative;
-      top:-13px; /* This value might need adjustment */
+      font-size:28px; /* Changed from 35px */
+      /* Removed position:relative and top:-13px */
       cursor:pointer;
     }
     /* Ensure the icon can actually move vertically (some pages override line-height/align) */
     #ungroup-automatic-tab-bar .tz-search{ align-items:center; }
-    #ungroup-automatic-tab-bar .tz-search:not(.expanded){ align-items:flex-start; padding-top:6px; }
+    #ungroup-automatic-tab-bar .tz-search:not(.expanded){ align-items:flex-start; padding-top:0; } /* Changed from 6px */
     #ungroup-automatic-tab-bar .tz-search.expanded{ align-items:center; padding-top:0; }
     #ungroup-automatic-tab-bar .tz-search.expanded{
       width:260px;
@@ -1104,7 +1103,7 @@ function createTabButton(tab, isCurrent, kind = 'web', isLevel1 = false) {
   if (kind === 'web') actions.appendChild(createGroupButton(tab.id));
   
   const isTabInGroup = tab.groupId !== -1 && tab.groupId != null;
-  // Level 1: never show "X" on the first tile (the trigger tile).
+  // Level 1: never show "X" on the first tile (trigger).
   // Also keep the existing rule: if Level 1 and tab is in a group, hide X.
   if (!(isLevel1 && isTabInGroup) && !isLevel1) {
     actions.appendChild(createCloseButton(tab.id));
@@ -1491,7 +1490,7 @@ function createSearchBar() {
   // Match the minimal look of other controls (no emoji-like rendering)
   icon.style.cssText =
     // When expanded, keep it a bit larger than before (was too tiny).
-    `all: initial; font-family:${GLOBAL_FONT}; font-size:${searchExpanded ? '22px' : '35px'}; line-height:1;` +
+    `all: initial; font-family:${GLOBAL_FONT}; font-size:${searchExpanded ? '22px' : '28px'}; line-height:1;` +
     `color:${INDICATOR_COLOR}; flex:0 0 auto; user-select:none; cursor:pointer;`;
   wrap.appendChild(icon);
 
