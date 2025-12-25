@@ -14,8 +14,9 @@
  * favicons inside each group tile without extra per-group requests.
  */
 
-// Import constants from constants.js
-import { TZ_PORT_NAME, TZ_HANDSHAKE_MSG } from './constants.js';
+// Constants (duplicated here because service workers can't share globals with content scripts)
+const TZ_PORT_NAME = 'TZ_UI_PORT';
+const TZ_HANDSHAKE_MSG = { action: '__TZ_HANDSHAKE__' };
 
 const DEBUG = true;
 const TAG = '[BodhiBar]';
@@ -709,7 +710,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
 
       if (action === 'OPEN_NEW_TAB') {
-        await openNewTab();
+        await chrome.tabs.create({});
         const active = await getActiveTab();
         if (active?.windowId != null) scheduleUiRefresh(active.windowId, 'OPEN_NEW_TAB');
         sendResponse({ ok: true });
