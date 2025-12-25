@@ -812,7 +812,7 @@ function getDisplayedTitle(title) {
 // -------------------------------
 function createTabButton(tab, isCurrent, kind = 'web', isLevel1 = false) {
   const btn = document.createElement('div');
-  btn.className = 'tz-tab-btn';
+  btn.className = 'tz-tab-btn' + (isCurrent ? ' active' : '');
   btn.title = tab.title || tab.url || "";
   btn.draggable = true;
   btn.setAttribute('draggable', 'true');
@@ -820,37 +820,17 @@ function createTabButton(tab, isCurrent, kind = 'web', isLevel1 = false) {
   btn.dataset.tabid = String(tab.id);
   btn.dataset.tzKind = kind;
 
-  btn.style.cssText =
-    `all: initial; box-sizing:border-box; font-family:${GLOBAL_FONT};` +
-    `height:100%; width:var(--tz-tab-w); display:flex; align-items:center;` +
-    `padding:0 var(--tz-pad-x); margin:0 var(--tz-gap-x);` +
-    `flex:0 0 auto; overflow:hidden; cursor:pointer; user-select:none;` +
-    `-webkit-user-drag:element;` +
-    `background:${isCurrent ? '#3a3a3a' : '#282828'};` +
-    `color:${isCurrent ? '#ffffff' : '#cccccc'};` +
-    `border-bottom:var(--tz-ind-h) solid ${isCurrent ? INDICATOR_COLOR : 'transparent'};` +
-    `transition:background 0.2s;`;
-
-  btn.onmouseover = () => { if (!isCurrent) btn.style.background = '#333'; };
-  btn.onmouseout = () => { if (!isCurrent) btn.style.background = '#282828'; };
-
   const fav = createFaviconElement(tab);
   fav.style.pointerEvents = 'none';
   btn.appendChild(fav);
 
   const text = document.createElement('span');
+  text.className = 'tab-title';
   text.textContent = getDisplayedTitle(tab.title || tab.url);
-  text.style.cssText =
-    `all: initial; margin-left:var(--tz-icon-gap); font-family:${GLOBAL_FONT};` +
-    `font-size:var(--tz-font); line-height:1; color:inherit;` +
-    `white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;`;
-  text.style.pointerEvents = 'none';
   btn.appendChild(text);
 
   const actions = document.createElement('div');
-  actions.style.cssText =
-    `all: initial; margin-left:auto; flex:0 0 auto; display:flex; align-items:center; gap:6px;` +
-    `height:18px;`;
+  actions.className = 'tab-actions';
   if (kind === 'web') actions.appendChild(createGroupButton(tab.id));
   actions.appendChild(createCloseButton(tab.id));
   
@@ -862,31 +842,20 @@ function createTabButton(tab, isCurrent, kind = 'web', isLevel1 = false) {
 
 function createSeparator() {
   const sep = document.createElement('div');
-  sep.style.cssText =
-    `all: initial; width:var(--tz-sep-w); height:60%; background:#444;` +
-    `margin:0 var(--tz-sep-mx); flex:0 0 auto; display:block;`;
+  sep.className = 'tz-separator';
   return sep;
 }
 
 function createInlinePlusWrapper() {
   const wrapper = document.createElement('div');
   wrapper.className = 'inline-plus-wrapper';
-  wrapper.style.cssText = `all: initial; display:flex; align-items:center; height:100%; flex:0 0 auto;`;
 
   wrapper.appendChild(createSeparator());
 
   const btn = document.createElement('div');
+  btn.className = 'tz-plus-btn';
   btn.textContent = '+';
-  btn.style.cssText =
-    `all: initial; width:var(--tz-plus-w); height:100%;` +
-    `display:flex; align-items:center; justify-content:center;` +
-    `cursor:pointer; user-select:none; font-family:${GLOBAL_FONT};` +
-    `font-size:calc(var(--tz-font) * 1.6); color:${INDICATOR_COLOR}; font-weight:700;` +
-    `transition:transform 0.2s;`;
-
   btn.onclick = (e) => { e.stopPropagation(); handleNewTab(); };
-  btn.onmouseover = () => { btn.style.transform = 'scale(1.1)'; };
-  btn.onmouseout = () => { btn.style.transform = 'scale(1.0)'; };
 
   wrapper.appendChild(btn);
   return wrapper;
@@ -896,18 +865,7 @@ function createStickyPlus() {
   const btn = document.createElement('div');
   btn.className = 'plus-sticky';
   btn.textContent = '+';
-  btn.style.cssText =
-    `all: initial; position:sticky; right:0; z-index:100;` +
-    `flex:0 0 auto; width:var(--tz-plus-w); height:100%;` +
-    `display:none; align-items:center; justify-content:center;` +
-    `background:#202020; cursor:pointer; user-select:none;` +
-    `border-left:var(--tz-sep-w) solid #333; font-family:${GLOBAL_FONT};` +
-    `color:${INDICATOR_COLOR}; font-weight:700; font-size:calc(var(--tz-font) * 1.6);` +
-    `transition:transform 0.2s;`;
-
   btn.onclick = handleNewTab;
-  btn.onmouseover = () => { btn.style.transform = 'scale(1.1)'; };
-  btn.onmouseout = () => { btn.style.transform = 'scale(1.0)'; };
   return btn;
 }
 
@@ -999,7 +957,7 @@ function restoreSafeBottomClipper() {
     const prev = _tzClipperPrev || {};
     if (prev.paddingBottom == null) _tzClipperEl.style.removeProperty('padding-bottom'); else _tzClipperEl.style.paddingBottom = prev.paddingBottom;
     if (prev.boxSizing == null) _tzClipperEl.style.removeProperty('box-sizing'); else _tzClipperEl.style.boxSizing = prev.boxSizing;
-    el.removeAttribute(TZ_CLIP_ATTR);
+    _tzClipperEl.removeAttribute(TZ_CLIP_ATTR);
   } catch {}
   _tzClipperEl = null;
   _tzClipperPrev = null;
@@ -1206,19 +1164,10 @@ function ensureBar() {
 
 function renderDisconnectedBar(reason = 'Disconnected') {
   const bar = ensureBar();
-
   bar.innerHTML = '';
-  bar.style.cssText =
-    `all: initial; position:fixed !important; top:0 !important; left:0 !important;` +
-    `width:100% !important; height:var(--tz-h) !important; display:flex !important; align-items:center !important;` +
-    `background:#202020 !important; border-bottom:1px solid #000 !important; z-index:2147483647 !important;` +
-    `margin:0 !important; padding:0 !important; overflow:hidden !important;` +
-    `font-family:${GLOBAL_FONT} !important; color:#fff !important; font-size:var(--tz-font) !important;` +
-    `box-sizing:border-box !important;`;
 
   const msg = document.createElement('div');
-  msg.style.cssText =
-    `all: initial; font-family:${GLOBAL_FONT}; font-size:var(--tz-font); color:#fff; cursor:pointer; user-select:none;`;
+  msg.className = 'tz-disconnected-msg';
   msg.textContent = `Tab bar: ${reason} (click to retry)`;
   msg.onclick = () => requestTabList();
   bar.appendChild(msg);
@@ -1326,40 +1275,27 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
   const bar = ensureBar();
 
   bar.innerHTML = '';
-  bar.style.cssText =
-    `all: initial; position:fixed !important; top:0 !important; left:0 !important;` +
-    `width:100% !important; height:var(--tz-h) !important; display:flex !important; align-items:center !important;` +
-    `background:#202020 !important; border-bottom:1px solid #000 !important; z-index:2147483647 !important;` +
-    `margin:0 !important; padding:0 !important; overflow:hidden !important; font-family:${GLOBAL_FONT} !important;` +
-    `box-sizing:border-sizing !important;`;
+  // bar.style.cssText is now handled by CSS class #ungroup-automatic-tab-bar
 
   // Level-1 search (leftmost)
   bar.appendChild(createSearchBar());
 
   const trigger = document.createElement('div');
-  trigger.className = 'tz-tab-btn';
-  trigger.style.cssText =
-    `all: initial; box-sizing:border-box; flex:0 0 auto; width:var(--tz-tab-w); height:100%; display:flex; align-items:center;` +
-    `padding:0 var(--tz-pad-x); margin-right:var(--tz-gap-x); cursor:pointer; user-select:none; overflow:hidden;` +
-    `font-family:${GLOBAL_FONT}; font-size:var(--tz-font);` +
-    `background:${isCurrentTabGrouped ? '#3a3a3a' : '#282828'};` +
-    `border-bottom:var(--tz-ind-h) solid ${isCurrentTabGrouped ? INDICATOR_COLOR : 'transparent'}; transition:background 0.2s;`;
+  trigger.className = 'tz-trigger' + (isCurrentTabGrouped ? ' active' : '');
+  // trigger.style.cssText is now handled by CSS class .tz-trigger
 
   const triggerLabel = isCurrentTabGrouped
     ? getDisplayedTitle(currentTabTitle)
     : (allTabGroups.length > 0 ? 'Groups' : 'Bodhi Bar');
 
   const caret = document.createElement('span');
+  caret.className = 'caret';
   caret.textContent = '▼';
-  caret.style.cssText =
-    `all: initial; color:${INDICATOR_COLOR}; margin-right:var(--tz-icon-gap); flex:0 0 auto; font-family:${GLOBAL_FONT}; font-size:var(--tz-font);`;
   trigger.appendChild(caret);
 
   const lbl = document.createElement('span');
+  lbl.className = 'label';
   lbl.textContent = triggerLabel;
-  lbl.style.cssText =
-    `all: initial; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:${isCurrentTabGrouped ? '#fff' : '#ccc'};` +
-    `font-family:${GLOBAL_FONT}; font-size:var(--tz-font);`;
   trigger.appendChild(lbl);
 
   // Level 1: remove the "X" on the first tile (trigger).
@@ -1373,16 +1309,13 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
     }
     handleStateChange();
   };
-  trigger.onmouseover = () => { trigger.style.background = '#444'; };
-  trigger.onmouseout = () => { trigger.style.background = isCurrentTabGrouped ? '#3a3a3a' : '#282828'; };
+  // trigger.onmouseover and onmouseout are now handled by CSS class .tz-trigger:hover
 
   bar.appendChild(trigger);
 
   const scrollContainer = document.createElement('div');
   scrollContainer.className = 'scroll-container';
-  scrollContainer.style.cssText =
-    `all: initial; display:flex; flex:1 1 auto; min-width:0; align-items:center; height:100%;` +
-    `overflow-x:auto; overflow-y:hidden; scrollbar-width:none; position:relative;`;
+  // scrollContainer.style.cssText is now handled by CSS class .scroll-container
 
   const pinnedSorted = [...(pinnedTabs || [])].sort((a, b) => a.index - b.index);
   const webSorted = [...(webTabs || [])].sort((a, b) => a.index - b.index);
@@ -1477,33 +1410,28 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
   const bar = ensureBar();
 
   bar.innerHTML = '';
-  bar.style.cssText =
-    `all: initial; position:fixed !important; top:0 !important; left:0 !important;` +
-    `width:100% !important; height:var(--tz-h) !important; display:flex !important; align-items:center !important;` +
-    `background:#202020 !important; border-bottom:1px solid #000 !important; z-index:2147483647 !important;` +
-    `margin:0 !important; padding:0 !important; overflow:hidden !important; font-family:${GLOBAL_FONT} !important;` +
-    `box-sizing:border-box !important;`;
+  // bar.style.cssText is now handled by CSS class #ungroup-automatic-tab-bar
 
   const backBtn = document.createElement('div');
-  backBtn.style.cssText =
-    `all: initial; box-sizing:border-box; flex:0 0 auto; width:var(--tz-tab-w); height:100%; display:flex; align-items:center;` +
-    `padding:0 var(--tz-pad-x); margin-right:var(--tz-gap-x); cursor:pointer; user-select:none; overflow:hidden;` +
-    `font-family:${GLOBAL_FONT}; font-size:var(--tz-font); background:#3a3a3a; transition:background 0.2s;`;
+  backBtn.className = 'tz-back-btn';
 
-  backBtn.innerHTML =
-    `<span style="color:${INDICATOR_COLOR}; margin-right:var(--tz-icon-gap); flex:0 0 auto; font-family:${GLOBAL_FONT}; font-size:var(--tz-font);">${BACK_ARROW}</span>` +
-    `<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#fff; font-family:${GLOBAL_FONT}; font-size:var(--tz-font);">${getDisplayedTitle(currentGroupTitle)}</span>`;
+  const arrow = document.createElement('span');
+  arrow.className = 'arrow';
+  arrow.textContent = BACK_ARROW;
+  backBtn.appendChild(arrow);
+
+  const lbl = document.createElement('span');
+  lbl.className = 'label';
+  lbl.textContent = getDisplayedTitle(currentGroupTitle);
+  backBtn.appendChild(lbl);
 
   backBtn.onclick = (e) => { e.stopPropagation(); navigateBack(); };
-  backBtn.onmouseover = () => { backBtn.style.background = '#444'; };
-  backBtn.onmouseout = () => { backBtn.style.background = '#3a3a3a'; };
+  // backBtn.onmouseover and onmouseout are now handled by CSS class .tz-back-btn:hover
   bar.appendChild(backBtn);
 
   const container = document.createElement('div');
   container.className = 'scroll-container';
-  container.style.cssText =
-    `all: initial; display:flex; flex:1 1 auto; min-width:0; align-items:center; height:100%;` +
-    `overflow-x:auto; overflow-y:hidden; scrollbar-width:none; position:relative;`;
+  // container.style.cssText is now handled by CSS class .scroll-container
 
   const items = Array.isArray(data) ? data : [];
 
@@ -1514,49 +1442,31 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
     const itemBtn = document.createElement('div');
     itemBtn.title = item.title || item.url || "";
 
-    const base =
-      `all: initial; box-sizing:border-box; height:100%; display:flex; align-items:center;` +
-      `background:#282828; cursor:pointer; user-select:none; overflow:hidden; transition:background 0.2s;` +
-      `font-family:${GLOBAL_FONT}; font-size:var(--tz-font); margin:0 var(--tz-gap-x); flex:0 0 auto;`;
-
-    itemBtn.style.cssText = isLevel2Groups
-      ? `${base} padding:0 var(--tz-group-min-pad-x); min-width:var(--tz-tab-w);`
-      : `${base} width:var(--tz-tab-w); padding:0 var(--tz-pad-x);`;
-
-    itemBtn.onmouseover = () => { itemBtn.style.background = '#333'; };
-    itemBtn.onmouseout = () => { itemBtn.style.background = '#282828'; };
-
-    const titleSpan = document.createElement('span');
-    titleSpan.textContent = getDisplayedTitle(item.title || item.url);
-    titleSpan.style.cssText =
-      `all: initial; font-family:${GLOBAL_FONT}; font-size:var(--tz-font); line-height:1;` +
-      `white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:inherit;`;
-
     if (isLevel2Groups) {
       // -----------------------
       // Level 2: groups list
       // Requirement: show ALL favicons inside group tile; favicon is clickable and switches tab.
       // Note: Needs group.tabs from GET_UNGROUPED_TABS; if missing, we fall back to title-only.
       // -----------------------
+      itemBtn.className = 'tz-group-tile';
       const groupColorHex = GROUP_COLOR_MAP[item.color] || GROUP_COLOR_MAP.default;
       itemBtn.style.borderBottom = `var(--tz-ind-h) solid ${groupColorHex}`;
       itemBtn.style.color = groupColorHex;
-      itemBtn.className = 'tz-tab-btn';
       itemBtn.draggable = true;
       itemBtn.setAttribute('draggable', 'true');
-      itemBtn.style.setProperty('-webkit-user-drag', 'element');
       itemBtn.dataset.tzDraggable = 'group';
       itemBtn.dataset.groupid = String(item.id);
 
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'group-title';
+      titleSpan.textContent = getDisplayedTitle(item.title || item.url);
       itemBtn.appendChild(titleSpan);
 
       // Favicons container (no fixed width; only min-width on the whole tile)
       const favs = Array.isArray(item.tabs) ? item.tabs : [];
       if (favs.length > 0) {
         const favRow = document.createElement('div');
-        favRow.style.cssText =
-          `all: initial; display:flex; align-items:center; flex:0 0 auto;` +
-          `margin-left:var(--tz-lvl2-fav-ml); gap:4px;`;
+        favRow.className = 'fav-row';
 
         favs.forEach(tab => {
           // Clickable favicon -> open directly the tab (switch)
@@ -1578,11 +1488,10 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       // Level 3: tabs inside group
       // (kept as in your file: shows favicon + title + close)
       // -----------------------
-      itemBtn.style.borderBottom = `var(--tz-ind-h) solid ${INDICATOR_COLOR}`;
       itemBtn.className = 'tz-tab-btn';
+      itemBtn.style.borderBottom = `var(--tz-ind-h) solid ${INDICATOR_COLOR}`;
       itemBtn.draggable = true;
       itemBtn.setAttribute('draggable', 'true');
-      itemBtn.style.setProperty('-webkit-user-drag', 'element');
       itemBtn.dataset.tzDraggable = 'tab';
       itemBtn.dataset.tabid = String(item.id);
       itemBtn.dataset.tzKind = 'group';
@@ -1591,17 +1500,15 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       // IMPORTANT: favicon is ALWAYS inserted and forced visible
       itemBtn.appendChild(createLevel2Favicon(item, { interactive: false }));
 
-      const label = titleSpan;
-      label.style.marginLeft = 'var(--tz-icon-gap)';
+      const label = document.createElement('span');
+      label.className = 'tab-title';
+      label.textContent = getDisplayedTitle(item.title || item.url);
       label.style.color = '#fff';
-      label.style.pointerEvents = 'none';
       itemBtn.appendChild(label);
 
       // Actions container styled like Level 1 (right-aligned, hover-only buttons)
       const actions = document.createElement('div');
-      actions.style.cssText =
-        `all: initial; margin-left:auto; flex:0 0 auto; display:flex; align-items:center; gap:6px;` +
-        `height:18px;`;
+      actions.className = 'tab-actions';
 
       // Level-3 menu: "-" (on hover) opens the same menu as Level 1 plus "Ungroup"
       // Also: do NOT show the current group in the list.
@@ -1613,6 +1520,8 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       itemBtn.onclick = (e) => { e.stopPropagation(); handleTabClick(item.id); };
     } else {
       // Safety fallback (should not happen)
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = getDisplayedTitle(item.title || item.url);
       itemBtn.appendChild(titleSpan);
       itemBtn.onclick = (e) => { e.stopPropagation(); };
     }
