@@ -1471,6 +1471,7 @@ const dragState = {
   sourceGroupTileId: null, // Level-2 group tile drag
   overEl: null,
   placement: null,    // 'before' | 'after'
+  lastTargetId: null,
 };
 
 function closestDraggableTabEl(node) {
@@ -1504,6 +1505,7 @@ function canDropOn(targetEl) {
   if (!targetEl) return false;
   // Group reorder (Level 2)
   if (dragState.sourceType === 'group') {
+    if (targetEl.dataset.groupId === dragState.sourceGroupTileId) return false;
     if (targetEl.dataset.tzDraggable !== 'group') return false;
     if (navigationState !== NAV_LEVELS.LEVEL_2) return false;
     const tgtId = targetEl.dataset.groupId || '';
@@ -1601,6 +1603,7 @@ function installDragAndDropHandlers() {
     const targetTabId = (dragState.sourceType === 'group') ? el.dataset.groupId : el.dataset.tabId;
     const placement = dragState.placement || 'before';
 
+    dragState.lastTargetId = targetTabId;
     clearDropIndicator();
     const sourceId = (dragState.sourceType === 'group') ? dragState.sourceGroupTileId : dragState.sourceTabId;
     handleMoveTab(sourceId, targetTabId, placement).catch(() => {});
@@ -1618,6 +1621,7 @@ function installDragAndDropHandlers() {
     dragState.sourceKind = null;
     dragState.sourceGroupId = null;
     dragState.sourceGroupTileId = null;
+    dragState.lastTargetId = null;
     suppressClickUntil = Date.now() + 500;
   }, true);
 }
