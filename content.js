@@ -546,7 +546,7 @@ function getSearchResults() {
   const out = [];
   for (const t of (cachedAllTabs || [])) {
     if (!t?.id || seen.has(t.id)) continue;
-    const hay = normalizeForSearch(`${t.title || ''} - ${t.url || ''}`);
+    const hay = normalizeForSearch(`${t.title || ''} - ${t.url || t.pendingUrl || ''}`);
     if (hay.includes(q)) {
       out.push(t);
       seen.add(t.id);
@@ -1387,8 +1387,8 @@ function createSearchBar() {
   icon.textContent = SEARCH_ICON;
   // Match the minimal look of other controls (no emoji-like rendering)
   icon.style.cssText =
-    `all: initial; font-family:${GLOBAL_FONT}; font-size:16px; line-height:1;` +
-    `color:#bdbdbd; flex:0 0 auto; user-select:none;`;
+    `all: initial; font-family:${GLOBAL_FONT}; font-size:20px; line-height:1;` +
+    `color:${INDICATOR_COLOR}; flex:0 0 auto; user-select:none;`;
   wrap.appendChild(icon);
 
   const input = document.createElement('input');
