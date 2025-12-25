@@ -781,6 +781,61 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
       }
 
+      if (action === 'MOVE_GROUP') {
+        const groupId = request.groupId;
+        const targetGroupId = request.targetGroupId;
+        const placement = request.placement; // 'before' | 'after'
+
+        if (groupId == null || targetGroupId == null) {
+          sendResponse({ ok: false, error: 'Missing groupId/targetGroupId' });
+          return;
+        }
+        if (placement !== 'before' && placement !== 'after') {
+          sendResponse({ ok: false, error: 'Invalid placement' });
+          return;
+        }
+
+        try {
+          // Best-effort: infer window from sender tab; fallback to active tab.
+          let windowId = sender?.tab?.windowId;
+          if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) {
+            const active = await getActiveTab();
+            windowId = active?.windowId;
+          }
+          if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) {
+            sendResponse({ ok: false, error: 'No window context' });
+            return;
+          }
+
+          const groups = await chrome.tabGroups.query({ windowId });
+          const src = (groups || []).find(g => g.id === groupId);
+          const tgt = (groups || []).find(g => g.id === targetGroupId);
+          if (!src || !tgt) {
+            sendResponse({ ok: false, error: 'Group not found in this window' });
+            return;
+          }
+
+          let index = tgt.index + (placement === 'after' ? 1 : 0);
+          if (typeof src.index === 'number' && typeof tgt.index === 'number' && src.index < index) index -= 1;
+          if (index < 0) index = 0;
+
+          await chrome.tabGroups.move(groupId, { index });
+          touch(windowId, 'MOVE_GROUP', { motion: true, drag: true });
+
+          sendResponse({ ok: true });
+          return;
+        } catch (e) {
+          if (isDraggingError(e)) {
+            try { scheduleRetry(sender?.tab?.windowId, 'MOVE_GROUP lock'); } catch {}
+            sendResponse({ ok: false, error: 'LOCKED' });
+            return;
+          }
+          warn('MOVE_GROUP error', { groupId, targetGroupId, placement, message: String(e?.message || e) });
+          sendResponse({ ok: false, error: 'MOVE_GROUP failed' });
+          return;
+        }
+      }
+
       if (action === 'GROUP_TAB') {
         const tabId = request.tabId;
         const groupId = request.groupId;
