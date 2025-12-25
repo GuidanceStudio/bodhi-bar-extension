@@ -20,6 +20,7 @@ const MAX_TITLE_LENGTH = 30;
 const INDICATOR_COLOR = '#0078d4';
 const BACK_ARROW = '◀';
 const GLOBAL_FONT = 'Arial, sans-serif';
+const SEARCH_ICON = '🔍';
 
 const GROUP_COLOR_MAP = {
   grey: '#5f6368', blue: '#8ab4f8', red: '#f28b82', yellow: '#fdd663',
@@ -56,6 +57,9 @@ const NAV_LEVELS = {
 let navigationState = NAV_LEVELS.LEVEL_1;
 let currentViewedGroupId = null;
 let cachedTabGroups = [];
+let cachedAllTabs = []; // for Level-1 search (includes grouped + ungrouped + pinned)
+let searchQuery = '';
+let searchExpanded = false;
 const POPOVER_SECTION_GAP_PX = 6;
 let isInternalResize = false;
 let suppressClickUntil = 0; // avoid accidental SWITCH_TAB right after drag end/drop
@@ -308,6 +312,65 @@ function ensureSizingStyle() {
       flex:0 0 10px;
       box-sizing:border-box;
     }
+
+    /* Level-1 search */
+    #ungroup-automatic-tab-bar .tz-search{
+      all: initial;
+      box-sizing:border-box;
+      height:calc(var(--tz-h) - 10px);
+      margin-left:6px;
+      margin-right:var(--tz-gap-x);
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:0 10px;
+      border-radius:8px;
+      background:#1f1f1f;
+      border:1px solid #333;
+      color:#fff;
+      font-family:${GLOBAL_FONT};
+      flex:0 0 auto;
+      width:38px; /* collapsed */
+      transition:width 160ms ease, background 160ms ease, border-color 160ms ease;
+      overflow:hidden;
+      cursor:text;
+    }
+    #ungroup-automatic-tab-bar .tz-search.expanded{
+      width:260px;
+      background:#222;
+      border-color:#444;
+    }
+    #ungroup-automatic-tab-bar .tz-search .icon{
+      all: initial;
+      font-family:${GLOBAL_FONT};
+      font-size:14px;
+      color:#bdbdbd;
+      flex:0 0 auto;
+      user-select:none;
+    }
+    #ungroup-automatic-tab-bar .tz-search input{
+      all: initial;
+      font-family:${GLOBAL_FONT};
+      font-size:13px;
+      color:#fff;
+      flex:1 1 auto;
+      min-width:0;
+    }
+    #ungroup-automatic-tab-bar .tz-search .clear{
+      all: initial;
+      font-family:${GLOBAL_FONT};
+      font-size:16px;
+      color:#bdbdbd;
+      flex:0 0 auto;
+      cursor:pointer;
+      user-select:none;
+      padding:2px 4px;
+      border-radius:4px;
+    }
+    #ungroup-automatic-tab-bar .tz-search .clear:hover{
+      background:#3a3a3a;
+      color:#fff;
+    }
   `;
   document.head?.appendChild(style);
 }
@@ -470,6 +533,39 @@ function handleTabClick(tabId) {
 function handleUngroup(tabId) { return safeRuntimeSendMessageWithRetry({ action: 'UNGROUP_TAB', tabId }, 3); }
 function handleNewTab() {
   safeRuntimeSendMessageWithRetry({ action: "OPEN_NEW_TAB" }, 2);
+}
+
+function normalizeForSearch(s) {
+  return String(s || '').toLowerCase();
+}
+
+function getSearchResults() {
+  const q = normalizeForSearch(searchQuery).trim();
+  if (!q) return [];
+  const seen = new Set();
+  const out = [];
+  for (const t of (cachedAllTabs || [])) {
+    if (!t?.id || seen.has(t.id)) continue;
+    const title = normalizeForSearch(t.title || t.url || '');
+    if (title.includes(q)) {
+      out.push(t);
+      seen.add(t.id);
+    }
+  }
+  // Keep stable order by tab index when available
+  out.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+  return out.slice(0, 12);
+}
+
+function buildAllTabsCacheFromPayload(payload) {
+  const all = [];
+  for (const t of (payload?.pinnedTabs || [])) all.push(t);
+  for (const t of (payload?.webTabs || [])) all.push(t);
+  for (const t of (payload?.systemTabs || [])) all.push(t);
+  for (const g of (payload?.allTabGroups || [])) {
+    for (const t of (g?.tabs || [])) all.push(t);
+  }
+  cachedAllTabs = all;
 }
 
 function createCloseButton(tabId) {
@@ -1238,7 +1334,7 @@ function renderDisconnectedBar(reason = 'Disconnected') {
     `all: initial; position:fixed !important; top:0 !important; left:0 !important;` +
     `width:100% !important; height:var(--tz-h) !important; display:flex !important; align-items:center !important;` +
     `background:#202020 !important; border-bottom:1px solid #000 !important; z-index:2147483647 !important;` +
-    `margin:0 !important; padding:0 var(--tz-group-min-pad-x) !important; overflow:hidden !important;` +
+    `margin:0 !important; padding:0 !important; overflow:hidden !important;` +
     `font-family:${GLOBAL_FONT} !important; color:#fff !important; font-size:var(--tz-font) !important;` +
     `box-sizing:border-box !important;`;
 
@@ -1252,6 +1348,75 @@ function renderDisconnectedBar(reason = 'Disconnected') {
   applyPageShift();
 }
 
+function createSearchBar() {
+  const wrap = document.createElement('div');
+  wrap.className = 'tz-search' + (searchExpanded ? ' expanded' : '');
+
+  const icon = document.createElement('div');
+  icon.className = 'icon';
+  icon.textContent = SEARCH_ICON;
+  wrap.appendChild(icon);
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'Search tabs…';
+  input.value = searchQuery;
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.onmousedown = (e) => { e.stopPropagation(); };
+  input.onclick = (e) => { e.stopPropagation(); };
+  input.oninput = () => {
+    searchQuery = input.value || '';
+    // Re-render Level 1 only (search results are rendered in the scroll area)
+    if (navigationState === NAV_LEVELS.LEVEL_1) requestTabList();
+  };
+  input.onkeydown = (e) => {
+    if (e.key === 'Escape') {
+      searchQuery = '';
+      searchExpanded = false;
+      if (navigationState === NAV_LEVELS.LEVEL_1) requestTabList();
+    }
+  };
+  wrap.appendChild(input);
+
+  const clear = document.createElement('div');
+  clear.className = 'clear';
+  clear.textContent = '×';
+  clear.title = 'Clear';
+  clear.style.display = searchQuery ? 'block' : 'none';
+  clear.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
+  clear.onclick = (e) => {
+    e.stopPropagation(); e.preventDefault();
+    searchQuery = '';
+    input.value = '';
+    clear.style.display = 'none';
+    input.focus();
+    if (navigationState === NAV_LEVELS.LEVEL_1) requestTabList();
+  };
+  wrap.appendChild(clear);
+
+  // Expand/collapse behavior
+  wrap.onmousedown = (e) => { e.stopPropagation(); };
+  wrap.onclick = (e) => {
+    e.stopPropagation();
+    if (!searchExpanded) {
+      searchExpanded = true;
+      wrap.classList.add('expanded');
+      setTimeout(() => { try { input.focus(); } catch {} }, 0);
+    } else {
+      // already expanded: just focus
+      setTimeout(() => { try { input.focus(); } catch {} }, 0);
+    }
+  };
+
+  // Keep clear visibility in sync
+  const syncClear = () => { clear.style.display = (searchQuery && searchExpanded) ? 'block' : 'none'; };
+  input.addEventListener('input', syncClear);
+  syncClear();
+
+  return wrap;
+}
+
 function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurrentTabGrouped, currentTabTitle, allTabGroups) {
   const bar = ensureBar();
 
@@ -1262,6 +1427,9 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
     `background:#202020 !important; border-bottom:1px solid #000 !important; z-index:2147483647 !important;` +
     `margin:0 !important; padding:0 !important; overflow:hidden !important; font-family:${GLOBAL_FONT} !important;` +
     `box-sizing:border-box !important;`;
+
+  // Level-1 search (leftmost)
+  bar.appendChild(createSearchBar());
 
   const trigger = document.createElement('div');
   trigger.className = 'tz-tab-btn';
@@ -1315,6 +1483,23 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
   const webSorted = [...(webTabs || [])].sort((a, b) => a.index - b.index);
   const sysSorted = [...(systemTabs || [])].sort((a, b) => a.index - b.index);
 
+  // If searching, show results instead of the normal Level-1 layout.
+  const q = (searchQuery || '').trim();
+  if (q) {
+    const results = getSearchResults();
+    results.forEach(tab => {
+      // Render as normal tab tiles (not pinned favicon-only) for consistent search UX.
+      // Kind is irrelevant for click; drag is allowed but MOVE_TAB will enforce constraints.
+      scrollContainer.appendChild(createTabButton(tab, tab.id === currentTabId, 'web', false));
+    });
+    // Keep "+" available at the end
+    scrollContainer.appendChild(createInlinePlusWrapper());
+    scrollContainer.appendChild(createStickyPlus());
+    bar.appendChild(scrollContainer);
+    updateDynamicLayout();
+    return;
+  }
+
   // CHANGED: pinned shown as favicon-only (not as tab tiles)
   pinnedSorted.forEach(tab => scrollContainer.appendChild(createPinnedFavicon(tab, tab.id === currentTabId)));
 
@@ -1353,6 +1538,7 @@ function requestTabList() {
     // NOTE: response.allTabGroups already includes tabs[] from background.js.
     cachedTabGroups = response.allTabGroups || [];
     cachedTabGroups = [...cachedTabGroups].sort((a, b) => (a.tabs?.[0]?.index ?? 1e9) - (b.tabs?.[0]?.index ?? 1e9));
+    buildAllTabsCacheFromPayload(response);
     if (activePopover && activePopoverTabId != null) closeActivePopover();
 
     if (navigationState === NAV_LEVELS.LEVEL_1) {
