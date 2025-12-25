@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /**
  * BACKGROUND.JS - Bodhi Bar (v9.24)
  *
@@ -461,7 +462,10 @@ async function enforceRound(windowId) {
 
         if (firstTabIdx !== target) {
           log('MOVE group', { groupId: gid, to: target });
-          await chrome.tabGroups.move(gid, { index: target });
+          // Brave/Chromium variants may not expose tabGroups.index reliably.
+          // Moving by tab index is still valid, but must be an integer.
+          const safeTarget = Number.isInteger(target) ? target : 0;
+          await chrome.tabGroups.move(gid, { index: safeTarget });
           movedGroups += 1;
           await refresh();
         }
@@ -852,6 +856,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             const srcSize = await getGroupSize(windowId, groupId);
             index -= srcSize;
           }
+          if (!Number.isInteger(index) || index < 0) index = 0;
+
+          // Extra safety: Brave sometimes returns undefined indices during/after BFCache restores.
+          // Ensure we never pass NaN/float to the API.
+          index = Math.trunc(index);
           if (!Number.isInteger(index) || index < 0) index = 0;
 
           await chrome.tabGroups.move(groupId, { index });
