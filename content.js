@@ -551,6 +551,42 @@ function handleNewTab() {
   safeRuntimeSendMessageWithRetry({ action: "OPEN_NEW_TAB" }, 2);
 }
 
+function createCloseButton(tabId) {
+  const x = document.createElement('div');
+  x.className = 'tz-close-x';
+  x.textContent = '×';
+  x.title = 'Close tab';
+  x.style.cssText =
+    `all: initial; width:18px; height:18px; border-radius:4px;` +
+    `display:flex; align-items:center; justify-content:center;` +
+    `font-family:${GLOBAL_FONT}; font-size:16px; line-height:1;` +
+    `cursor:pointer; user-select:none;`;
+  x.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
+  x.onclick = (e) => {
+    e.stopPropagation(); e.preventDefault();
+    handleCloseTab(tabId);
+  };
+  return x;
+}
+
+function createGroupButton(tabId) {
+  const b = document.createElement('div');
+  b.className = 'tz-group-btn';
+  b.textContent = '+';
+  b.title = 'Move to group';
+  b.style.cssText =
+    `all: initial; width:18px; height:18px; border-radius:4px;` +
+    `display:flex; align-items:center; justify-content:center;` +
+    `font-family:${GLOBAL_FONT}; font-size:16px; font-weight:700; line-height:1;` +
+    `cursor:pointer; user-select:none;`;
+  b.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
+  b.onclick = (e) => {
+    e.stopPropagation(); e.preventDefault();
+    openGroupPopover(b, tabId);
+  };
+  return b;
+}
+
 function createLevel3MenuButton(tabId) {
   // Level-3 menu button ("-") styled/behaving like Level-1 hover buttons
   const b = document.createElement('div');
@@ -1279,7 +1315,7 @@ function findTopFixedHeaderCandidates(barRect, barH) {
 function applyShiftToCandidate(cand, barH) {
   const el = cand.el;
   const cs = cand.cs;
-  if (_tzShifted.has(el)) return;
+  if (_tzShiftED.has(el)) return;
 
   const prev = {
     top: el.style.top || null,
