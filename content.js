@@ -59,6 +59,7 @@ let cachedTabGroups = [];
 let isInternalResize = false;
 let suppressClickUntil = 0; // avoid accidental SWITCH_TAB right after drag end/drop
 let activePopover = null;
+let activePopoverTabId = null;
 
 // ---- Port/handshake state ----
 let tzPort = null;
@@ -466,6 +467,7 @@ function handleTabClick(tabId) {
   });
 }
 
+function handleUngroup(tabId) { return safeRuntimeSendMessageWithRetry({ action: 'UNGROUP_TAB', tabId }, 3); }
 function handleNewTab() {
   safeRuntimeSendMessageWithRetry({ action: "OPEN_NEW_TAB" }, 2);
 }
@@ -504,6 +506,22 @@ function createGroupButton(tabId) {
   return b;
 }
 
+function createLevel3MenuButton(tabId) {
+  const b = document.createElement('div');
+  b.className = 'tz-group-btn'; // reuse hover/visibility behavior
+  b.textContent = '-';
+  b.title = 'Move / Ungroup';
+  b.style.cssText =
+    `margin-left:0; flex:0 0 auto;` +
+    `display:flex; align-items:center; justify-content:center;` +
+    `width:18px; height:18px; border-radius:4px;` +
+    `font-family:${GLOBAL_FONT}; font-size:16px; line-height:1;` +
+    `cursor:pointer; user-select:none;`;
+  b.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
+  b.onclick = (e) => { e.stopPropagation(); e.preventDefault(); openGroupPopover(b, tabId, { includeUngroup: true }); };
+  return b;
+}
+
 function createUngroupButton(tabId) {
   const b = document.createElement('div');
   b.className = 'tz-ungroup-btn';
@@ -532,6 +550,7 @@ function closeActivePopover() {
   if (!activePopover) return;
   try { activePopover.remove(); } catch {}
   activePopover = null;
+  activePopoverTabId = null;
   document.removeEventListener('mousedown', onDocMouseDown, true);
   document.removeEventListener('keydown', onDocKeyDown, true);
 }
@@ -546,8 +565,9 @@ function onDocKeyDown(e) {
   if (e.key === 'Escape') closeActivePopover();
 }
 
-function openGroupPopover(anchorEl, tabId) {
+function openGroupPopover(anchorEl, tabId, { includeUngroup = false } = {}) {
   closeActivePopover();
+  activePopoverTabId = tabId;
 
   const pop = document.createElement('div');
   pop.className = 'tz-popover';
@@ -565,6 +585,33 @@ function openGroupPopover(anchorEl, tabId) {
   pop.appendChild(groupsContainer);
 
   const groups = Array.isArray(cachedTabGroups) ? cachedTabGroups : [];
+
+  // Optional: "Ungroup" action at top (Level 3 menu)
+  if (includeUngroup) {
+    const unItem = document.createElement('div');
+    unItem.className = 'group-item';
+    const sw = document.createElement('div');
+    sw.className = 'swatch';
+    sw.style.background = '#777';
+    const tx = document.createElement('div');
+    tx.textContent = 'Ungroup';
+    tx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;`;
+    unItem.appendChild(sw);
+    unItem.appendChild(tx);
+    unItem.onclick = async (e) => {
+      e.stopPropagation(); e.preventDefault();
+      suppressClickUntil = Date.now() + 700;
+      await handleUngroup(tabId);
+      closeActivePopover();
+      handleStateChange();
+    };
+    groupsContainer.appendChild(unItem);
+
+    const sep = document.createElement('div');
+    sep.style.cssText = `all: initial; height:1px; background:#333; margin:6px 0;`;
+    groupsContainer.appendChild(sep);
+  }
+
   groups.forEach(g => {
     const item = document.createElement('div');
     item.className = 'group-item';
@@ -1287,6 +1334,7 @@ function requestTabList() {
     // NOTE: response.allTabGroups already includes tabs[] from background.js.
     cachedTabGroups = response.allTabGroups || [];
     cachedTabGroups = [...cachedTabGroups].sort((a, b) => (a.tabs?.[0]?.index ?? 1e9) - (b.tabs?.[0]?.index ?? 1e9));
+    if (activePopover && activePopoverTabId != null) closeActivePopover();
 
     if (navigationState === NAV_LEVELS.LEVEL_1) {
       renderFakeTabBar(
@@ -1318,6 +1366,7 @@ function handleStateChange() {
       // Keep cache in sync so subsequent UI actions (popover, etc.) see the new order.
       cachedTabGroups = response.allTabGroups || cachedTabGroups || [];
       cachedTabGroups = [...cachedTabGroups].sort((a, b) => (a.tabs?.[0]?.index ?? 1e9) - (b.tabs?.[0]?.index ?? 1e9));
+      if (activePopover && activePopoverTabId != null) closeActivePopover();
 
       const groups = [...(response.allTabGroups || cachedTabGroups || [])]
         .sort((a, b) => (a.tabs?.[0]?.index ?? 1e9) - (b.tabs?.[0]?.index ?? 1e9));
@@ -1452,7 +1501,8 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       label.style.pointerEvents = 'none';
       itemBtn.appendChild(label);
 
-      itemBtn.appendChild(createUngroupButton(item.id));
+      // Level-3 menu: "-" (on hover) opens the same menu as Level 1 plus "Ungroup"
+      itemBtn.appendChild(createLevel3MenuButton(item.id));
       itemBtn.appendChild(createCloseButton(item.id));
       itemBtn.onclick = () => handleTabClick(item.id);
     } else {
