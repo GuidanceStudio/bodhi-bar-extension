@@ -1,5 +1,5 @@
 /**
- * CONTENT.JS - UI Engine (v2.5.7)
+ * CONTENT.JS - Bodhi Bar UI Engine (v2.5.7)
  *
  * Fixes:
  * - Level 2 favicon guaranteed visible:
@@ -1207,7 +1207,7 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
 
   const triggerLabel = isCurrentTabGrouped
     ? getDisplayedTitle(currentTabTitle)
-    : (allTabGroups.length > 0 ? 'Groups' : 'GD Manager');
+    : (allTabGroups.length > 0 ? 'Groups' : 'Bodhi Bar');
 
   const caret = document.createElement('span');
   caret.textContent = '▼';

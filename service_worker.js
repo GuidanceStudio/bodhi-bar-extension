@@ -1,4 +1,4 @@
-// service_worker.js (MV3) - Receiver for content.js (v2.4.x)
+// service_worker.js (MV3) - Bodhi Bar Receiver for content.js (v2.4.x)
 //
 // NOTE: This file is now redundant because manifest.json uses background.js as the service worker.
 // Keep it only if you plan to switch manifest background.service_worker back to service_worker.js.

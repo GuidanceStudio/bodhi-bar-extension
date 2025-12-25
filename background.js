@@ -1,5 +1,5 @@
 /**
- * BACKGROUND.JS - Tab Zoning (v9.24)
+ * BACKGROUND.JS - Bodhi Bar (v9.24)
  *
  * + Injects site_overrides.js into all frames on completed navigations
  *   so overrides are always available even when content_scripts ordering
@@ -14,7 +14,7 @@
  */
 
 const DEBUG = true;
-const TAG = '[TZ]';
+const TAG = '[BodhiBar]';
 const log = (...a) => DEBUG && console.log(TAG, ...a);
 const warn = (...a) => DEBUG && console.warn(TAG, ...a);
 
