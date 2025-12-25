@@ -347,9 +347,12 @@ function ensureSizingStyle() {
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) .icon{
       font-size:35px;
       position:relative;
-      top:-10px;
+      top:-13px;
       cursor:pointer;
     }
+    /* Ensure the icon can actually move vertically (some pages override line-height/align) */
+    #ungroup-automatic-tab-bar .tz-search{ align-items:flex-start; padding-top:2px; }
+    #ungroup-automatic-tab-bar .tz-search.expanded{ align-items:center; padding-top:0; }
     #ungroup-automatic-tab-bar .tz-search.expanded{
       width:260px;
       background:#222;
@@ -364,7 +367,7 @@ function ensureSizingStyle() {
       color:#fff;
       flex:1 1 auto;
       min-width:0;
-      margin-right:6px;
+      padding-right:6px;
     }
     #ungroup-automatic-tab-bar .tz-search .clear{
       all: initial;
@@ -581,7 +584,7 @@ function highlightMatchHtml(text, query) {
   const before = escapeHtml(t.slice(0, idx));
   const mid = escapeHtml(t.slice(idx, idx + q.length));
   const after = escapeHtml(t.slice(idx + q.length));
-  return `${before}<b style="font-weight:700;">${mid}</b>${after}`;
+  return `${before}<b style="font-weight:900;">${mid}</b>${after}`;
 }
 
 function getSearchResults() {
@@ -1450,6 +1453,7 @@ function createSearchBar() {
   input.autocomplete = 'off';
   input.spellcheck = false;
   input.style.display = searchExpanded ? 'block' : 'none';
+  input.style.paddingRight = '6px';
   input.onmousedown = (e) => { e.stopPropagation(); };
   input.onclick = (e) => { e.stopPropagation(); };
   input.oninput = () => {
