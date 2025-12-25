@@ -342,7 +342,9 @@ function ensureSizingStyle() {
       padding:0 6px;
     }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) .icon{
-      font-size:22px;
+      font-size:35px;
+      position:relative;
+      top:-3px;
     }
     #ungroup-automatic-tab-bar .tz-search.expanded{
       width:260px;
@@ -1417,7 +1419,7 @@ function createSearchBar() {
   icon.textContent = SEARCH_ICON;
   // Match the minimal look of other controls (no emoji-like rendering)
   icon.style.cssText =
-    `all: initial; font-family:${GLOBAL_FONT}; font-size:${searchExpanded ? '20px' : '22px'}; line-height:1;` +
+    `all: initial; font-family:${GLOBAL_FONT}; font-size:${searchExpanded ? '20px' : '35px'}; line-height:1;` +
     `color:${INDICATOR_COLOR}; flex:0 0 auto; user-select:none;`;
   wrap.appendChild(icon);
 
