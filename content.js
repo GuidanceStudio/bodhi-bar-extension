@@ -322,7 +322,7 @@ function ensureSizingStyle() {
       box-sizing:border-box;
       height:calc(var(--tz-h) - 10px);
       margin-left:6px;
-      margin-right:var(--tz-gap-x); /* Changed from 12px to var(--tz-gap-x) */
+      margin-right:8px; /* Changed from var(--tz-gap-x) to 8px */
       display:flex;
       align-items:center;
       gap:8px;
@@ -357,7 +357,7 @@ function ensureSizingStyle() {
       width:260px;
       background:#222;
       border-color:#444;
-      margin-right:12px; /* Added margin-right here */
+      margin-right:8px; /* Changed from 12px to 8px */
     }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) input{ display:none; }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) .clear{ display:none !important; }
