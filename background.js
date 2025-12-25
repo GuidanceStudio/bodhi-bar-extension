@@ -795,6 +795,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           return;
         }
 
+        function toIntOrNull(v) {
+          const n = Number(v);
+          return Number.isInteger(n) ? n : null;
+        }
+
+        async function getGroupAnchorIndex(windowId, gid) {
+          // Prefer group.index if present and integer; otherwise derive from first tab index.
+          try {
+            const groups = await chrome.tabGroups.query({ windowId });
+            const g = (groups || []).find(x => x.id === gid);
+            const gi = toIntOrNull(g?.index);
+            if (gi != null) return gi;
+          } catch { /* ignore */ }
+
+          const tabs = await chrome.tabs.query({ windowId, groupId: gid });
+          const first = (tabs || []).slice().sort((a, b) => (a.index ?? 0) - (b.index ?? 0))[0];
+          const ti = toIntOrNull(first?.index);
+          return ti != null ? ti : 0;
+        }
+
+        async function getGroupSize(windowId, gid) {
+          const tabs = await chrome.tabs.query({ windowId, groupId: gid });
+          return (tabs || []).length;
+        }
+
         try {
           // Best-effort: infer window from sender tab; fallback to active tab.
           let windowId = sender?.tab?.windowId;
@@ -807,17 +832,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return;
           }
 
+          // Validate groups exist in this window (query is still useful for existence).
           const groups = await chrome.tabGroups.query({ windowId });
-          const src = (groups || []).find(g => g.id === groupId);
-          const tgt = (groups || []).find(g => g.id === targetGroupId);
-          if (!src || !tgt) {
+          const srcExists = (groups || []).some(g => g.id === groupId);
+          const tgtExists = (groups || []).some(g => g.id === targetGroupId);
+          if (!srcExists || !tgtExists) {
             sendResponse({ ok: false, error: 'Group not found in this window' });
             return;
           }
 
-          let index = tgt.index + (placement === 'after' ? 1 : 0);
-          if (typeof src.index === 'number' && typeof tgt.index === 'number' && src.index < index) index -= 1;
-          if (index < 0) index = 0;
+          const srcAnchor = await getGroupAnchorIndex(windowId, groupId);
+          const tgtAnchor = await getGroupAnchorIndex(windowId, targetGroupId);
+          const tgtSize = await getGroupSize(windowId, targetGroupId);
+
+          // Place group before/after the target group's block of tabs.
+          let index = tgtAnchor + (placement === 'after' ? tgtSize : 0);
+          // If moving forward, account for removal of the source block.
+          if (srcAnchor < index) {
+            const srcSize = await getGroupSize(windowId, groupId);
+            index -= srcSize;
+          }
+          if (!Number.isInteger(index) || index < 0) index = 0;
 
           await chrome.tabGroups.move(groupId, { index });
           touch(windowId, 'MOVE_GROUP', { motion: true, drag: true });
