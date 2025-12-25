@@ -575,7 +575,7 @@ function createPopoverIcon(symbol, color = INDICATOR_COLOR) {
   return ic;
 }
 
-function openGroupPopover(anchorEl, tabId, { includeUngroup = false } = {}) {
+function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGroupId = null } = {}) {
   closeActivePopover();
   activePopoverTabId = tabId;
 
@@ -620,7 +620,9 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false } = {}) {
     groupsContainer.appendChild(sep);
   }
 
-  groups.forEach(g => {
+  groups
+    .filter(g => (excludeGroupId == null) || String(g.id) !== String(excludeGroupId))
+    .forEach(g => {
     const item = document.createElement('div');
     item.className = 'group-item';
     const sw = document.createElement('div');
@@ -1504,9 +1506,19 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       label.style.pointerEvents = 'none';
       itemBtn.appendChild(label);
 
+      // Actions container styled like Level 1 (right-aligned, hover-only buttons)
+      const actions = document.createElement('div');
+      actions.style.cssText =
+        `all: initial; margin-left:auto; flex:0 0 auto; display:flex; align-items:center; gap:6px;` +
+        `height:18px;`;
+
       // Level-3 menu: "-" (on hover) opens the same menu as Level 1 plus "Ungroup"
-      itemBtn.appendChild(createLevel3MenuButton(item.id));
-      itemBtn.appendChild(createCloseButton(item.id));
+      // Also: do NOT show the current group in the list.
+      const menuBtn = createLevel3MenuButton(item.id);
+      menuBtn.onclick = (e) => { e.stopPropagation(); e.preventDefault(); openGroupPopover(menuBtn, item.id, { includeUngroup: true, excludeGroupId: (item.groupId ?? currentViewedGroupId ?? null) }); };
+      actions.appendChild(menuBtn);
+      actions.appendChild(createCloseButton(item.id));
+      itemBtn.appendChild(actions);
       itemBtn.onclick = () => handleTabClick(item.id);
     } else {
       // Safety fallback (should not happen)
