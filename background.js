@@ -14,6 +14,9 @@
  * favicons inside each group tile without extra per-group requests.
  */
 
+// Import constants from constants.js
+import { TZ_PORT_NAME, TZ_HANDSHAKE_MSG } from './constants.js';
+
 const DEBUG = true;
 const TAG = '[BodhiBar]';
 const log = (...a) => DEBUG && console.log(TAG, ...a);
@@ -83,7 +86,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // ---- UI bridge / receiver (content.js) ----
-const TZ_PORT_NAME = 'TZ_UI_PORT';
+// const TZ_PORT_NAME = 'TZ_UI_PORT'; // Moved to constants.js
 
 // throttle REFRESH_BAR broadcasts (so we don't spam content scripts)
 const UI_REFRESH_DEBOUNCE_MS = 120;
