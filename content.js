@@ -273,8 +273,7 @@ function ensureSizingStyle() {
       border:1px solid #444;
       border-radius:6px;
       padding:6px 8px;
-      cursor:pointer;
-      user-select:none;
+      cursor:pointer; user-select:none;
       box-sizing:border-box;
     }
     [data-tz-popover="1"] .btn:hover{ background:#3a3a3a; }
@@ -601,6 +600,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
   if (includeUngroup) {
     const unItem = document.createElement('div');
     unItem.className = 'group-item';
+    unItem.style.marginBottom = `${POPOVER_SECTION_GAP_PX}px`;
     const minus = createPopoverIcon('-');
     const tx = document.createElement('div');
     tx.textContent = 'Ungroup';
@@ -615,11 +615,6 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
       handleStateChange();
     };
     groupsContainer.appendChild(unItem);
-
-    // Match the same "section gap" used before "New group…": spacing only (no divider line).
-    const gap = document.createElement('div');
-    gap.style.cssText = `all: initial; height:${POPOVER_SECTION_GAP_PX}px;`;
-    groupsContainer.appendChild(gap);
   }
 
   groups
