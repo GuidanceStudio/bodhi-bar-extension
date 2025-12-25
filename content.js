@@ -1102,13 +1102,8 @@ function createTabButton(tab, isCurrent, kind = 'web', isLevel1 = false) {
     `all: initial; margin-left:auto; flex:0 0 auto; display:flex; align-items:center; gap:6px;` +
     `height:18px;`;
   if (kind === 'web') actions.appendChild(createGroupButton(tab.id));
+  actions.appendChild(createCloseButton(tab.id));
   
-  const isTabInGroup = tab.groupId !== -1 && tab.groupId != null;
-  // Level 1: never show "X" on the first tile (trigger).
-  // Also keep the existing rule: if Level 1 and tab is in a group, hide X.
-  if (!(isLevel1 && isTabInGroup) && !isLevel1) {
-    actions.appendChild(createCloseButton(tab.id));
-  }
   btn.appendChild(actions);
 
   btn.onclick = () => handleTabClick(tab.id);
@@ -1586,7 +1581,7 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
     `width:100% !important; height:var(--tz-h) !important; display:flex !important; align-items:center !important;` +
     `background:#202020 !important; border-bottom:1px solid #000 !important; z-index:2147483647 !important;` +
     `margin:0 !important; padding:0 !important; overflow:hidden !important; font-family:${GLOBAL_FONT} !important;` +
-    `box-sizing:border-box !important;`;
+    `box-sizing:border-sizing !important;`;
 
   // Level-1 search (leftmost)
   bar.appendChild(createSearchBar());
