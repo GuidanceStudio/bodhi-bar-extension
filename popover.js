@@ -253,6 +253,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
   };
 
   form.appendChild(inp);
+  form.appendChild(colorRow); // Added this line
   colorRow.appendChild(colorPreview);
   colorRow.appendChild(sel);
   form.appendChild(createBtn);

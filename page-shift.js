@@ -2,6 +2,11 @@
  * PAGE-SHIFT.JS - Header collision detection and page shift
  */
 
+// Shared flag to prevent resize loops (also used by render.js)
+if (typeof isInternalResize === 'undefined') {
+  var isInternalResize = false;
+}
+
 let _tzShifted = new Map();
 let _tzLastBarH = null;
 let _tzShiftRAF = 0;

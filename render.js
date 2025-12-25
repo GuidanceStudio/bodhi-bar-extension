@@ -2,7 +2,7 @@
  * RENDER.JS - Bar rendering functions
  */
 
-let isInternalResize = false;
+// isInternalResize is declared in page-shift.js
 
 function ensureBar() {
   ensureSizingStyle();
