@@ -263,10 +263,6 @@ function createFaviconElement(tab) {
   favicon.decoding = 'async';
   favicon.loading = 'lazy';
 
-  favicon.style.cssText =
-    `width:var(--tz-fav); height:var(--tz-fav);` +
-    `flex:0 0 var(--tz-fav); display:block;`;
-
   const fallback = getFallbackFaviconDataUrl();
   favicon.src = fallback;
 
@@ -307,11 +303,6 @@ function createCloseButton(tabId) {
   x.className = 'tz-close-x';
   x.textContent = '×';
   x.title = 'Close tab';
-  x.style.cssText =
-    `all: initial; width:18px; height:18px; border-radius:4px;` +
-    `display:flex; align-items:center; justify-content:center;` +
-    `font-family:${GLOBAL_FONT}; font-size:16px; line-height:1;` +
-    `cursor:pointer; user-select:none;`;
   x.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
   x.onclick = (e) => {
     e.stopPropagation(); e.preventDefault();
@@ -325,11 +316,6 @@ function createGroupButton(tabId) {
   b.className = 'tz-group-btn';
   b.textContent = '+';
   b.title = 'Move to group';
-  b.style.cssText =
-    `all: initial; width:18px; height:18px; border-radius:4px;` +
-    `display:flex; align-items:center; justify-content:center;` +
-    `font-family:${GLOBAL_FONT}; font-size:16px; font-weight:700; line-height:1;` +
-    `cursor:pointer; user-select:none;`;
   b.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
   b.onclick = (e) => {
     e.stopPropagation(); e.preventDefault();
@@ -341,14 +327,9 @@ function createGroupButton(tabId) {
 function createLevel3MenuButton(tabId) {
   // Level-3 menu button ("-") styled/behaving like Level-1 hover buttons
   const b = document.createElement('div');
-  b.className = 'tz-group-btn';
+  b.className = 'tz-group-btn tz-menu-btn';
   b.textContent = '-';
   b.title = 'Move / Ungroup';
-  b.style.cssText =
-    `all: initial; width:18px; height:18px; border-radius:4px;` +
-    `display:flex; align-items:center; justify-content:center;` +
-    `font-family:${GLOBAL_FONT}; font-size:18px; font-weight:700; line-height:1;` +
-    `cursor:pointer; user-select:none; color:#bdbdbd;`;
   b.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
   // NOTE: onclick is assigned at call site to pass excludeGroupId correctly.
   return b;
@@ -464,11 +445,9 @@ function onDocKeyDown(e) {
 
 function createPopoverIcon(symbol, color = INDICATOR_COLOR) {
   const ic = document.createElement('div');
+  ic.className = 'popover-icon';
   ic.textContent = symbol;
-  ic.style.cssText =
-    `all: initial; width:10px; text-align:center;` +
-    `font-family:${GLOBAL_FONT}; font-size:16px; font-weight:700;` +
-    `color:${color}; line-height:1;`;
+  ic.style.color = color;
   return ic;
 }
 
@@ -492,12 +471,12 @@ function openSearchPopover(anchorEl) {
 
   if (!q) {
     const empty = document.createElement('div');
-    empty.style.cssText = `all: initial; padding:8px 6px; font-family:${GLOBAL_FONT}; font-size:13px; color:#bdbdbd;`;
+    empty.className = 'tz-popover-empty';
     empty.textContent = 'Type to search tabs…';
     list.appendChild(empty);
   } else if (!results.length) {
     const empty = document.createElement('div');
-    empty.style.cssText = `all: initial; padding:8px 6px; font-family:${GLOBAL_FONT}; font-size:13px; color:#bdbdbd;`;
+    empty.className = 'tz-popover-empty';
     empty.textContent = 'No matches';
     list.appendChild(empty);
   } else {
@@ -506,15 +485,8 @@ function openSearchPopover(anchorEl) {
       item.className = 'group-item';
 
       const favWrap = document.createElement('div');
-      favWrap.className = 'tz-lvl2-fav-wrap';
-      favWrap.style.cssText =
-        `width:16px; height:16px; min-width:16px; min-height:16px; flex:0 0 16px;` +
-        `display:flex; align-items:center; justify-content:center; border-radius:4px;`;
+      favWrap.className = 'tz-search-fav-wrap';
       const fav = createFaviconElement(tab);
-      fav.style.width = '16px';
-      fav.style.height = '16px';
-      fav.style.flex = '0 0 16px';
-      fav.style.pointerEvents = 'none';
       favWrap.appendChild(fav);
 
       const tx = document.createElement('div');
@@ -522,9 +494,7 @@ function openSearchPopover(anchorEl) {
       const label = domain ? `${title} (${domain})` : title;
       // Highlight match (bold) in the displayed label
       tx.innerHTML = highlightMatchHtml(label, searchQuery);
-      tx.style.cssText =
-        `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;` +
-        `overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto; min-width:0;`;
+      tx.className = 'tz-search-text';
 
       item.appendChild(favWrap);
       item.appendChild(tx);
@@ -578,7 +548,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
   pop.style.left = '0px';
 
   const groupsContainer = document.createElement('div');
-  groupsContainer.style.cssText = `all: initial; display:block;`;
+  groupsContainer.className = 'tz-groups-container';
   pop.appendChild(groupsContainer);
 
   const groups = Array.isArray(cachedTabGroups) ? cachedTabGroups : [];
@@ -590,8 +560,8 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
     unItem.style.marginBottom = `${POPOVER_SECTION_GAP_PX}px`;
     const minus = createPopoverIcon('-');
     const tx = document.createElement('div');
+    tx.className = 'tz-popover-label muted';
     tx.textContent = 'Ungroup';
-    tx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#bdbdbd;`;
     unItem.appendChild(minus);
     unItem.appendChild(tx);
     unItem.onclick = async (e) => {
@@ -613,8 +583,8 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
     sw.className = 'swatch';
     sw.style.background = GROUP_COLOR_MAP[g.color] || GROUP_COLOR_MAP.default;
     const tx = document.createElement('div');
+    tx.className = 'tz-popover-label';
     tx.textContent = g.title || 'Group';
-    tx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;`;
     item.appendChild(sw);
     item.appendChild(tx);
     item.onclick = async (e) => {
@@ -636,7 +606,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
 
   const newTx = document.createElement('div');
   newTx.textContent = 'New group…';
-  newTx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;`;
+  newTx.className = 'tz-popover-label';
 
   newItem.appendChild(plus);
   newItem.appendChild(newTx);
@@ -644,21 +614,17 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
 
   // New group panel (hidden until "New" is clicked)
   const createPanel = document.createElement('div');
-  createPanel.style.cssText = `all: initial; display:none; margin-top:0; width:100%; box-sizing:border-box;`;
+  createPanel.className = 'tz-popover-panel';
 
   // Vertical form: title, color (full-width dropdown), create (primary), cancel (secondary)
   const form = document.createElement('div');
-  form.style.cssText = `all: initial; display:flex; flex-direction:column; gap:8px; width:100%; box-sizing:border-box;`;
+  form.className = 'tz-popover-form';
 
   const inp = document.createElement('input');
   inp.type = 'text';
   inp.placeholder = 'New group title';
-  inp.style.width = '100%';
-  inp.style.boxSizing = 'border-box';
 
   const sel = document.createElement('select');
-  sel.style.width = '100%';
-  sel.style.boxSizing = 'border-box';
   const colors = ['grey','blue','red','yellow','green','pink','purple','cyan','orange'];
   colors.forEach(c => {
     const o = document.createElement('option');
@@ -668,12 +634,11 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
 
   // Inline selected-color preview square (left of the color picker)
   const colorRow = document.createElement('div');
-  colorRow.className = 'row';
-  colorRow.style.cssText = `all: initial; display:flex; align-items:center; gap:8px; width:100%; box-sizing:border-box;`;
+  colorRow.className = 'tz-color-row';
 
   const colorPreview = document.createElement('div');
-  colorPreview.className = 'swatch';
-  colorPreview.style.cssText = `all: initial; width:12px; height:12px; border-radius:3px; flex:0 0 12px; box-sizing:border-box; background:${GROUP_COLOR_MAP[sel.value] || GROUP_COLOR_MAP.default};`;
+  colorPreview.className = 'tz-color-preview';
+  colorPreview.style.background = GROUP_COLOR_MAP[sel.value] || GROUP_COLOR_MAP.default;
 
   const updatePreview = () => { colorPreview.style.background = GROUP_COLOR_MAP[sel.value] || GROUP_COLOR_MAP.default; };
   sel.addEventListener('change', updatePreview);
@@ -682,8 +647,6 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
   const createBtn = document.createElement('div');
   createBtn.className = 'btn btn-primary';
   createBtn.textContent = 'Create';
-  createBtn.style.width = '100%';
-  createBtn.style.boxSizing = 'border-sizing';
   createBtn.style.textAlign = 'center';
   createBtn.onclick = async (e) => {
     e.stopPropagation(); e.preventDefault();
@@ -698,8 +661,6 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
   const cancelBtn = document.createElement('div');
   cancelBtn.className = 'btn';
   cancelBtn.textContent = 'Cancel';
-  cancelBtn.style.width = '100%';
-  cancelBtn.style.boxSizing = 'border-box';
   cancelBtn.style.textAlign = 'center';
   cancelBtn.onclick = (e) => {
     e.stopPropagation(); e.preventDefault();
@@ -758,9 +719,6 @@ function createLevel2Favicon(tab, { interactive = true } = {}) {
 
   const fav = createFaviconElement(tab);
   // force Level-2 favicon size + do not capture pointer (wrapper does)
-  fav.style.width = 'var(--tz-lvl2-fav)';
-  fav.style.height = 'var(--tz-lvl2-fav)';
-  fav.style.flex = '0 0 var(--tz-lvl2-fav)';
   
   if (interactive) {
     wrap.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
@@ -1183,13 +1141,7 @@ function createSearchBar() {
   icon.className = 'icon';
   icon.textContent = SEARCH_ICON;
   // Match the minimal look of other controls (no emoji-like rendering)
-  icon.style.cssText =
-    // Keep the icon size at 32px regardless of expanded state.
-    `all: initial; font-family:${GLOBAL_FONT}; font-size:32px; line-height:1;` +
-    `color:${INDICATOR_COLOR}; flex:0 0 auto; user-select:none; cursor:pointer;`;
-  if (!searchExpanded) {
-    icon.style.marginTop = '-4px'; // Adjust icon position when collapsed
-  }
+  // Styles handled by CSS class .tz-search .icon
   wrap.appendChild(icon);
 
   const input = document.createElement('input');
