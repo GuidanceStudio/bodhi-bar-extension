@@ -1474,16 +1474,19 @@ function createSearchBar() {
   const clear = document.createElement('div');
   clear.className = 'clear';
   clear.textContent = '×';
-  clear.title = 'Clear';
-  clear.style.display = searchQuery ? 'block' : 'none';
+  clear.title = 'Close search';
+  // Visible whenever search is expanded (even if input is empty)
+  clear.style.display = searchExpanded ? 'block' : 'none';
   clear.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
   clear.onclick = (e) => {
     e.stopPropagation(); e.preventDefault();
+    // Close search (and clear query)
     searchQuery = '';
     input.value = '';
+    searchExpanded = false;
+    input.style.display = 'none';
     clear.style.display = 'none';
     closeActiveSearchPopover();
-    input.focus();
     if (navigationState === NAV_LEVELS.LEVEL_1) requestTabList();
   };
   wrap.appendChild(clear);
@@ -1498,6 +1501,7 @@ function createSearchBar() {
       searchExpanded = true;
       wrap.classList.add('expanded');
       input.style.display = 'block';
+      clear.style.display = 'block';
       setTimeout(() => { try { input.focus(); } catch {} }, 0);
       openSearchPopover(wrap);
     } else {
@@ -1507,13 +1511,14 @@ function createSearchBar() {
       input.value = '';
       searchExpanded = false;
       input.style.display = 'none';
+      clear.style.display = 'none';
       closeActiveSearchPopover();
       if (navigationState === NAV_LEVELS.LEVEL_1) requestTabList();
     }
   };
 
   // Keep clear visibility in sync
-  const syncClear = () => { clear.style.display = (searchQuery && searchExpanded) ? 'block' : 'none'; };
+  const syncClear = () => { clear.style.display = searchExpanded ? 'block' : 'none'; };
   input.addEventListener('input', syncClear);
   syncClear();
 
@@ -1776,6 +1781,7 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       // Level 3: tabs inside group
       // (kept as in your file: shows favicon + title + close)
       // -----------------------
+      itemBtn.style.borderBottom = `var(--tz-ind-h) solid ${INDICATOR_COLOR}`;
       itemBtn.className = 'tz-tab-btn';
       itemBtn.draggable = true;
       itemBtn.setAttribute('draggable', 'true');
@@ -1807,7 +1813,7 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       actions.appendChild(menuBtn);
       actions.appendChild(createCloseButton(item.id));
       itemBtn.appendChild(actions);
-      itemBtn.onclick = () => handleTabClick(item.id);
+      itemBtn.onclick = (e) => { e.stopPropagation(); handleTabClick(item.id); };
     } else {
       // Safety fallback (should not happen)
       itemBtn.appendChild(titleSpan);
