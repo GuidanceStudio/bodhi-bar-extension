@@ -561,7 +561,7 @@ function tabToItem(t) {
     id: t.id,
     index: t.index,
     title: t.title || '',
-    url: t.url || '',
+    url: t.url || t.pendingUrl || '',
     favIconUrl: t.favIconUrl || '',
     pinned: !!t.pinned,
     groupId: (typeof t.groupId === 'number' ? t.groupId : -1),
