@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Guidance Tab Manager",
+  "name": "Bodhi Bar (bodhi-bar)",
   "version": "1.8",
   "author": "guidance.studio",
   "description": "Automatically removes new tabs from groups and provides a horizontal interface enhancement.",
