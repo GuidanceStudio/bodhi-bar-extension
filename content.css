@@ -267,3 +267,328 @@
   background:#3a3a3a;
   color:#fff;
 }
+
+/* ========================================
+   Bar container
+   ======================================== */
+#ungroup-automatic-tab-bar {
+  all: initial;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: var(--tz-h) !important;
+  display: flex !important;
+  align-items: center !important;
+  background: #202020 !important;
+  border-bottom: 1px solid #000 !important;
+  z-index: 2147483647 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  font-family: Arial, sans-serif !important;
+  box-sizing: border-box !important;
+}
+
+/* ========================================
+   Tab buttons (Level 1, 2, 3)
+   ======================================== */
+#ungroup-automatic-tab-bar .tz-tab-btn {
+  all: initial;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+  height: 100%;
+  width: var(--tz-tab-w);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--tz-pad-x);
+  margin: 0 var(--tz-gap-x);
+  flex: 0 0 auto;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-drag: element;
+  background: #282828;
+  color: #ccc;
+  border-bottom: var(--tz-ind-h) solid transparent;
+  transition: background 0.2s;
+}
+
+#ungroup-automatic-tab-bar .tz-tab-btn:hover {
+  background: #333;
+}
+
+#ungroup-automatic-tab-bar .tz-tab-btn.active {
+  background: #3a3a3a;
+  color: #fff;
+  border-bottom-color: #0078d4;
+}
+
+#ungroup-automatic-tab-bar .tz-tab-btn .tab-title {
+  all: initial;
+  margin-left: var(--tz-icon-gap);
+  font-family: Arial, sans-serif;
+  font-size: var(--tz-font);
+  line-height: 1;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  pointer-events: none;
+}
+
+#ungroup-automatic-tab-bar .tz-tab-btn .tab-actions {
+  all: initial;
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 18px;
+}
+
+/* ========================================
+   Trigger button (Groups dropdown)
+   ======================================== */
+#ungroup-automatic-tab-bar .tz-trigger {
+  all: initial;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: var(--tz-tab-w);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--tz-pad-x);
+  margin-right: var(--tz-gap-x);
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+  font-size: var(--tz-font);
+  background: #282828;
+  border-bottom: var(--tz-ind-h) solid transparent;
+  transition: background 0.2s;
+}
+
+#ungroup-automatic-tab-bar .tz-trigger:hover {
+  background: #444;
+}
+
+#ungroup-automatic-tab-bar .tz-trigger.active {
+  background: #3a3a3a;
+  border-bottom-color: #0078d4;
+}
+
+#ungroup-automatic-tab-bar .tz-trigger .caret {
+  all: initial;
+  color: #0078d4;
+  margin-right: var(--tz-icon-gap);
+  flex: 0 0 auto;
+  font-family: Arial, sans-serif;
+  font-size: var(--tz-font);
+}
+
+#ungroup-automatic-tab-bar .tz-trigger .label {
+  all: initial;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #ccc;
+  font-family: Arial, sans-serif;
+  font-size: var(--tz-font);
+}
+
+#ungroup-automatic-tab-bar .tz-trigger.active .label {
+  color: #fff;
+}
+
+/* ========================================
+   Back button (Level 2/3)
+   ======================================== */
+#ungroup-automatic-tab-bar .tz-back-btn {
+  all: initial;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: var(--tz-tab-w);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--tz-pad-x);
+  margin-right: var(--tz-gap-x);
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+  font-size: var(--tz-font);
+  background: #3a3a3a;
+  transition: background 0.2s;
+}
+
+#ungroup-automatic-tab-bar .tz-back-btn:hover {
+  background: #444;
+}
+
+#ungroup-automatic-tab-bar .tz-back-btn .arrow {
+  all: initial;
+  color: #0078d4;
+  margin-right: var(--tz-icon-gap);
+  flex: 0 0 auto;
+  font-family: Arial, sans-serif;
+  font-size: var(--tz-font);
+}
+
+#ungroup-automatic-tab-bar .tz-back-btn .label {
+  all: initial;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  font-size: var(--tz-font);
+}
+
+/* ========================================
+   Scroll container
+   ======================================== */
+#ungroup-automatic-tab-bar .scroll-container {
+  all: initial;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  position: relative;
+}
+
+/* ========================================
+   Separator
+   ======================================== */
+#ungroup-automatic-tab-bar .tz-separator {
+  all: initial;
+  width: var(--tz-sep-w);
+  height: 60%;
+  background: #444;
+  margin: 0 var(--tz-sep-mx);
+  flex: 0 0 auto;
+  display: block;
+}
+
+/* ========================================
+   Plus buttons
+   ======================================== */
+#ungroup-automatic-tab-bar .inline-plus-wrapper {
+  all: initial;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  flex: 0 0 auto;
+}
+
+#ungroup-automatic-tab-bar .tz-plus-btn {
+  all: initial;
+  width: var(--tz-plus-w);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  font-family: Arial, sans-serif;
+  font-size: calc(var(--tz-font) * 1.6);
+  color: #0078d4;
+  font-weight: 700;
+  transition: transform 0.2s;
+}
+
+#ungroup-automatic-tab-bar .tz-plus-btn:hover {
+  transform: scale(1.1);
+}
+
+#ungroup-automatic-tab-bar .plus-sticky {
+  all: initial;
+  position: sticky;
+  right: 0;
+  z-index: 100;
+  flex: 0 0 auto;
+  width: var(--tz-plus-w);
+  height: 100%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: #202020;
+  cursor: pointer;
+  user-select: none;
+  border-left: var(--tz-sep-w) solid #333;
+  font-family: Arial, sans-serif;
+  color: #0078d4;
+  font-weight: 700;
+  font-size: calc(var(--tz-font) * 1.6);
+  transition: transform 0.2s;
+}
+
+#ungroup-automatic-tab-bar .plus-sticky:hover {
+  transform: scale(1.1);
+}
+
+/* ========================================
+   Level-2 group tile (variable width)
+   ======================================== */
+#ungroup-automatic-tab-bar .tz-group-tile {
+  all: initial;
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--tz-group-min-pad-x);
+  min-width: var(--tz-tab-w);
+  margin: 0 var(--tz-gap-x);
+  flex: 0 0 auto;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-drag: element;
+  background: #282828;
+  transition: background 0.2s;
+  font-family: Arial, sans-serif;
+  font-size: var(--tz-font);
+}
+
+#ungroup-automatic-tab-bar .tz-group-tile:hover {
+  background: #333;
+}
+
+#ungroup-automatic-tab-bar .tz-group-tile .group-title {
+  all: initial;
+  font-family: Arial, sans-serif;
+  font-size: var(--tz-font);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: inherit;
+}
+
+#ungroup-automatic-tab-bar .tz-group-tile .fav-row {
+  all: initial;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: var(--tz-lvl2-fav-ml);
+  gap: 4px;
+}
+
+/* ========================================
+   Disconnected message
+   ======================================== */
+#ungroup-automatic-tab-bar .tz-disconnected-msg {
+  all: initial;
+  font-family: Arial, sans-serif;
+  font-size: var(--tz-font);
+  color: #fff;
+  cursor: pointer;
+  user-select: none;
+}
