@@ -1,53 +1,40 @@
-# 🚀 Guidance Tab Manager
+# 🚀 Bodhi Bar (Tab Manager)
 
 ## Description
 
-**Guidance Tab Manager** is a background extension for Brave and Chromium that serves two primary functions:
-1.  **Tab Management:** It automatically removes any new tab created from a link out of its parent's tab group and moves it to the end of the web tab list, maintaining system tabs at the far end.
-2.  **UI Enhancement:** It injects a horizontal, dark-mode-styled "fake tab bar" into every webpage, displaying all currently open, non-grouped tabs for quick switching, optimized for users utilizing vertical tab grouping.
+**Bodhi Bar** is an advanced extension for Chrome/Brave that revolutionizes tab management with two main functions:
+1. **Smart Tab Management**: Automatically removes new tabs from parent groups and positions them optimally.
+2. **UI Tab Bar**: Injects a horizontal, dark-mode styled tab bar that displays:
+    - All ungrouped tabs
+    - Integrated search with highlighting functions
+    - Multi-level group navigation
+    - Quick buttons to close/move/open tabs
 
-## Features
+## 🌟 Key Features
 
-* **Automatic Ungrouping:** Removes new tabs from their inherited tab group.
-* **Smart Tab Ordering:** New web tabs are placed immediately before the first system/browser tab (`chrome://`, `about:`).
-* **Consistent UI:** The leftmost navigation button (Group Trigger or Back Button) maintains a constant, fixed width across all views for interface stability.
-* **Dark Mode UI:** Displays an overlay bar at the top of every page, styled with dark colors for aesthetic consistency.
-* **Quick Switching:** Lists all open, non-grouped tabs for rapid navigation via clicking.
+- **Automatic Ungrouping**
+New tabs are automatically removed from inherited groups.
 
-## 🛑 Important Limitation: Browser Pages
+- **Smart Ordering**
+New web tabs are positioned before system tabs (`chrome://`, `about:`).
 
-Due to inherent security restrictions in Chromium-based browsers (Brave/Chrome), this extension **cannot** inject the UI bar into internal browser pages, such as:
-* `brave://settings`
-* `brave://extensions`
-* `chrome://flags`
-* The UI bar will only appear on standard web pages (e.g., `https://google.com`).
+- **Horizontal UI Bar**
+  - Compact dark design with abbreviated titles and favicons
+  - Integrated tab search with result highlighting
+  - 3-level group management navigation
+  - Quick actions (close/move/create group)
+  - Responsive structure that adapts to zoom and dimensions
 
-## Recommended Feature: Vertical Tabs
+- **Fluent Interface**
+- Optimized animations
+- Drag-and-drop tabs with visual feedback
+- Wear-resistant during operations
 
-For an optimal experience (as this extension effectively gives you a horizontal tab bar *back*), the author strongly recommends enabling vertical tab grouping in your browser. **Note: Extensions cannot automatically set browser flags, so this must be done manually.**
+## 🛑 Technical Limitations
 
-1.  Open the Flags page: Type `brave://flags` (or `chrome://flags`) in your address bar.
-2.  Search for: `#enable-vertical-tabs` (or similar terms related to vertical tab view).
-3.  Set the relevant flag to **Enabled**.
-4.  Restart your browser.
+The UI **does not appear** on browser system pages
+(e.g., `brave://settings`, `chrome://extensions`).
+It only works on standard web pages (`https://...`).
 
-## Installation (Developer Mode)
+## 🔧 Technical Architecture
 
-### Prerequisites
-
-* Ensure you have the latest versions of `manifest.json`, `background.js`, `content.js`, and `icon128.png` saved in a single folder.
-
-### Loading Steps
-
-1.  **Open Extensions Page:** In Brave (or Chrome), type `brave://extensions` (or `chrome://extensions`) in the address bar.
-2.  **Enable Developer Mode:** Turn on the **"Developer mode"** toggle switch.
-3.  **Load Extension:** Click on **"Load unpacked"**.
-4.  **Select Folder:** Select the main extension folder.
-
-## Technical Details
-
-| Field | Value | Description |
-| :--- | :--- | :--- |
-| **Name** | `Guidance Tab Manager` | The new name of the extension. |
-| **Version** | `1.7` | Updated version. |
-| **Permissions** | `tabs`, `tabGroups`, `scripting` | Core permissions for tab manipulation and UI injection. |
