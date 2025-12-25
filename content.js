@@ -154,11 +154,11 @@ function ensureSizingStyle() {
       background:#3a3a3a;
       color:#ffffff;
     }
-    #ungroup-automatic-tab-bar .tz-tab-btn:hover .tz-close-x:hover{
+    #ungroup-automatic-tab-bar .tz-close-x:hover{
       background:#4a4a4a;
       transform:scale(1.03);
     }
-    #ungroup-automatic-tab-bar .tz-tab-btn:hover .tz-group-btn:hover{
+    #ungroup-automatic-tab-bar .tz-group-btn:hover{
       background:#4a4a4a;
       transform:scale(1.03);
     }
@@ -565,6 +565,16 @@ function onDocKeyDown(e) {
   if (e.key === 'Escape') closeActivePopover();
 }
 
+function createPopoverIcon(symbol, color = INDICATOR_COLOR) {
+  const ic = document.createElement('div');
+  ic.textContent = symbol;
+  ic.style.cssText =
+    `all: initial; width:10px; text-align:center;` +
+    `font-family:${GLOBAL_FONT}; font-size:16px; font-weight:700;` +
+    `color:${color}; line-height:1;`;
+  return ic;
+}
+
 function openGroupPopover(anchorEl, tabId, { includeUngroup = false } = {}) {
   closeActivePopover();
   activePopoverTabId = tabId;
@@ -590,13 +600,11 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false } = {}) {
   if (includeUngroup) {
     const unItem = document.createElement('div');
     unItem.className = 'group-item';
-    const sw = document.createElement('div');
-    sw.className = 'swatch';
-    sw.style.background = '#777';
+    const minus = createPopoverIcon('-');
     const tx = document.createElement('div');
     tx.textContent = 'Ungroup';
     tx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;`;
-    unItem.appendChild(sw);
+    unItem.appendChild(minus);
     unItem.appendChild(tx);
     unItem.onclick = async (e) => {
       e.stopPropagation(); e.preventDefault();
@@ -638,12 +646,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false } = {}) {
   newItem.className = 'group-item';
   newItem.style.marginTop = groups.length ? '6px' : '0';
 
-  const plus = document.createElement('div');
-  plus.textContent = '+';
-  plus.style.cssText =
-    `all: initial; width:10px; text-align:center;` +
-    `font-family:${GLOBAL_FONT}; font-size:16px; font-weight:700;` +
-    `color:${INDICATOR_COLOR}; line-height:1;`;
+  const plus = createPopoverIcon('+');
 
   const newTx = document.createElement('div');
   newTx.textContent = 'New group…';
