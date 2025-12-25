@@ -322,7 +322,7 @@ function ensureSizingStyle() {
       box-sizing:border-box;
       height:calc(var(--tz-h) - 10px);
       margin-left:6px;
-      margin-right:8px; /* Changed from var(--tz-gap-x) to 8px */
+      margin-right:6px; /* Changed from 8px to 6px */
       display:flex;
       align-items:center;
       gap:8px;
@@ -357,7 +357,7 @@ function ensureSizingStyle() {
       width:260px;
       background:#222;
       border-color:#444;
-      margin-right:8px; /* Changed from 12px to 8px */
+      margin-right:2px; /* Changed from 12px to 2px */
     }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) input{ display:none; }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) .clear{ display:none !important; }
