@@ -110,6 +110,8 @@ function px(base, scale) {
 }
 
 function ensureSizingStyle() {
+  // The CSS is now loaded from content.css, so we only need to ensure the style element exists
+  // for dynamic updates of CSS variables.
   if (document.head?.querySelector('style[data-tz-px-zoom]')) return;
 
   const style = document.createElement('style');
@@ -131,258 +133,6 @@ function ensureSizingStyle() {
       --tz-group-min-pad-x: ${BASE.GROUP_MIN_PAD_X}px;
       --tz-lvl2-fav: ${BASE.LVL2_FAV_PX}px;
       --tz-lvl2-fav-ml: ${BASE.LVL2_FAV_ML}px;
-    }
-    #ungroup-automatic-tab-bar .scroll-container::-webkit-scrollbar{ display:none; }
-
-    /* Close X: hidden by default; visible only when hovering the tab tile */
-    #ungroup-automatic-tab-bar .tz-close-x{
-      opacity:0 !important;
-      pointer-events:none !important;
-      background:transparent;
-      color:#bdbdbd !important;
-      transition:opacity 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
-    }
-    /* Group "+" button: same hover behavior as X */
-    #ungroup-automatic-tab-bar .tz-group-btn{
-      opacity:0 !important;
-      pointer-events:none !important;
-      background:transparent;
-      color:#bdbdbd !important;
-      transition:opacity 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
-    }
-    #ungroup-automatic-tab-bar .tz-tab-btn:hover .tz-close-x{
-      opacity:1 !important;
-      pointer-events:auto !important;
-      background:#3a3a3a;
-      color:#ffffff !important;
-    }
-    #ungroup-automatic-tab-bar .tz-tab-btn:hover .tz-group-btn{
-      opacity:1 !important;
-      pointer-events:auto !important;
-      background:#3a3a3a;
-      color:#ffffff !important;
-    }
-    #ungroup-automatic-tab-bar .tz-close-x:hover{
-      background:#4a4a4a;
-      transform:scale(1.03);
-    }
-    #ungroup-automatic-tab-bar .tz-group-btn:hover{
-      background:#4a4a4a;
-      transform:scale(1.03);
-    }
-
-    /* Level-2 favicon wrapper (guaranteed space + hover highlight) */
-    #ungroup-automatic-tab-bar .tz-lvl2-fav-wrap{
-      width:var(--tz-lvl2-fav);
-      height:var(--tz-lvl2-fav);
-      min-width:var(--tz-lvl2-fav);
-      min-height:var(--tz-lvl2-fav);
-      flex:0 0 var(--tz-lvl2-fav);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border-radius:4px;
-      cursor:pointer;
-      user-select:none;
-      transition:background 120ms ease, transform 120ms ease;
-    }
-    #ungroup-automatic-tab-bar .tz-tab-btn:hover .tz-lvl2-fav-wrap{
-      background:#3a3a3a;
-    }
-    #ungroup-automatic-tab-bar .tz-lvl2-fav-wrap:hover{
-      background:#4a4a4a;
-      transform:scale(1.03);
-    }
-
-    /* NEW: Level-1 pinned favicon wrapper (favicon-only pinned tabs) */
-    #ungroup-automatic-tab-bar .tz-pin-fav-wrap{
-      width:var(--tz-fav);
-      height:var(--tz-fav);
-      min-width:var(--tz-fav);
-      min-height:var(--tz-fav);
-      flex:0 0 var(--tz-fav);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border-radius:4px;
-      cursor:pointer;
-      user-select:none;
-      margin:0 calc(var(--tz-gap-x) + 2px);
-      transition:background 120ms ease, transform 120ms ease;
-    }
-    #ungroup-automatic-tab-bar .tz-pin-fav-wrap:hover{
-      background:#3a3a3a;
-      transform:scale(1.03);
-    }
-
-    /* Drag & drop indicators */
-    #ungroup-automatic-tab-bar [data-tz-draggable="tab"].tz-dragging{
-      opacity:0.65 !important;
-    }
-    #ungroup-automatic-tab-bar [data-tz-draggable="tab"].tz-drop-before{
-      box-shadow: inset 0 2px 0 0 ${INDICATOR_COLOR} !important;
-    }
-    #ungroup-automatic-tab-bar [data-tz-draggable="tab"].tz-drop-after{
-      box-shadow: inset 0 -2px 0 0 ${INDICATOR_COLOR} !important;
-    }
-
-    /* Make HTML5 dragging start reliably on Chromium/WebKit */
-    #ungroup-automatic-tab-bar [data-tz-draggable]{
-      -webkit-user-drag: element;
-      user-drag: element;
-    }
-
-    /* Group picker popover (appended to body, so must not depend on being inside the bar) */
-    [data-tz-popover="1"]{
-      all: initial;
-      position:fixed;
-      z-index:2147483647;
-      width:240px;
-      max-height:300px;
-      overflow:auto;
-      background:#1f1f1f;
-      border:1px solid #333;
-      border-radius:8px;
-      box-shadow:0 8px 30px rgba(0,0,0,0.45);
-      padding:6px;
-      font-family:${GLOBAL_FONT};
-      color:#fff;
-      box-sizing:border-box;
-    }
-    [data-tz-popover="1"] .row{
-      all: initial;
-      display:flex;
-      align-items:center;
-      gap:8px;
-      font-family:${GLOBAL_FONT};
-      font-size:13px;
-      color:#fff;
-      box-sizing:border-box;
-    }
-    [data-tz-popover="1"] input,
-    [data-tz-popover="1"] select{
-      all: initial;
-      font-family:${GLOBAL_FONT};
-      font-size:13px;
-      color:#fff;
-      background:#2a2a2a;
-      border:1px solid #444;
-      border-radius:6px;
-      padding:6px 8px;
-      box-sizing:border-box;
-    }
-    [data-tz-popover="1"] .btn{
-      all: initial;
-      font-family:${GLOBAL_FONT};
-      font-size:13px;
-      color:#fff;
-      background:#2f2f2f;
-      border:1px solid #444;
-      border-radius:6px;
-      padding:6px 8px;
-      cursor:pointer; user-select:none;
-      box-sizing:border-box;
-    }
-    [data-tz-popover="1"] .btn:hover{ background:#3a3a3a; }
-    [data-tz-popover="1"] .btn-primary{
-      background:${INDICATOR_COLOR};
-      border-color:${INDICATOR_COLOR};
-    }
-    [data-tz-popover="1"] .btn-primary:hover{
-      background:#0267b2;
-      border-color:#0267b2;
-    }
-    [data-tz-popover="1"] .group-item{
-      all: initial;
-      display:flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 6px;
-      border-radius:6px;
-      cursor:pointer;
-      user-select:none;
-      font-family:${GLOBAL_FONT};
-      font-size:13px;
-      color:#fff;
-      box-sizing:border-box;
-    }
-    [data-tz-popover="1"] .group-item:hover{ background:#333; }
-    [data-tz-popover="1"] .swatch{
-      all: initial;
-      width:10px;
-      height:10px;
-      border-radius:3px;
-      flex:0 0 10px;
-      box-sizing:border-box;
-    }
-
-    /* Level-1 search */
-    #ungroup-automatic-tab-bar .tz-search{
-      all: initial;
-      box-sizing:border-box;
-      height:calc(var(--tz-h) - 10px);
-      margin-left:6px;
-      margin-right:-2px; /* Changed from 10px to -2px */
-      display:flex;
-      align-items:center;
-      gap:8px;
-      padding:0 10px;
-      border-radius:8px;
-      background:#1f1f1f;
-      border:1px solid #333;
-      color:#fff;
-      font-family:${GLOBAL_FONT};
-      flex:0 0 auto;
-      width:38px; /* collapsed */
-      transition:width 160ms ease, background 160ms ease, border-color 160ms ease;
-      overflow:hidden;
-      cursor:pointer;
-    }
-    #ungroup-automatic-tab-bar .tz-search:not(.expanded){
-      border-color:transparent;
-      background:transparent;
-      padding:0 6px;
-      cursor:pointer;
-    }
-    #ungroup-automatic-tab-bar .tz-search:not(.expanded) .icon{
-      font-size:32px; /* Changed from 28px */
-      margin-top:-4px; /* Added to move icon higher */
-      cursor:pointer;
-    }
-    /* Ensure the icon can actually move vertically (some pages override line-height/align) */
-    #ungroup-automatic-tab-bar .tz-search{ align-items:center; }
-    #ungroup-automatic-tab-bar .tz-search:not(.expanded){ align-items:flex-start; padding-top:0; }
-    #ungroup-automatic-tab-bar .tz-search.expanded{ align-items:center; padding-top:0; }
-    #ungroup-automatic-tab-bar .tz-search.expanded{
-      width:260px;
-      background:#222;
-      border-color:#444;
-      margin-right:6px; /* Changed from -2px to 6px */
-    }
-    #ungroup-automatic-tab-bar .tz-search:not(.expanded) input{ display:none; }
-    #ungroup-automatic-tab-bar .tz-search:not(.expanded) .clear{ display:none !important; }
-    #ungroup-automatic-tab-bar .tz-search input{
-      all: initial;
-      font-family:${GLOBAL_FONT};
-      font-size:13px;
-      color:#fff;
-      flex:1 1 auto;
-      min-width:0;
-      padding-right:6px;
-    }
-    #ungroup-automatic-tab-bar .tz-search .clear{
-      all: initial;
-      font-family:${GLOBAL_FONT};
-      font-size:16px;
-      color:#bdbdbd;
-      flex:0 0 auto;
-      cursor:pointer; user-select:none;
-      padding:2px 4px;
-      border-radius:4px;
-    }
-    #ungroup-automatic-tab-bar .tz-search .clear:hover{
-      background:#3a3a3a;
-      color:#fff;
     }
   `;
   document.head?.appendChild(style);
@@ -1341,23 +1091,6 @@ function applyShiftToCandidate(cand, barH) {
   el.setAttribute(TZ_SHIFT_ATTR, 'true');
 }
 
-function shiftOverlappingTopHeaders() {
-  const bar = document.getElementById(TZ_BAR_ID);
-  if (!bar) return;
-
-  const barRect = bar.getBoundingClientRect();
-  const barH = Math.round(barRect.height || 0);
-  if (!barH) return;
-
-  if (_tzLastBarH !== barH) {
-    restoreShiftedHeaders();
-    _tzLastBarH = barH;
-  }
-
-  const cands = findTopFixedHeaderCandidates(barRect, barH);
-  for (const c of cands) applyShiftToCandidate(c, barH);
-}
-
 function findViewportBottomClipper() {
   const overrides = getOverrides();
   const forced = overrides?.getSafeBottomContainer?.();
@@ -1408,6 +1141,23 @@ function applySafeBottomToClipper() {
   } catch {}
   _tzClipperEl = null;
   _tzClipperPrev = null;
+}
+
+function shiftOverlappingTopHeaders() {
+  const bar = document.getElementById(TZ_BAR_ID);
+  if (!bar) return;
+
+  const barRect = bar.getBoundingClientRect();
+  const barH = Math.round(barRect.height || 0);
+  if (!barH) return;
+
+  if (_tzLastBarH !== barH) {
+    restoreShiftedHeaders();
+    _tzLastBarH = barH;
+  }
+
+  const cands = findTopFixedHeaderCandidates(barRect, barH);
+  for (const c of cands) applyShiftToCandidate(c, barH);
 }
 
 function scheduleHeaderShift() {
