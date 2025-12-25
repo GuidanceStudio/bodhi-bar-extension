@@ -526,6 +526,10 @@ function createFaviconElement(tab) {
     };
     favicon.src = tab.favIconUrl;
   }
+
+  // Some sites (e.g. WhatsApp) block favicon fetches cross-origin; fall back cleanly.
+  // (This may still log a network error in DevTools; UI will show the fallback icon.)
+  favicon.addEventListener('error', () => { favicon.src = fallback; }, { once: true });
   return favicon;
 }
 
@@ -545,6 +549,22 @@ function handleTabClick(tabId) {
 function handleUngroup(tabId) { return safeRuntimeSendMessageWithRetry({ action: 'UNGROUP_TAB', tabId }, 3); }
 function handleNewTab() {
   safeRuntimeSendMessageWithRetry({ action: "OPEN_NEW_TAB" }, 2);
+}
+
+function createLevel3MenuButton(tabId) {
+  // Level-3 menu button ("-") styled/behaving like Level-1 hover buttons
+  const b = document.createElement('div');
+  b.className = 'tz-group-btn';
+  b.textContent = '-';
+  b.title = 'Move / Ungroup';
+  b.style.cssText =
+    `all: initial; width:18px; height:18px; border-radius:4px;` +
+    `display:flex; align-items:center; justify-content:center;` +
+    `font-family:${GLOBAL_FONT}; font-size:18px; font-weight:700; line-height:1;` +
+    `cursor:pointer; user-select:none; color:#bdbdbd;`;
+  b.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
+  // NOTE: onclick is assigned at call site to pass excludeGroupId correctly.
+  return b;
 }
 
 function normalizeForSearch(s) {
