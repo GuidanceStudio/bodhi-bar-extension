@@ -322,7 +322,7 @@ function ensureSizingStyle() {
       box-sizing:border-box;
       height:calc(var(--tz-h) - 10px);
       margin-left:6px;
-      margin-right:10px; /* Changed from 6px to 10px */
+      margin-right:2px; /* Changed from 10px to 2px */
       display:flex;
       align-items:center;
       gap:8px;
@@ -357,7 +357,7 @@ function ensureSizingStyle() {
       width:260px;
       background:#222;
       border-color:#444;
-      margin-right:-2px; /* Changed from 2px to -2px */
+      margin-right:6px; /* Changed from -2px to 6px */
     }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) input{ display:none; }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) .clear{ display:none !important; }
@@ -933,7 +933,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
   createBtn.className = 'btn btn-primary';
   createBtn.textContent = 'Create';
   createBtn.style.width = '100%';
-  createBtn.style.boxSizing = 'border-box';
+  createBtn.style.boxSizing = 'border-sizing';
   createBtn.style.textAlign = 'center';
   createBtn.onclick = async (e) => {
     e.stopPropagation(); e.preventDefault();
