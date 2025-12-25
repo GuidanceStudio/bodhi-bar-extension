@@ -28,6 +28,8 @@ const GROUP_COLOR_MAP = {
   orange: '#fcc934', default: '#505050'
 };
 
+const WEB_URL_RE = /^https?:\/\//i;
+
 const BASE = {
   BAR_H: 38,
   TAB_W: 148,
@@ -334,17 +336,19 @@ function ensureSizingStyle() {
       width:38px; /* collapsed */
       transition:width 160ms ease, background 160ms ease, border-color 160ms ease;
       overflow:hidden;
-      cursor:text;
+      cursor:pointer;
     }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded){
       border-color:transparent;
       background:transparent;
       padding:0 6px;
+      cursor:pointer;
     }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) .icon{
       font-size:35px;
       position:relative;
-      top:-3px;
+      top:-7px;
+      cursor:pointer;
     }
     #ungroup-automatic-tab-bar .tz-search.expanded{
       width:260px;
@@ -358,6 +362,7 @@ function ensureSizingStyle() {
       color:#bdbdbd;
       flex:0 0 auto;
       user-select:none;
+      cursor:pointer;
     }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) input{ display:none; }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) .clear{ display:none !important; }
@@ -551,6 +556,42 @@ function normalizeForSearch(s) {
   return String(s || '').toLowerCase();
 }
 
+function isWebUrl(url) {
+  return WEB_URL_RE.test(String(url || ''));
+}
+
+function extractFullDomain(url) {
+  try {
+    const u = new URL(String(url || ''));
+    return u.hostname || '';
+  } catch {
+    return '';
+  }
+}
+
+function escapeHtml(s) {
+  return String(s || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function highlightMatchHtml(text, query) {
+  const t = String(text || '');
+  const q = String(query || '').trim();
+  if (!q) return escapeHtml(t);
+  const lt = t.toLowerCase();
+  const lq = q.toLowerCase();
+  const idx = lt.indexOf(lq);
+  if (idx === -1) return escapeHtml(t);
+  const before = escapeHtml(t.slice(0, idx));
+  const mid = escapeHtml(t.slice(idx, idx + q.length));
+  const after = escapeHtml(t.slice(idx + q.length));
+  return `${before}<b style="font-weight:700;">${mid}</b>${after}`;
+}
+
 function getSearchResults() {
   const q = normalizeForSearch(searchQuery).trim();
   if (!q) return [];
@@ -558,14 +599,16 @@ function getSearchResults() {
   const out = [];
   for (const t of (cachedAllTabs || [])) {
     if (!t?.id || seen.has(t.id)) continue;
-    const hay = normalizeForSearch(`${t.title || ''} - ${t.url || t.pendingUrl || ''}`);
+    const url = t.url || t.pendingUrl || '';
+    const domain = isWebUrl(url) ? extractFullDomain(url) : '';
+    const hay = normalizeForSearch(`${t.title || ''} - ${domain}`);
     if (hay.includes(q)) {
-      out.push(t);
+      out.push({ tab: t, domain });
       seen.add(t.id);
     }
   }
   // Keep stable order by tab index when available
-  out.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+  out.sort((a, b) => ((a.tab?.index ?? 0) - (b.tab?.index ?? 0)));
   return out.slice(0, 12);
 }
 
@@ -656,7 +699,7 @@ function openSearchPopover(anchorEl) {
     empty.textContent = 'No matches';
     list.appendChild(empty);
   } else {
-    results.forEach(tab => {
+    results.forEach(({ tab, domain }) => {
       const item = document.createElement('div');
       item.className = 'group-item';
 
@@ -673,9 +716,10 @@ function openSearchPopover(anchorEl) {
       favWrap.appendChild(fav);
 
       const tx = document.createElement('div');
-      const url = tab.url || tab.pendingUrl || '';
       const title = tab.title || '';
-      tx.textContent = url ? `${title} (${url})` : title;
+      const label = domain ? `${title} (${domain})` : title;
+      // Highlight match (bold) in the displayed label
+      tx.innerHTML = highlightMatchHtml(label, searchQuery);
       tx.style.cssText =
         `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;` +
         `overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto; min-width:0;`;
@@ -1419,8 +1463,8 @@ function createSearchBar() {
   icon.textContent = SEARCH_ICON;
   // Match the minimal look of other controls (no emoji-like rendering)
   icon.style.cssText =
-    `all: initial; font-family:${GLOBAL_FONT}; font-size:${searchExpanded ? '20px' : '35px'}; line-height:1;` +
-    `color:${INDICATOR_COLOR}; flex:0 0 auto; user-select:none;`;
+    `all: initial; font-family:${GLOBAL_FONT}; font-size:${searchExpanded ? '18px' : '35px'}; line-height:1;` +
+    `color:${INDICATOR_COLOR}; flex:0 0 auto; user-select:none; cursor:pointer;`;
   wrap.appendChild(icon);
 
   const input = document.createElement('input');
@@ -1470,6 +1514,8 @@ function createSearchBar() {
   wrap.onmousedown = (e) => { e.stopPropagation(); };
   wrap.onclick = (e) => {
     e.stopPropagation();
+    // If user clicks the magnifier while collapsed, treat it like a button.
+    // (Also works if they click anywhere in the collapsed control.)
     if (!searchExpanded) {
       searchExpanded = true;
       wrap.classList.add('expanded');
