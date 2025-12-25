@@ -347,7 +347,7 @@ function ensureSizingStyle() {
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) .icon{
       font-size:35px;
       position:relative;
-      top:-7px;
+      top:-10px;
       cursor:pointer;
     }
     #ungroup-automatic-tab-bar .tz-search.expanded{
@@ -364,6 +364,7 @@ function ensureSizingStyle() {
       color:#fff;
       flex:1 1 auto;
       min-width:0;
+      margin-right:6px;
     }
     #ungroup-automatic-tab-bar .tz-search .clear{
       all: initial;
