@@ -60,6 +60,7 @@ let cachedTabGroups = [];
 let cachedAllTabs = []; // for Level-1 search (includes grouped + ungrouped + pinned)
 let searchQuery = '';
 let searchExpanded = false;
+let activeSearchPopover = null;
 const POPOVER_SECTION_GAP_PX = 6;
 let isInternalResize = false;
 let suppressClickUntil = 0; // avoid accidental SWITCH_TAB right after drag end/drop
@@ -362,8 +363,7 @@ function ensureSizingStyle() {
       font-size:16px;
       color:#bdbdbd;
       flex:0 0 auto;
-      cursor:pointer;
-      user-select:none;
+      cursor:pointer; user-select:none;
       padding:2px 4px;
       border-radius:4px;
     }
@@ -568,80 +568,6 @@ function buildAllTabsCacheFromPayload(payload) {
   cachedAllTabs = all;
 }
 
-function createCloseButton(tabId) {
-  const x = document.createElement('div');
-  x.className = 'tz-close-x';
-  x.textContent = '×';
-  x.title = 'Close tab';
-
-  x.style.cssText =
-    `margin-left:auto; flex:0 0 auto;` +
-    `display:flex; align-items:center; justify-content:center;` +
-    `width:18px; height:18px; border-radius:4px;` +
-    `font-family:${GLOBAL_FONT}; font-size:16px; line-height:1;` +
-    `cursor:pointer; user-select:none;`;
-
-  x.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
-  x.onclick = (e) => { e.stopPropagation(); e.preventDefault(); handleCloseTab(tabId); };
-  return x;
-}
-
-function createGroupButton(tabId) {
-  const b = document.createElement('div');
-  b.className = 'tz-group-btn';
-  b.textContent = '+';
-  b.title = 'Add to group';
-  b.style.cssText =
-    `margin-left:0; flex:0 0 auto;` +
-    `display:flex; align-items:center; justify-content:center;` +
-    `width:18px; height:18px; border-radius:4px;` +
-    `font-family:${GLOBAL_FONT}; font-size:16px; line-height:1;` +
-    `cursor:pointer; user-select:none;`;
-  b.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
-  b.onclick = (e) => { e.stopPropagation(); e.preventDefault(); openGroupPopover(b, tabId); };
-  return b;
-}
-
-function createLevel3MenuButton(tabId) {
-  const b = document.createElement('div');
-  b.className = 'tz-group-btn'; // reuse hover/visibility behavior
-  b.textContent = '-';
-  b.title = 'Move / Ungroup';
-  b.style.cssText =
-    `margin-left:0; flex:0 0 auto;` +
-    `display:flex; align-items:center; justify-content:center;` +
-    `width:18px; height:18px; border-radius:4px;` +
-    `font-family:${GLOBAL_FONT}; font-size:16px; line-height:1;` +
-    `cursor:pointer; user-select:none;`;
-  b.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
-  b.onclick = (e) => { e.stopPropagation(); e.preventDefault(); openGroupPopover(b, tabId, { includeUngroup: true }); };
-  return b;
-}
-
-function createUngroupButton(tabId) {
-  const b = document.createElement('div');
-  b.className = 'tz-ungroup-btn';
-  b.textContent = 'Ungroup';
-  b.title = 'Remove from group';
-  b.style.cssText =
-    `all: initial; margin-left:auto; flex:0 0 auto;` +
-    `display:flex; align-items:center; justify-content:center;` +
-    `height:18px; padding:0 8px; border-radius:4px;` +
-    `font-family:${GLOBAL_FONT}; font-size:12px; line-height:1;` +
-    `cursor:pointer; user-select:none;` +
-    `background:#2f2f2f; border:1px solid #444; color:#fff;`;
-  b.onmouseover = () => { b.style.background = '#3a3a3a'; };
-  b.onmouseout = () => { b.style.background = '#2f2f2f'; };
-  b.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
-  b.onclick = async (e) => {
-    e.stopPropagation(); e.preventDefault();
-    suppressClickUntil = Date.now() + 700;
-    await safeRuntimeSendMessageWithRetry({ action: 'UNGROUP_TAB', tabId }, 3);
-    handleStateChange();
-  };
-  return b;
-}
-
 function closeActivePopover() {
   if (!activePopover) return;
   try { activePopover.remove(); } catch {}
@@ -649,6 +575,24 @@ function closeActivePopover() {
   activePopoverTabId = null;
   document.removeEventListener('mousedown', onDocMouseDown, true);
   document.removeEventListener('keydown', onDocKeyDown, true);
+}
+
+function closeActiveSearchPopover() {
+  if (!activeSearchPopover) return;
+  try { activeSearchPopover.remove(); } catch {}
+  activeSearchPopover = null;
+  document.removeEventListener('mousedown', onDocSearchMouseDown, true);
+  document.removeEventListener('keydown', onDocSearchKeyDown, true);
+}
+
+function onDocSearchMouseDown(e) {
+  if (!activeSearchPopover) return;
+  if (activeSearchPopover.contains(e.target)) return;
+  closeActiveSearchPopover();
+}
+
+function onDocSearchKeyDown(e) {
+  if (e.key === 'Escape') closeActiveSearchPopover();
 }
 
 function onDocMouseDown(e) {
@@ -669,6 +613,92 @@ function createPopoverIcon(symbol, color = INDICATOR_COLOR) {
     `font-family:${GLOBAL_FONT}; font-size:16px; font-weight:700;` +
     `color:${color}; line-height:1;`;
   return ic;
+}
+
+function openSearchPopover(anchorEl) {
+  closeActiveSearchPopover();
+
+  const pop = document.createElement('div');
+  pop.dataset.tzPopover = '1';
+  pop.style.visibility = 'hidden';
+  pop.style.top = '0px';
+  pop.style.left = '0px';
+  pop.onmousedown = (e) => { e.stopPropagation(); };
+
+  const list = document.createElement('div');
+  list.style.cssText = `all: initial; display:block;`;
+  pop.appendChild(list);
+
+  const q = normalizeForSearch(searchQuery).trim();
+  const results = q ? getSearchResults() : [];
+
+  if (!q) {
+    const empty = document.createElement('div');
+    empty.style.cssText = `all: initial; padding:8px 6px; font-family:${GLOBAL_FONT}; font-size:13px; color:#bdbdbd;`;
+    empty.textContent = 'Type to search tabs…';
+    list.appendChild(empty);
+  } else if (!results.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = `all: initial; padding:8px 6px; font-family:${GLOBAL_FONT}; font-size:13px; color:#bdbdbd;`;
+    empty.textContent = 'No matches';
+    list.appendChild(empty);
+  } else {
+    results.forEach(tab => {
+      const item = document.createElement('div');
+      item.className = 'group-item';
+
+      const favWrap = document.createElement('div');
+      favWrap.className = 'tz-lvl2-fav-wrap';
+      favWrap.style.cssText =
+        `width:16px; height:16px; min-width:16px; min-height:16px; flex:0 0 16px;` +
+        `display:flex; align-items:center; justify-content:center; border-radius:4px;`;
+      const fav = createFaviconElement(tab);
+      fav.style.width = '16px';
+      fav.style.height = '16px';
+      fav.style.flex = '0 0 16px';
+      fav.style.pointerEvents = 'none';
+      favWrap.appendChild(fav);
+
+      const tx = document.createElement('div');
+      tx.textContent = tab.title || tab.url || '';
+      tx.style.cssText =
+        `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;` +
+        `overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto; min-width:0;`;
+
+      item.appendChild(favWrap);
+      item.appendChild(tx);
+
+      item.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
+      item.onclick = (e) => {
+        e.stopPropagation(); e.preventDefault();
+        closeActiveSearchPopover();
+        // Keep search open state; switching tab will return to Level 1 anyway.
+        handleTabClick(tab.id);
+      };
+
+      list.appendChild(item);
+    });
+  }
+
+  activeSearchPopover = pop;
+  document.body.appendChild(pop);
+
+  const r = anchorEl.getBoundingClientRect();
+  const pr = pop.getBoundingClientRect();
+
+  let left = r.left;
+  let top = r.bottom + 6;
+  const margin = 8;
+  left = Math.max(margin, Math.min(left, window.innerWidth - pr.width - margin));
+  if (top + pr.height + margin > window.innerHeight) {
+    top = Math.max(margin, r.top - pr.height - 6);
+  }
+
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+  pop.style.visibility = 'visible';
+  document.addEventListener('mousedown', onDocSearchMouseDown, true);
+  document.addEventListener('keydown', onDocSearchKeyDown, true);
 }
 
 function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGroupId = null } = {}) {
@@ -1113,7 +1143,7 @@ function restoreSafeBottomClipper() {
     const prev = _tzClipperPrev || {};
     if (prev.paddingBottom == null) _tzClipperEl.style.removeProperty('padding-bottom'); else _tzClipperEl.style.paddingBottom = prev.paddingBottom;
     if (prev.boxSizing == null) _tzClipperEl.style.removeProperty('box-sizing'); else _tzClipperEl.style.boxSizing = prev.boxSizing;
-    _tzClipperEl.removeAttribute(TZ_CLIP_ATTR);
+    el.removeAttribute(TZ_CLIP_ATTR);
   } catch {}
   _tzClipperEl = null;
   _tzClipperPrev = null;
@@ -1367,13 +1397,13 @@ function createSearchBar() {
   input.onclick = (e) => { e.stopPropagation(); };
   input.oninput = () => {
     searchQuery = input.value || '';
-    // Re-render Level 1 only (search results are rendered in the scroll area)
-    if (navigationState === NAV_LEVELS.LEVEL_1) requestTabList();
+    if (searchExpanded) openSearchPopover(wrap);
   };
   input.onkeydown = (e) => {
     if (e.key === 'Escape') {
       searchQuery = '';
       searchExpanded = false;
+      closeActiveSearchPopover();
       if (navigationState === NAV_LEVELS.LEVEL_1) requestTabList();
     }
   };
@@ -1390,6 +1420,7 @@ function createSearchBar() {
     searchQuery = '';
     input.value = '';
     clear.style.display = 'none';
+    closeActiveSearchPopover();
     input.focus();
     if (navigationState === NAV_LEVELS.LEVEL_1) requestTabList();
   };
@@ -1403,9 +1434,11 @@ function createSearchBar() {
       searchExpanded = true;
       wrap.classList.add('expanded');
       setTimeout(() => { try { input.focus(); } catch {} }, 0);
+      openSearchPopover(wrap);
     } else {
       // already expanded: just focus
       setTimeout(() => { try { input.focus(); } catch {} }, 0);
+      openSearchPopover(wrap);
     }
   };
 
@@ -1483,23 +1516,6 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
   const webSorted = [...(webTabs || [])].sort((a, b) => a.index - b.index);
   const sysSorted = [...(systemTabs || [])].sort((a, b) => a.index - b.index);
 
-  // If searching, show results instead of the normal Level-1 layout.
-  const q = (searchQuery || '').trim();
-  if (q) {
-    const results = getSearchResults();
-    results.forEach(tab => {
-      // Render as normal tab tiles (not pinned favicon-only) for consistent search UX.
-      // Kind is irrelevant for click; drag is allowed but MOVE_TAB will enforce constraints.
-      scrollContainer.appendChild(createTabButton(tab, tab.id === currentTabId, 'web', false));
-    });
-    // Keep "+" available at the end
-    scrollContainer.appendChild(createInlinePlusWrapper());
-    scrollContainer.appendChild(createStickyPlus());
-    bar.appendChild(scrollContainer);
-    updateDynamicLayout();
-    return;
-  }
-
   // CHANGED: pinned shown as favicon-only (not as tab tiles)
   pinnedSorted.forEach(tab => scrollContainer.appendChild(createPinnedFavicon(tab, tab.id === currentTabId)));
 
@@ -1539,6 +1555,7 @@ function requestTabList() {
     cachedTabGroups = response.allTabGroups || [];
     cachedTabGroups = [...cachedTabGroups].sort((a, b) => (a.tabs?.[0]?.index ?? 1e9) - (b.tabs?.[0]?.index ?? 1e9));
     buildAllTabsCacheFromPayload(response);
+    if (searchExpanded) closeActiveSearchPopover();
     if (activePopover && activePopoverTabId != null) closeActivePopover();
 
     if (navigationState === NAV_LEVELS.LEVEL_1) {
@@ -1559,6 +1576,7 @@ function requestTabList() {
 
 function handleStateChange() {
   if (navigationState === NAV_LEVELS.LEVEL_1) return requestTabList();
+  if (searchExpanded) closeActiveSearchPopover();
 
   const msg = (navigationState === NAV_LEVELS.LEVEL_2)
     ? { action: "GET_UNGROUPED_TABS" }
