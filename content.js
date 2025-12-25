@@ -598,7 +598,8 @@ function openGroupPopover(anchorEl, tabId) {
     `font-family:${GLOBAL_FONT}; font-size:16px; font-weight:700;` +
     `color:${INDICATOR_COLOR}; line-height:1;`;
 
-  const newTx = document.textContent = 'New group…';
+  const newTx = document.createElement('div');
+  newTx.textContent = 'New group…';
   newTx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;`;
 
   newItem.appendChild(plus);
@@ -1281,6 +1282,7 @@ function requestTabList() {
     }
 
     cachedTabGroups = response.allTabGroups || [];
+    cachedTabGroups = [...cachedTabGroups].sort((a, b) => (a.tabs?.[0]?.index ?? 1e9) - (b.tabs?.[0]?.index ?? 1e9));
 
     if (navigationState === NAV_LEVELS.LEVEL_1) {
       renderFakeTabBar(
@@ -1309,7 +1311,8 @@ function handleStateChange() {
     if (!response) return renderDisconnectedBar('no receiver in background');
 
     if (navigationState === NAV_LEVELS.LEVEL_2) {
-      const groups = response.allTabGroups || cachedTabGroups || [];
+      const groups = [...(response.allTabGroups || cachedTabGroups || [])]
+        .sort((a, b) => (a.tabs?.[0]?.index ?? 1e9) - (b.tabs?.[0]?.index ?? 1e9));
       renderNavigationBar(groups);
     } else {
       const tabsSorted = [...(response.tabs || [])].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
