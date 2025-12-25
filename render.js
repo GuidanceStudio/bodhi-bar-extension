@@ -1,0 +1,299 @@
+/**
+ * RENDER.JS - Bar rendering functions
+ */
+
+let isInternalResize = false;
+
+function ensureBar() {
+  ensureSizingStyle();
+  applyZoomCompensatedMetrics(true);
+
+  let bar = document.getElementById(TZ_BAR_ID);
+  if (bar && !document.body?.contains(bar)) {
+    try { bar.remove(); } catch {}
+    bar = null;
+  }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = TZ_BAR_ID;
+    (document.body || document.documentElement).appendChild(bar);
+  }
+  installDragAndDropHandlers();
+  return bar;
+}
+
+function updateDynamicLayout() {
+  if (isInternalResize) return;
+
+  const bar = document.getElementById(TZ_BAR_ID);
+  if (!bar) return;
+
+  const scrollContainer = bar.querySelector('.scroll-container');
+  const stickyPlus = bar.querySelector('.plus-sticky');
+  const inlinePlus = bar.querySelector('.inline-plus-wrapper');
+
+  if (scrollContainer && stickyPlus && inlinePlus) {
+    const hasScroll = scrollContainer.scrollWidth > scrollContainer.clientWidth + 1;
+    stickyPlus.style.display = hasScroll ? 'flex' : 'none';
+    inlinePlus.style.display = hasScroll ? 'none' : 'flex';
+  }
+
+  applyPageShift();
+}
+
+function renderDisconnectedBar(reason = 'Disconnected') {
+  const bar = ensureBar();
+  bar.innerHTML = '';
+
+  const msg = document.createElement('div');
+  msg.className = 'tz-disconnected-msg';
+  msg.textContent = `Tab bar: ${reason} (click to retry)`;
+  msg.onclick = () => requestTabList();
+  bar.appendChild(msg);
+
+  applyPageShift();
+}
+
+function createLevel2Favicon(tab, { interactive = true } = {}) {
+  const wrap = document.createElement('div');
+  wrap.className = 'tz-lvl2-fav-wrap';
+  wrap.title = tab.title || tab.url || '';
+
+  const fav = createFaviconElement(tab);
+  
+  if (interactive) {
+    wrap.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
+    wrap.onclick = (e) => { e.stopPropagation(); e.preventDefault(); handleTabClick(tab.id); };
+  } else {
+    wrap.style.pointerEvents = 'none';
+    fav.style.pointerEvents = 'none';
+  }
+
+  wrap.appendChild(fav);
+
+  return wrap;
+}
+
+function createPinnedFavicon(tab, isCurrent) {
+  const wrap = document.createElement('div');
+  wrap.className = 'tz-pin-fav-wrap';
+  wrap.title = tab.title || tab.url || '';
+  wrap.draggable = true;
+  wrap.setAttribute('draggable', 'true');
+  wrap.dataset.tzDraggable = 'tab';
+  wrap.dataset.tabid = String(tab.id);
+  wrap.dataset.tzKind = 'pinned';
+
+  if (isCurrent) {
+    wrap.style.outline = `2px solid ${INDICATOR_COLOR}`;
+    wrap.style.outlineOffset = '2px';
+  }
+
+  const fav = createFaviconElement(tab);
+  fav.style.pointerEvents = 'none';
+  wrap.appendChild(fav);
+
+  wrap.onmousedown = (e) => { e.stopPropagation(); };
+  wrap.onclick = (e) => { e.stopPropagation(); e.preventDefault(); handleTabClick(tab.id); };
+
+  return wrap;
+}
+
+function createTabButton(tab, isCurrent, kind = 'web', isLevel1 = false) {
+  const btn = document.createElement('div');
+  btn.className = 'tz-tab-btn' + (isCurrent ? ' active' : '');
+  btn.title = tab.title || tab.url || "";
+  btn.draggable = true;
+  btn.setAttribute('draggable', 'true');
+  btn.dataset.tzDraggable = 'tab';
+  btn.dataset.tabid = String(tab.id);
+  btn.dataset.tzKind = kind;
+
+  const fav = createFaviconElement(tab);
+  fav.style.pointerEvents = 'none';
+  btn.appendChild(fav);
+
+  const text = document.createElement('span');
+  text.className = 'tab-title';
+  text.textContent = getDisplayedTitle(tab.title || tab.url);
+  btn.appendChild(text);
+
+  const actions = document.createElement('div');
+  actions.className = 'tab-actions';
+  if (kind === 'web') actions.appendChild(createGroupButton(tab.id));
+  actions.appendChild(createCloseButton(tab.id));
+  
+  btn.appendChild(actions);
+
+  btn.onclick = () => handleTabClick(tab.id);
+  return btn;
+}
+
+function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurrentTabGrouped, currentTabTitle, allTabGroups) {
+  const bar = ensureBar();
+
+  bar.innerHTML = '';
+
+  bar.appendChild(createSearchBar());
+
+  const trigger = document.createElement('div');
+  trigger.className = 'tz-trigger' + (isCurrentTabGrouped ? ' active' : '');
+
+  const triggerLabel = isCurrentTabGrouped
+    ? getDisplayedTitle(currentTabTitle)
+    : (allTabGroups.length > 0 ? 'Groups' : 'Bodhi Bar');
+
+  const caret = document.createElement('span');
+  caret.className = 'caret';
+  caret.textContent = '▼';
+  trigger.appendChild(caret);
+
+  const lbl = document.createElement('span');
+  lbl.className = 'label';
+  lbl.textContent = triggerLabel;
+  trigger.appendChild(lbl);
+
+  trigger.onclick = () => {
+    if (allTabGroups.length === 1) {
+      currentViewedGroupId = allTabGroups[0].id;
+      navigationState = NAV_LEVELS.LEVEL_3;
+    } else if (allTabGroups.length > 1) {
+      navigationState = NAV_LEVELS.LEVEL_2;
+    }
+    handleStateChange();
+  };
+
+  bar.appendChild(trigger);
+
+  const scrollContainer = document.createElement('div');
+  scrollContainer.className = 'scroll-container';
+
+  const pinnedSorted = [...(pinnedTabs || [])].sort((a, b) => a.index - b.index);
+  const webSorted = [...(webTabs || [])].sort((a, b) => a.index - b.index);
+  const sysSorted = [...(systemTabs || [])].sort((a, b) => a.index - b.index);
+
+  pinnedSorted.forEach(tab => scrollContainer.appendChild(createPinnedFavicon(tab, tab.id === currentTabId)));
+
+  webSorted.forEach(tab => scrollContainer.appendChild(createTabButton(tab, tab.id === currentTabId, 'web', true)));
+
+  scrollContainer.appendChild(createInlinePlusWrapper());
+
+  if (sysSorted.length > 0) {
+    scrollContainer.appendChild(createSeparator());
+    sysSorted.forEach(tab => scrollContainer.appendChild(createTabButton(tab, tab.id === currentTabId, 'system', true)));
+  }
+
+  scrollContainer.appendChild(createStickyPlus());
+  bar.appendChild(scrollContainer);
+
+  updateDynamicLayout();
+}
+
+function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
+  const bar = ensureBar();
+
+  bar.innerHTML = '';
+
+  const backBtn = document.createElement('div');
+  backBtn.className = 'tz-back-btn';
+
+  const arrow = document.createElement('span');
+  arrow.className = 'arrow';
+  arrow.textContent = BACK_ARROW;
+  backBtn.appendChild(arrow);
+
+  const lbl = document.createElement('span');
+  lbl.className = 'label';
+  lbl.textContent = getDisplayedTitle(currentGroupTitle);
+  backBtn.appendChild(lbl);
+
+  backBtn.onclick = (e) => { e.stopPropagation(); navigateBack(); };
+  bar.appendChild(backBtn);
+
+  const container = document.createElement('div');
+  container.className = 'scroll-container';
+
+  const items = Array.isArray(data) ? data : [];
+
+  items.forEach(item => {
+    const isLevel2Groups = (navigationState === NAV_LEVELS.LEVEL_2);
+    const isLevel3GroupTabs = (navigationState === NAV_LEVELS.LEVEL_3);
+
+    const itemBtn = document.createElement('div');
+    itemBtn.title = item.title || item.url || "";
+
+    if (isLevel2Groups) {
+      itemBtn.className = 'tz-group-tile';
+      const groupColorHex = GROUP_COLOR_MAP[item.color] || GROUP_COLOR_MAP.default;
+      itemBtn.style.borderBottom = `var(--tz-ind-h) solid ${groupColorHex}`;
+      itemBtn.style.color = groupColorHex;
+      itemBtn.draggable = true;
+      itemBtn.setAttribute('draggable', 'true');
+      itemBtn.dataset.tzDraggable = 'group';
+      itemBtn.dataset.groupid = String(item.id);
+
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'group-title';
+      titleSpan.textContent = getDisplayedTitle(item.title || item.url);
+      itemBtn.appendChild(titleSpan);
+
+      const favs = Array.isArray(item.tabs) ? item.tabs : [];
+      if (favs.length > 0) {
+        const favRow = document.createElement('div');
+        favRow.className = 'fav-row';
+
+        favs.forEach(tab => {
+          favRow.appendChild(createLevel2Favicon(tab));
+        });
+
+        itemBtn.appendChild(favRow);
+      }
+
+      itemBtn.onclick = (e) => {
+        e.stopPropagation();
+        currentViewedGroupId = item.id;
+        navigationState = NAV_LEVELS.LEVEL_3;
+        handleStateChange();
+      };
+    } else if (isLevel3GroupTabs) {
+      itemBtn.className = 'tz-tab-btn';
+      itemBtn.style.borderBottom = `var(--tz-ind-h) solid ${INDICATOR_COLOR}`;
+      itemBtn.draggable = true;
+      itemBtn.setAttribute('draggable', 'true');
+      itemBtn.dataset.tzDraggable = 'tab';
+      itemBtn.dataset.tabid = String(item.id);
+      itemBtn.dataset.tzKind = 'group';
+      itemBtn.dataset.groupid = String(item.groupId ?? currentViewedGroupId ?? '');
+
+      itemBtn.appendChild(createLevel2Favicon(item, { interactive: false }));
+
+      const label = document.createElement('span');
+      label.className = 'tab-title';
+      label.textContent = getDisplayedTitle(item.title || item.url);
+      label.style.color = '#fff';
+      itemBtn.appendChild(label);
+
+      const actions = document.createElement('div');
+      actions.className = 'tab-actions';
+
+      const menuBtn = createLevel3MenuButton(item.id);
+      menuBtn.onclick = (e) => { e.stopPropagation(); e.preventDefault(); openGroupPopover(menuBtn, item.id, { includeUngroup: true, excludeGroupId: (item.groupId ?? currentViewedGroupId ?? null) }); };
+      actions.appendChild(menuBtn);
+      actions.appendChild(createCloseButton(item.id));
+      itemBtn.appendChild(actions);
+      itemBtn.onclick = (e) => { e.stopPropagation(); handleTabClick(item.id); };
+    } else {
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = getDisplayedTitle(item.title || item.url);
+      itemBtn.appendChild(titleSpan);
+      itemBtn.onclick = (e) => { e.stopPropagation(); };
+    }
+
+    container.appendChild(itemBtn);
+  });
+
+  container.appendChild(createStickyPlus());
+  bar.appendChild(container);
+
+  updateDynamicLayout();
+}

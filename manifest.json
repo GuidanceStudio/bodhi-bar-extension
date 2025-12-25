@@ -16,7 +16,18 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "js": [
+        "constants.js",
+        "messaging.js",
+        "dom-helpers.js",
+        "zoom.js",
+        "page-shift.js",
+        "popover.js",
+        "drag-drop.js",
+        "search.js",
+        "render.js",
+        "content.js"
+      ],
       "css": ["content.css"],
       "run_at": "document_idle"
     }
