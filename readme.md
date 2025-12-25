@@ -2,39 +2,28 @@
 
 ## Description
 
-**Bodhi Bar** is an advanced extension for Chrome/Brave that revolutionizes tab management with two main functions:
-1. **Smart Tab Management**: Automatically removes new tabs from parent groups and positions them optimally.
-2. **UI Tab Bar**: Injects a horizontal, dark-mode styled tab bar that displays:
-    - All ungrouped tabs
-    - Integrated search with highlighting functions
-    - Multi-level group navigation
-    - Quick buttons to close/move/open tabs
+**Bodhi Bar** is an advanced extension for Chrome/Brave that revolutionizes tab management with:
+1. **Automatic Ungrouping**: New tabs are removed from parent groups.
+2. **UI Tab Bar**: Horizontal dark-mode interface with:
+   - Ungrouped tabs
+   - Integrated search with highlighting
+   - Multi-level group navigation
+   - Quick actions (close/move/open)
 
 ## 🌟 Key Features
 
-- **Automatic Ungrouping**
-New tabs are automatically removed from inherited groups.
+- **New tabs automatically freed from groups**
+- **Smart ordering** (web tabs > system tabs)
+- **Compact UI bar** with abbreviated titles and favicons
+- **Tab search** with result highlighting
+- **Drag-and-drop tabs** with visual feedback
+- **Responsive design** adapts to zoom and resizing
 
-- **Smart Ordering**
-New web tabs are positioned before system tabs (`chrome://`, `about:`).
+## 🛑 Limitations
 
-- **Horizontal UI Bar**
-  - Compact dark design with abbreviated titles and favicons
-  - Integrated tab search with result highlighting
-  - 3-level group management navigation
-  - Quick actions (close/move/create group)
-  - Responsive structure that adapts to zoom and dimensions
+🛑 **Does not work on browser system pages**
+(e.g., `chrome://extensions`, `brave://settings`)
+✅ Only on standard web pages (`https://...`)
 
-- **Fluent Interface**
-- Optimized animations
-- Drag-and-drop tabs with visual feedback
-- Wear-resistant during operations
-
-## 🛑 Technical Limitations
-
-The UI **does not appear** on browser system pages
-(e.g., `brave://settings`, `chrome://extensions`).
-It only works on standard web pages (`https://...`).
-
-## 🔧 Technical Architecture
+## 🔧 Project Structure (v2.6)
 
