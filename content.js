@@ -322,7 +322,7 @@ function ensureSizingStyle() {
       box-sizing:border-box;
       height:calc(var(--tz-h) - 10px);
       margin-left:6px;
-      margin-right:12px; /* Changed from var(--tz-gap-x) */
+      margin-right:var(--tz-gap-x); /* Changed from 12px to var(--tz-gap-x) */
       display:flex;
       align-items:center;
       gap:8px;
@@ -345,18 +345,19 @@ function ensureSizingStyle() {
       cursor:pointer;
     }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) .icon{
-      font-size:28px; /* Changed from 35px */
-      /* Removed position:relative and top:-13px */
+      font-size:32px; /* Changed from 28px */
+      margin-top:-4px; /* Added to move icon higher */
       cursor:pointer;
     }
     /* Ensure the icon can actually move vertically (some pages override line-height/align) */
     #ungroup-automatic-tab-bar .tz-search{ align-items:center; }
-    #ungroup-automatic-tab-bar .tz-search:not(.expanded){ align-items:flex-start; padding-top:0; } /* Changed from 6px */
+    #ungroup-automatic-tab-bar .tz-search:not(.expanded){ align-items:flex-start; padding-top:0; }
     #ungroup-automatic-tab-bar .tz-search.expanded{ align-items:center; padding-top:0; }
     #ungroup-automatic-tab-bar .tz-search.expanded{
       width:260px;
       background:#222;
       border-color:#444;
+      margin-right:12px; /* Added margin-right here */
     }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) input{ display:none; }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) .clear{ display:none !important; }
@@ -840,7 +841,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
     const minus = createPopoverIcon('-');
     const tx = document.createElement('div');
     tx.textContent = 'Ungroup';
-    tx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#fff;`;
+    tx.style.cssText = `all: initial; font-family:${GLOBAL_FONT}; font-size:13px; color:#bdbdbd;`;
     unItem.appendChild(minus);
     unItem.appendChild(tx);
     unItem.onclick = async (e) => {
@@ -1490,8 +1491,11 @@ function createSearchBar() {
   // Match the minimal look of other controls (no emoji-like rendering)
   icon.style.cssText =
     // When expanded, keep it a bit larger than before (was too tiny).
-    `all: initial; font-family:${GLOBAL_FONT}; font-size:${searchExpanded ? '22px' : '28px'}; line-height:1;` +
+    `all: initial; font-family:${GLOBAL_FONT}; font-size:${searchExpanded ? '22px' : '32px'}; line-height:1;` +
     `color:${INDICATOR_COLOR}; flex:0 0 auto; user-select:none; cursor:pointer;`;
+  if (!searchExpanded) {
+    icon.style.marginTop = '-4px'; // Adjust icon position when collapsed
+  }
   wrap.appendChild(icon);
 
   const input = document.createElement('input');
