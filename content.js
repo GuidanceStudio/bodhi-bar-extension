@@ -1490,8 +1490,8 @@ function createSearchBar() {
   icon.textContent = SEARCH_ICON;
   // Match the minimal look of other controls (no emoji-like rendering)
   icon.style.cssText =
-    // When expanded, keep it a bit larger than before (was too tiny).
-    `all: initial; font-family:${GLOBAL_FONT}; font-size:${searchExpanded ? '22px' : '32px'}; line-height:1;` +
+    // Keep the icon size at 32px regardless of expanded state.
+    `all: initial; font-family:${GLOBAL_FONT}; font-size:32px; line-height:1;` +
     `color:${INDICATOR_COLOR}; flex:0 0 auto; user-select:none; cursor:pointer;`;
   if (!searchExpanded) {
     icon.style.marginTop = '-4px'; // Adjust icon position when collapsed
@@ -1723,7 +1723,7 @@ function handleStateChange() {
       renderNavigationBar(groups);
     } else {
       const tabsSorted = [...(response.tabs || [])].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
-      renderNavigationBar(tabsSorted, response.groupTitle || 'Group');
+      renderNavigationBar(tabsSorted, response.groupTitle || 'Groups List');
     }
   });
 }
