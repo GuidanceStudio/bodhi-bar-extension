@@ -355,15 +355,6 @@ function ensureSizingStyle() {
       background:#222;
       border-color:#444;
     }
-    #ungroup-automatic-tab-bar .tz-search .icon{
-      all: initial;
-      font-family:${GLOBAL_FONT};
-      font-size:14px;
-      color:#bdbdbd;
-      flex:0 0 auto;
-      user-select:none;
-      cursor:pointer;
-    }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) input{ display:none; }
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) .clear{ display:none !important; }
     #ungroup-automatic-tab-bar .tz-search input{
@@ -1441,29 +1432,13 @@ function createSearchBar() {
   const wrap = document.createElement('div');
   wrap.className = 'tz-search' + (searchExpanded ? ' expanded' : '');
 
-  const collapse = document.createElement('div');
-  collapse.className = 'collapse';
-  collapse.textContent = '-';
-  collapse.title = 'Close search';
-  collapse.style.cssText =
-    `all: initial; font-family:${GLOBAL_FONT}; font-size:18px; font-weight:700; line-height:1;` +
-    `color:${INDICATOR_COLOR}; flex:0 0 auto; user-select:none; cursor:pointer;` +
-    `padding:2px 6px; border-radius:4px; display:${searchExpanded ? 'block' : 'none'};`;
-  collapse.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
-  collapse.onclick = (e) => {
-    e.stopPropagation(); e.preventDefault();
-    searchQuery = '';
-    searchExpanded = false;
-    closeActiveSearchPopover();
-    if (navigationState === NAV_LEVELS.LEVEL_1) requestTabList();
-  };
-
   const icon = document.createElement('div');
   icon.className = 'icon';
   icon.textContent = SEARCH_ICON;
   // Match the minimal look of other controls (no emoji-like rendering)
   icon.style.cssText =
-    `all: initial; font-family:${GLOBAL_FONT}; font-size:${searchExpanded ? '18px' : '35px'}; line-height:1;` +
+    // When expanded, keep it a bit larger than before (was too tiny).
+    `all: initial; font-family:${GLOBAL_FONT}; font-size:${searchExpanded ? '22px' : '35px'}; line-height:1;` +
     `color:${INDICATOR_COLOR}; flex:0 0 auto; user-select:none; cursor:pointer;`;
   wrap.appendChild(icon);
 
@@ -1484,7 +1459,6 @@ function createSearchBar() {
     if (e.key === 'Escape') {
       searchQuery = '';
       searchExpanded = false;
-      collapse.style.display = 'none';
       input.style.display = 'none';
       closeActiveSearchPopover();
       if (navigationState === NAV_LEVELS.LEVEL_1) requestTabList();
@@ -1503,7 +1477,6 @@ function createSearchBar() {
     searchQuery = '';
     input.value = '';
     clear.style.display = 'none';
-    collapse.style.display = searchExpanded ? 'block' : 'none';
     closeActiveSearchPopover();
     input.focus();
     if (navigationState === NAV_LEVELS.LEVEL_1) requestTabList();
@@ -1519,14 +1492,18 @@ function createSearchBar() {
     if (!searchExpanded) {
       searchExpanded = true;
       wrap.classList.add('expanded');
-      collapse.style.display = 'block';
       input.style.display = 'block';
       setTimeout(() => { try { input.focus(); } catch {} }, 0);
       openSearchPopover(wrap);
     } else {
-      // already expanded: just focus
-      setTimeout(() => { try { input.focus(); } catch {} }, 0);
-      openSearchPopover(wrap);
+      // When expanded, clicking the magnifier acts as the single "-" behavior:
+      // close + clear (one control instead of clear + collapse).
+      searchQuery = '';
+      input.value = '';
+      searchExpanded = false;
+      input.style.display = 'none';
+      closeActiveSearchPopover();
+      if (navigationState === NAV_LEVELS.LEVEL_1) requestTabList();
     }
   };
 
@@ -1535,8 +1512,6 @@ function createSearchBar() {
   input.addEventListener('input', syncClear);
   syncClear();
 
-  // Put the collapse button at the far right of the search control
-  wrap.appendChild(collapse);
   return wrap;
 }
 
