@@ -1281,6 +1281,10 @@ function requestTabList() {
       return;
     }
 
+    // If we are in Level 2, always prefer the fresh response ordering.
+    // (cachedTabGroups can be stale if REFRESH_BAR messages were missed)
+    // Sorting by first tab index is the most reliable proxy for group order.
+    // NOTE: response.allTabGroups already includes tabs[] from background.js.
     cachedTabGroups = response.allTabGroups || [];
     cachedTabGroups = [...cachedTabGroups].sort((a, b) => (a.tabs?.[0]?.index ?? 1e9) - (b.tabs?.[0]?.index ?? 1e9));
 
@@ -1311,6 +1315,10 @@ function handleStateChange() {
     if (!response) return renderDisconnectedBar('no receiver in background');
 
     if (navigationState === NAV_LEVELS.LEVEL_2) {
+      // Keep cache in sync so subsequent UI actions (popover, etc.) see the new order.
+      cachedTabGroups = response.allTabGroups || cachedTabGroups || [];
+      cachedTabGroups = [...cachedTabGroups].sort((a, b) => (a.tabs?.[0]?.index ?? 1e9) - (b.tabs?.[0]?.index ?? 1e9));
+
       const groups = [...(response.allTabGroups || cachedTabGroups || [])]
         .sort((a, b) => (a.tabs?.[0]?.index ?? 1e9) - (b.tabs?.[0]?.index ?? 1e9));
       renderNavigationBar(groups);

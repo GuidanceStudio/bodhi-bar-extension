@@ -33,6 +33,7 @@ const COOLDOWN_MS = 250;
 const STABLE = { SAMPLE_GAP_MS: 120, MAX_ATTEMPTS: 6, REQUIRED_MATCHES: 2 };
 
 const RETRY_DELAYS_MS = [80, 160, 320, 640, 1200, 2000];
+const UI_REFRESH_RETRY_MS = 450;
 
 const NEW_TAB_DEGROUP_TTL_MS = 7000; // only consider tabs "new" for this long
 
@@ -286,6 +287,16 @@ async function broadcastRefresh(windowId) {
   }
 }
 
+async function broadcastRefreshWithRetry(windowId, reason = 'retry') {
+  if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return;
+  // First attempt immediately
+  await broadcastRefresh(windowId);
+  // Second attempt shortly after to catch BFCache / late-injected content scripts
+  setTimeout(() => {
+    broadcastRefresh(windowId).catch(() => {});
+  }, UI_REFRESH_RETRY_MS);
+}
+
 function scheduleUiRefresh(windowId, reason) {
   if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return;
 
@@ -294,7 +305,7 @@ function scheduleUiRefresh(windowId, reason) {
 
   const t = setTimeout(() => {
     uiRefreshTimers.delete(windowId);
-    broadcastRefresh(windowId).catch(() => {});
+    broadcastRefreshWithRetry(windowId, reason).catch(() => {});
   }, UI_REFRESH_DEBOUNCE_MS);
 
   uiRefreshTimers.set(windowId, t);
@@ -770,6 +781,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
           // Re-apply rules after manual reorder.
           touch(src.windowId, 'MOVE_TAB', { motion: true, drag: true });
+          scheduleUiRefresh(src.windowId, 'MOVE_TAB:postMove');
 
           sendResponse({ ok: true });
           return;
@@ -865,6 +877,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
           await chrome.tabGroups.move(groupId, { index });
           touch(windowId, 'MOVE_GROUP', { motion: true, drag: true });
+          scheduleUiRefresh(windowId, 'MOVE_GROUP:postMove');
 
           sendResponse({ ok: true });
           return;
