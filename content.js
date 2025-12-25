@@ -139,7 +139,7 @@ function ensureSizingStyle() {
       opacity:0 !important;
       pointer-events:none !important;
       background:transparent;
-      color:#bdbdbd;
+      color:#bdbdbd !important;
       transition:opacity 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
     }
     /* Group "+" button: same hover behavior as X */
@@ -147,20 +147,20 @@ function ensureSizingStyle() {
       opacity:0 !important;
       pointer-events:none !important;
       background:transparent;
-      color:#bdbdbd;
+      color:#bdbdbd !important;
       transition:opacity 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
     }
     #ungroup-automatic-tab-bar .tz-tab-btn:hover .tz-close-x{
       opacity:1 !important;
       pointer-events:auto !important;
       background:#3a3a3a;
-      color:#ffffff;
+      color:#ffffff !important;
     }
     #ungroup-automatic-tab-bar .tz-tab-btn:hover .tz-group-btn{
       opacity:1 !important;
       pointer-events:auto !important;
       background:#3a3a3a;
-      color:#ffffff;
+      color:#ffffff !important;
     }
     #ungroup-automatic-tab-bar .tz-close-x:hover{
       background:#4a4a4a;
@@ -347,11 +347,12 @@ function ensureSizingStyle() {
     #ungroup-automatic-tab-bar .tz-search:not(.expanded) .icon{
       font-size:35px;
       position:relative;
-      top:-13px;
+      top:-13px; /* This value might need adjustment */
       cursor:pointer;
     }
     /* Ensure the icon can actually move vertically (some pages override line-height/align) */
-    #ungroup-automatic-tab-bar .tz-search{ align-items:flex-start; padding-top:2px; }
+    #ungroup-automatic-tab-bar .tz-search{ align-items:center; }
+    #ungroup-automatic-tab-bar .tz-search:not(.expanded){ align-items:flex-start; padding-top:6px; }
     #ungroup-automatic-tab-bar .tz-search.expanded{ align-items:center; padding-top:0; }
     #ungroup-automatic-tab-bar .tz-search.expanded{
       width:260px;
@@ -1315,7 +1316,7 @@ function findTopFixedHeaderCandidates(barRect, barH) {
 function applyShiftToCandidate(cand, barH) {
   const el = cand.el;
   const cs = cand.cs;
-  if (_tzShiftED.has(el)) return;
+  if (_tzShifted.has(el)) return;
 
   const prev = {
     top: el.style.top || null,
@@ -1403,23 +1404,15 @@ function findViewportBottomClipper() {
 }
 
 function applySafeBottomToClipper() {
-  const clipper = findViewportBottomClipper();
-  if (!clipper) return restoreSafeBottomClipper();
-  if (_tzClipperEl === clipper) return;
-
-  restoreSafeBottomClipper();
-
-  _tzClipperEl = clipper;
-  _tzClipperPrev = {
-    paddingBottom: clipper.style.paddingBottom || null,
-    boxSizing: clipper.style.boxSizing || null
-  };
-
+  if (!_tzClipperEl) return;
   try {
-    clipper.style.setProperty('box-sizing', 'border-box', 'important');
-    clipper.style.setProperty('padding-bottom', 'var(--tz-safe-bottom)', 'important');
-    clipper.setAttribute(TZ_CLIP_ATTR, 'true');
+    const prev = _tzClipperPrev || {};
+    if (prev.paddingBottom == null) _tzClipperEl.style.removeProperty('padding-bottom'); else _tzClipperEl.style.paddingBottom = prev.paddingBottom;
+    if (prev.boxSizing == null) _tzClipperEl.style.removeProperty('box-sizing'); else _tzClipperEl.style.boxSizing = prev.boxSizing;
+    _tzClipperEl.removeAttribute(TZ_CLIP_ATTR);
   } catch {}
+  _tzClipperEl = null;
+  _tzClipperPrev = null;
 }
 
 function scheduleHeaderShift() {
