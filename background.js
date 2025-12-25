@@ -315,7 +315,7 @@ function scheduleUiRefresh(windowId, reason) {
 async function drain() {
   if (state.isEnforcing) return;
 
-  const it = state.pendingWindows.values().next();
+  const it = state.pendingWindows.size > 0 ? state.pendingWindows.values().next() : { done: true };
   if (it.done) return;
 
   const windowId = it.value;
@@ -651,7 +651,7 @@ async function buildGroupTabsPayload(groupId) {
   const group = (groups || []).find(g => g.id === groupId);
   const groupTitle = group?.title || 'Group';
 
-  const outTabs = (tabs || []).map(tabToItem);
+  const outTabs = (tabs || []).map(tabToItem).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 
   return { tabs: outTabs, groupTitle };
 }
