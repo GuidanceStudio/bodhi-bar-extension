@@ -322,7 +322,7 @@ function ensureSizingStyle() {
       box-sizing:border-box;
       height:calc(var(--tz-h) - 10px);
       margin-left:6px;
-      margin-right:2px; /* Changed from 10px to 2px */
+      margin-right:-2px; /* Changed from 10px to -2px */
       display:flex;
       align-items:center;
       gap:8px;
