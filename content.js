@@ -616,9 +616,10 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
     };
     groupsContainer.appendChild(unItem);
 
-    const sep = document.createElement('div');
-    sep.style.cssText = `all: initial; height:1px; background:#333; margin:${POPOVER_SECTION_GAP_PX}px 0;`;
-    groupsContainer.appendChild(sep);
+    // Match the same "section gap" used before "New group…": spacing only (no divider line).
+    const gap = document.createElement('div');
+    gap.style.cssText = `all: initial; height:${POPOVER_SECTION_GAP_PX}px;`;
+    groupsContainer.appendChild(gap);
   }
 
   groups
@@ -871,7 +872,9 @@ function createTabButton(tab, isCurrent, kind = 'web', isLevel1 = false) {
   if (kind === 'web') actions.appendChild(createGroupButton(tab.id));
   
   const isTabInGroup = tab.groupId !== -1 && tab.groupId != null;
-  if (!(isLevel1 && isTabInGroup)) {
+  // Level 1: never show "X" on the first tile (the trigger tile).
+  // Also keep the existing rule: if Level 1 and tab is in a group, hide X.
+  if (!(isLevel1 && isTabInGroup) && !isLevel1) {
     actions.appendChild(createCloseButton(tab.id));
   }
   btn.appendChild(actions);
@@ -1291,7 +1294,7 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
     `font-family:${GLOBAL_FONT}; font-size:var(--tz-font);`;
   trigger.appendChild(lbl);
 
-  if (isCurrentTabGrouped && currentTabId != null) trigger.appendChild(createCloseButton(currentTabId));
+  // Level 1: remove the "X" on the first tile (trigger).
 
   trigger.onclick = () => {
     if (allTabGroups.length === 1) {
