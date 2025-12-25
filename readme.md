@@ -1,18 +1,18 @@
-# 🚀 Bodhi Bar - Gestore di Tab Intelligente
+# 🚀 Bodhi Bar - Smart Tab Manager
 
-Extension per Chrome che migliora la gestione delle tab rimuovendo automaticamente quelle nuove dai gruppi e fornendo un'interfaccia orizzontale.
+Chrome extension that improves tab management by automatically removing new tabs from groups and providing a horizontal UI.
 
-## 🌟 Funzionalità Principali
-- **Sgrovamento automatico**: Nuove tab rimosse dai gruppi esistenti
-- **Barra tab orizzontale**: Interfaccia dark mode con:
-  - Tab non raggruppate
-  - Ricerca integrata con evidenziazione
-  - Navigazione a più livelli per gruppi
-- **Pulsanti rapidi**: Chiudi, sposta, apri tab con un click
-- **Design responsivo**: Si adatta a zoom e ridimensionamenti
-- **Trascinamento tab**: Esperienza fluida con feedback visivo
+## 🌟 Key Features
+- **Auto Ungrouping**: New tabs are removed from existing groups
+- **Horizontal Tab Bar**: Dark mode UI showing:
+  - Ungrouped tabs
+  - Built-in search with highlighting
+  - Multi-level group navigation
+- **Quick Actions**: One-click close/move/open tabs
+- **Responsive Design**: Adapts to zoom and resizing
+- **Tab Dragging**: Smooth drag & drop with visual feedback
 
-## ⚠️ Importante
-Funziona **solo** su siti normali (`https://...`), **non** su pagine di sistema del browser come `chrome://extensions`.
+## ⚠️ Important
+Works **only** on normal sites (`https://...`), **not** on browser system pages like `chrome://extensions`.
 
-## 📂 Struttura del Progetto
+## 📂 Project Structure
