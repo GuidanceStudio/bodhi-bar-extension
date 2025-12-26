@@ -11,7 +11,6 @@ let currentViewedGroupId = null;
 let cachedTabGroups = [];
 let cachedAllTabs = [];
 let suppressClickUntil = 0;
-let searchExpanded = false; // Initialize searchExpanded state
 
 // Tab action handlers
 function handleCloseTab(tabId) {
