@@ -11,6 +11,7 @@ let currentViewedGroupId = null;
 let cachedTabGroups = [];
 let cachedAllTabs = [];
 let suppressClickUntil = 0;
+let searchExpanded = false; // Initialize searchExpanded state
 
 // Tab action handlers
 function handleCloseTab(tabId) {
@@ -22,6 +23,7 @@ function handleTabClick(tabId) {
   safeRuntimeSendMessageWithRetry({ action: "SWITCH_TAB", tabId }, 3).then(() => {
     navigationState = NAV_LEVELS.LEVEL_1;
     currentViewedGroupId = null;
+    searchExpanded = false; // Ensure search is closed
     requestTabList();
   });
 }
