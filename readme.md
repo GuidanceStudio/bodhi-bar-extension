@@ -77,9 +77,3 @@ Our codebase is organized into specialized components:
 
 > Project lovingly maintained with modern development tools
 
-<!--
-NOTE:
-If GitHub rendering ever appears "truncated", it is usually caused by an unclosed
-Markdown code fence (```), or an unclosed HTML tag like <details>.
-This README intentionally avoids those constructs.
--->
