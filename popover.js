@@ -207,6 +207,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
   const inp = document.createElement('input');
   inp.type = 'text';
   inp.placeholder = 'New group title';
+  inp.style.color = '#333';
 
   const sel = document.createElement('select');
   const colors = ['grey','blue','red','yellow','green','pink','purple','cyan','orange'];
