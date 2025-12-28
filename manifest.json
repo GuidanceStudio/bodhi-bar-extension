@@ -8,8 +8,12 @@
     "tabs",
     "tabGroups",
     "scripting",
-    "windows"
+    "windows",
+    "storage"
   ],
+  "action": {
+    "default_popup": "popup.html"
+  },
   "host_permissions": [
     "<all_urls>"
   ],
