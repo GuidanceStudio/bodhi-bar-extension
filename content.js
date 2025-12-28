@@ -151,7 +151,11 @@ try {
     } else if (request.action === "SET_VISIBILITY") {
       const bar = document.getElementById(TZ_BAR_ID);
       if (bar) {
-        bar.style.display = request.hidden ? 'none' : 'flex';
+        if (request.hidden) {
+          bar.style.setProperty('display', 'none', 'important');
+        } else {
+          bar.style.setProperty('display', 'flex', 'important');
+        }
         applyPageShift();
       }
     }
@@ -166,7 +170,7 @@ async function boot() {
     const bar = ensureBar();
     
     if (data.tz_hidden) {
-      bar.style.display = 'none';
+      bar.style.setProperty('display', 'none', 'important');
     }
 
     applyZoomCompensatedMetrics(true);
