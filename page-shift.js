@@ -240,7 +240,9 @@ function applyPageShift() {
   if (!body) return;
 
   const bar = document.getElementById(TZ_BAR_ID);
-  if (!bar || bar.style.display === 'none') {
+  const isHidden = !bar || bar.style.display === 'none' || getComputedStyle(bar).display === 'none';
+
+  if (isHidden) {
     // If bar is hidden, restore pages and remove added padding
     try { restoreShiftedHeaders(); } catch {}
     try {
