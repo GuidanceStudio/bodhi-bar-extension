@@ -1,8 +1,7 @@
 /**
- * CONTENT.JS - Bodhi Bar Entry Point (v2.6.0)
+ * CONTENT.JS - Bodhi Bar Entry Point
  *
  * This file orchestrates the tab bar UI.
- * All modules are loaded via manifest.json in order.
  */
 
 // State variables (shared across modules)
