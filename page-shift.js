@@ -239,6 +239,17 @@ function applyPageShift() {
   const body = document.body;
   if (!body) return;
 
+  const bar = document.getElementById(TZ_BAR_ID);
+  if (!bar || bar.style.display === 'none') {
+    // If bar is hidden, restore pages and remove added padding
+    try { restoreShiftedHeaders(); } catch {}
+    try {
+      body.style.setProperty('padding-top', '0px', 'important');
+      body.style.setProperty('padding-bottom', '0px', 'important');
+    } catch {}
+    return;
+  }
+
   try { ensureSafeAreasStyle(); } catch {}
   try { setInlineSafeAreasFallback(); } catch {}
 

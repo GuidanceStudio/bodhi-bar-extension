@@ -143,18 +143,32 @@ function hookViewportEvents() {
   installDprListener();
 }
 
-// Boot
+ // Boot
 try {
-  chrome?.runtime?.onMessage?.addListener((request) => {
-    if (request.action === "REFRESH_BAR") requestTabList();
+  chrome?.runtime?.onMessage?.addListener((request, sender, sendResponse) => {
+    if (request.action === "REFRESH_BAR") {
+      requestTabList();
+    } else if (request.action === "SET_VISIBILITY") {
+      const bar = document.getElementById(TZ_BAR_ID);
+      if (bar) {
+        bar.style.display = request.hidden ? 'none' : 'flex';
+        applyPageShift();
+      }
+    }
   });
 } catch {}
 
-function boot() {
+async function boot() {
   try {
+    const data = await chrome.storage.local.get('tz_hidden');
     captureBaseDPR();
     safeConnectPort();
-    ensureBar();
+    const bar = ensureBar();
+    
+    if (data.tz_hidden) {
+      bar.style.display = 'none';
+    }
+
     applyZoomCompensatedMetrics(true);
     requestTabList();
   } catch {

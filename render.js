@@ -26,7 +26,7 @@ function updateDynamicLayout() {
   if (isInternalResize) return;
 
   const bar = document.getElementById(TZ_BAR_ID);
-  if (!bar) return;
+  if (!bar || bar.style.display === 'none') return;
 
   const scrollContainer = bar.querySelector('.scroll-container');
   const stickyPlus = bar.querySelector('.plus-sticky');
