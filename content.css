@@ -254,7 +254,6 @@
   all: initial;
   font-family:Arial, sans-serif;
   font-size:13px;
-  color:#fff;
   flex:1 1 auto;
   min-width:0;
   padding-right:6px;
@@ -777,7 +776,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  box-sizing: border-box;
+  box-sizing:border-box;
 }
 
 [data-tz-popover="1"] .tz-color-preview {

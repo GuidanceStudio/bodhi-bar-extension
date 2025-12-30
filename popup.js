@@ -1,4 +1,4 @@
-// popup.js - Bodhi Bar popup behavior (restrict Show/Hide on browser-internal pages)
+ // popup.js - Bodhi Bar popup behavior (restrict Show/Hide on browser-internal pages)
 
 /*
  Minimal, defensive script to:
@@ -84,51 +84,6 @@ function isRestrictedUrl(url = '') {
   return RESTRICTED_PREFIXES.some(p => u.startsWith(p));
 }
 
-function hideToggleButtons() {
-  // Try common IDs/classes
-  const selectors = [
-    '#show-btn',
-    '#hide-btn',
-    '.show-btn',
-    '.hide-btn',
-    '#toggle-btn',
-    '.tz-toggle',
-    '.toggle-visibility',
-    'button[data-action="SET_VISIBILITY"]',
-    '[data-action="SET_VISIBILITY"]'
-  ];
-
-  let foundAny = false;
-  for (const sel of selectors) {
-    const nodes = Array.from(document.querySelectorAll(sel));
-    for (const n of nodes) {
-      if (n && n.style) {
-        n.style.display = 'none';
-        foundAny = true;
-      }
-    }
-  }
-
-  // Additionally, hide any button whose visible text is Show Bar / Hide Bar (case-insensitive)
-  const textTargets = ['show bar', 'hide bar', 'show', 'hide'];
-  const btns = Array.from(document.querySelectorAll('button, a, div'));
-  for (const el of btns) {
-    try {
-      const txt = (el.textContent || '').trim().toLowerCase();
-      if (!txt) continue;
-      // Match exact or startsWith variants to be tolerant.
-      if (textTargets.some(t => txt === t || txt.startsWith(t + ' ') || txt.startsWith(t + '\n') || txt === t + ' bar' )) {
-        el.style.display = 'none';
-        foundAny = true;
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  return foundAny;
-}
-
 function showRestrictedMessage() {
   const existing = document.getElementById('restricted-msg');
   const message = 'Bodhi Bar is not available on this type of page (browser internal/restricted pages). Open a regular website tab to use Show/Hide.';
@@ -177,7 +132,6 @@ function initPopup() {
 
   try {
     if (!chrome.tabs?.query) {
-      hideToggleButtons();
       showRestrictedMessage();
       return;
     }
@@ -195,7 +149,10 @@ function initPopup() {
 
       // Normal page: enable toggle behavior
       const btn = getToggleButton();
-      if (!btn) return;
+      if (!btn) {
+        showRestrictedMessage();
+        return;
+      }
 
       const obj = await storageGet(STORAGE_KEY_HIDDEN);
       let hidden = !!obj[STORAGE_KEY_HIDDEN];
