@@ -1008,7 +1008,7 @@ chrome.tabs.onCreated.addListener(tab => {
     autoUngroupEligible: eligible
   });
 
-  touch(tab.windowId, 'onCreated');
+  if (tab?.windowId != null) touch(tab.windowId, 'onCreated');
 });
 
 chrome.tabs.onMoved.addListener((tabId, info) => {
@@ -1049,11 +1049,11 @@ if (chrome.tabs?.onHighlighted?.addListener) {
   });
 }
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  const interesting = !!(changeInfo.url || changeInfo.status || changeInfo.title);
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  const interesting = !!(changeInfo.url || changeInfo.status || changeInfo.title || Object.prototype.hasOwnProperty.call(changeInfo || {}, 'groupId'));
   if (!interesting) return;
 
-  log('EV onUpdated', { tabId, windowId: tab.windowId, keys: Object.keys(changeInfo || {}) });
+  log('EV onUpdated', { tabId, windowId: tab?.windowId, keys: Object.keys(changeInfo || {}) });
 
   // Keep groups clean: if an eligible "new" tab becomes grouped, immediately ungroup it.
   // Event-driven (no sweeps) to avoid session-restore wipeouts.
@@ -1067,7 +1067,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         clearAutoUngroupEligible(tabId);
         await chrome.tabs.ungroup(tabId);
       }
-    } catch (e) {
+    } catch {
       // ignore: restricted/timing errors
     }
   }
@@ -1077,7 +1077,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     injectOverrides(tabId, effectiveUrl(tab)).catch(() => {});
   }
 
-  touch(tab.windowId, 'onUpdated');
+  if (tab?.windowId != null) touch(tab.windowId, 'onUpdated');
 });
 
 if (chrome.tabGroups?.onMoved?.addListener) {
