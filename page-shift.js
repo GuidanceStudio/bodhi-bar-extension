@@ -13,8 +13,6 @@ let _tzShiftRAF = 0;
 let _tzClipperEl = null;
 let _tzClipperPrev = null;
 
-function getOverrides() { return (window && window.__TZ_SITE_OVERRIDES__) ? window.__TZ_SITE_OVERRIDES__ : null; }
-
 function getBarHeightPx() {
   const bar = document.getElementById(TZ_BAR_ID);
   if (!bar) return 0;
@@ -137,14 +135,11 @@ function applyShiftToCandidate(cand, barH) {
   };
   _tzShifted.set(el, prev);
 
-  const overrides = getOverrides();
-  const overrideMode = overrides?.headerShiftMode?.(el)?.mode || null;
-
   const topCss = cs.top;
   const topPx = parseFloat(topCss);
   const baseTop = (topCss === 'auto' || !isFinite(topPx)) ? 0 : topPx;
 
-  const mustTransform = (cs.position === 'sticky') || (overrideMode === 'transform');
+  const mustTransform = (cs.position === 'sticky');
   if (mustTransform) {
     el.style.willChange = 'transform';
     el.style.transform = (prev.transform && prev.transform !== 'none')
@@ -158,10 +153,6 @@ function applyShiftToCandidate(cand, barH) {
 }
 
 function findViewportBottomClipper() {
-  const overrides = getOverrides();
-  const forced = overrides?.getSafeBottomContainer?.();
-  if (forced && forced.nodeType === 1) return forced;
-
   const cx = Math.floor(window.innerWidth / 2);
   const cy = Math.floor(window.innerHeight / 2);
   let el = document.elementFromPoint(cx, cy);
