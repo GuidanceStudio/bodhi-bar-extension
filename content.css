@@ -199,6 +199,12 @@
   box-sizing:border-box;
 }
 
+/* Force placeholder color in popovers (avoid page overrides) */
+[data-tz-popover="1"] input::placeholder{
+  color:rgba(242,242,242,0.55) !important;
+  opacity:1 !important;
+}
+
 /* Level-1 search */
 #ungroup-automatic-tab-bar .tz-search{
   all: initial;
@@ -253,6 +259,18 @@
   min-width:0;
   padding-right:6px;
 }
+
+/* Force readable input text (some pages can still affect form colors) */
+#ungroup-automatic-tab-bar input{
+  color:#f2f2f2 !important;
+  caret-color:#f2f2f2 !important;
+}
+
+#ungroup-automatic-tab-bar input::placeholder{
+  color:rgba(242,242,242,0.55) !important;
+  opacity:1 !important; /* Firefox-style placeholder opacity normalization */
+}
+
 #ungroup-automatic-tab-bar .tz-search .clear{
   all: initial;
   font-family:Arial, sans-serif;
@@ -768,7 +786,7 @@
   height: 12px;
   border-radius: 3px;
   flex: 0 0 12px;
-  box-sizing: border-box;
+  box-sizing:border-box;
 }
 
 [data-tz-popover="1"] .tz-popover-panel {
@@ -776,7 +794,7 @@
   display: none;
   margin-top: 0;
   width: 100%;
-  box-sizing: border-box;
+  box-sizing:border-box;
 }
 
 [data-tz-popover="1"] .tz-groups-container {
