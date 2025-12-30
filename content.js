@@ -143,25 +143,12 @@ function hookViewportEvents() {
 }
 
  // Boot
-try {
-  chrome?.runtime?.onMessage?.addListener((request, sender, sendResponse) => {
-    if (request.action === "REFRESH_BAR") {
-      requestTabList();
-    } else if (request.action === "SET_VISIBILITY") {
-      const bar = document.getElementById(TZ_BAR_ID);
-      if (bar) {
-        if (request.hidden) {
-          bar.style.setProperty('display', 'none', 'important');
-        } else {
-          bar.style.setProperty('display', 'flex', 'important');
-        }
-        applyPageShift();
-      }
-    }
-  });
-} catch {}
+let _tzDidBoot = false;
 
 async function boot() {
+  if (_tzDidBoot) return;
+  _tzDidBoot = true;
+
   try {
     const data = await chrome.storage.local.get('tz_hidden');
     captureBaseDPR();
@@ -180,11 +167,12 @@ async function boot() {
 }
 
 hookViewportEvents();
-boot();
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     applyZoomCompensatedMetrics(true);
     boot();
   }, { once: true });
+} else {
+  boot();
 }
