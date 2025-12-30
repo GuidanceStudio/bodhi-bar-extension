@@ -39,8 +39,6 @@ const STABLE = { SAMPLE_GAP_MS: 120, MAX_ATTEMPTS: 6, REQUIRED_MATCHES: 2 };
 const RETRY_DELAYS_MS = [80, 160, 320, 640, 1200, 2000];
 const UI_REFRESH_RETRY_MS = 450;
 
-const NEW_TAB_DEGROUP_TTL_MS = 7000; // only consider tabs "new" for this long
-
 // NEW: Grace period after startup/enable to avoid ungrouping restored session tabs.
 const STARTUP_GRACE_MS = 20000;
 
@@ -147,11 +145,24 @@ const state = {
   lastMotionAt: new Map(),
   lastEnforceAt: new Map(),
   retryState: new Map(),
-  newlyCreated: new Map(), // tabId -> createdAt
 
   // NEW: used to suppress "new tab" degroup during session restore/startup.
   startupAt: Date.now(),
 };
+
+// Tabs eligible for "keep groups clean" auto-ungroup.
+// We only add tabs when we have strong evidence they were user-created (or created by the extension UI).
+const autoUngroupEligible = new Set(); // tabId
+
+function markAutoUngroupEligible(tabId) {
+  if (tabId == null) return;
+  autoUngroupEligible.add(tabId);
+}
+
+function clearAutoUngroupEligible(tabId) {
+  if (tabId == null) return;
+  autoUngroupEligible.delete(tabId);
+}
 
 function inStartupGrace() {
   return (Date.now() - (state.startupAt || 0)) < STARTUP_GRACE_MS;
@@ -179,25 +190,6 @@ function scheduleAfterStartupGrace(windowId, reason = 'startupGrace') {
   }, delay);
 
   state.startupDelayTimers.set(windowId, t);
-}
-
-function markNewTab(tabId) {
-  if (tabId == null) return;
-  state.newlyCreated.set(tabId, Date.now());
-}
-
-function isNewTab(tabId) {
-  const t = state.newlyCreated.get(tabId);
-  if (!t) return false;
-  if ((Date.now() - t) > NEW_TAB_DEGROUP_TTL_MS) {
-    state.newlyCreated.delete(tabId);
-    return false;
-  }
-  return true;
-}
-
-function forgetTab(tabId) {
-  state.newlyCreated.delete(tabId);
 }
 
 function markMotion(windowId) {
@@ -379,31 +371,6 @@ async function enforceRound(windowId) {
 
   const isGrouped = (t) => t.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE;
   const isUngrouped = (t) => !t.pinned && !isGrouped(t);
-
-  // Step 0) Ungroup ONLY newly created tabs that ended up inside a group.
-  // NEW: during startup/session restore, skip this to avoid ungrouping restored group tabs.
-  if (!inStartupGrace()) {
-    let ungroupedNew = 0;
-
-    for (const [tabId, createdAt] of state.newlyCreated.entries()) {
-      if ((Date.now() - createdAt) > NEW_TAB_DEGROUP_TTL_MS) state.newlyCreated.delete(tabId);
-    }
-
-    for (const t of ordered) {
-      if (t.pinned) continue;
-      if (!isGrouped(t)) continue;
-      if (!isNewTab(t.id)) continue;
-
-      warn('DEGROUP new-tab', { tabId: t.id, groupId: t.groupId, url: effectiveUrl(t) });
-      await chrome.tabs.ungroup(t.id);
-      forgetTab(t.id);
-      ungroupedNew += 1;
-    }
-
-    if (ungroupedNew) await refresh();
-  } else {
-    log('startupGrace: skip DEGROUP new-tab', { windowId, graceMs: STARTUP_GRACE_MS });
-  }
 
   const isUngroupedWeb = (t) => isUngrouped(t) && !isSystemPage(t);
   const isUngroupedSystem = (t) => isUngrouped(t) && isSystemPage(t);
@@ -710,7 +677,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
 
       if (action === 'OPEN_NEW_TAB') {
-        await chrome.tabs.create({});
+        const created = await chrome.tabs.create({});
+        if (created?.id != null) markAutoUngroupEligible(created.id);
+
         const active = await getActiveTab();
         if (active?.windowId != null) scheduleUiRefresh(active.windowId, 'OPEN_NEW_TAB');
         sendResponse({ ok: true });
@@ -927,8 +896,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return;
           }
 
-          // Prevent Step-0 "new tab degroup" from undoing the user's explicit grouping.
-          forgetTab(tabId);
+          // Prevent auto-ungroup from undoing the user's explicit grouping.
+          clearAutoUngroupEligible(tabId);
 
           await chrome.tabs.group({ tabIds: [tabId], groupId });
           touch(tab.windowId, 'GROUP_TAB', { motion: true, drag: true });
@@ -964,7 +933,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return;
           }
 
-          forgetTab(tabId);
+          clearAutoUngroupEligible(tabId);
 
           const newGroupId = await chrome.tabs.group({ tabIds: [tabId] });
           try {
@@ -1028,8 +997,17 @@ function touch(windowId, reason, { motion = false, drag = false } = {}) {
 }
 
 chrome.tabs.onCreated.addListener(tab => {
-  markNewTab(tab.id);
-  log('EV onCreated', { tabId: tab.id, windowId: tab.windowId, openerTabId: tab.openerTabId, index: tab.index });
+  const eligible = (tab?.openerTabId != null);
+  if (eligible) markAutoUngroupEligible(tab.id);
+
+  log('EV onCreated', {
+    tabId: tab?.id,
+    windowId: tab?.windowId,
+    openerTabId: tab?.openerTabId,
+    index: tab?.index,
+    autoUngroupEligible: eligible
+  });
+
   touch(tab.windowId, 'onCreated');
 });
 
@@ -1049,7 +1027,7 @@ chrome.tabs.onDetached.addListener((tabId, info) => {
 });
 
 chrome.tabs.onRemoved.addListener((tabId, info) => {
-  forgetTab(tabId);
+  clearAutoUngroupEligible(tabId);
   log('EV onRemoved', { tabId, windowId: info.windowId, isWindowClosing: info.isWindowClosing });
   touch(info.windowId, 'onRemoved');
 });
@@ -1076,6 +1054,23 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (!interesting) return;
 
   log('EV onUpdated', { tabId, windowId: tab.windowId, keys: Object.keys(changeInfo || {}) });
+
+  // Keep groups clean: if an eligible "new" tab becomes grouped, immediately ungroup it.
+  // Event-driven (no sweeps) to avoid session-restore wipeouts.
+  if (!inStartupGrace() && Object.prototype.hasOwnProperty.call(changeInfo || {}, 'groupId')) {
+    try {
+      const gid = tab?.groupId;
+      const isNowGrouped = (typeof gid === 'number' && gid !== chrome.tabGroups.TAB_GROUP_ID_NONE);
+
+      if (isNowGrouped && autoUngroupEligible.has(tabId) && !tab?.pinned) {
+        warn('DEGROUP new-tab (event)', { tabId, groupId: gid, url: effectiveUrl(tab) });
+        clearAutoUngroupEligible(tabId);
+        await chrome.tabs.ungroup(tabId);
+      }
+    } catch (e) {
+      // ignore: restricted/timing errors
+    }
+  }
 
   // Try to inject overrides on "complete" (best effort).
   if (changeInfo.status === 'complete') {
