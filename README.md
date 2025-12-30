@@ -4,12 +4,17 @@ Chrome extension that improves tab management by enforcing a stable tab layout (
 
 ## Key Features
 - **Stable tab layout enforcement (background service worker)**:
-  - Pinned tabs are kept at the start
-  - Tab groups are kept compact immediately after pinned tabs
-  - Ungrouped tabs are kept after groups
-  - Ungrouped **web** tabs are kept before ungrouped **system** tabs
-- **Auto-ungrouping for *new* tabs**: newly created tabs that land inside a group are automatically ungrouped (with a startup/session-restore grace period to avoid accidental ungrouping).
+  - The extension continuously reorders tabs to keep a predictable structure:
+    1) Pinned tabs first
+    2) Then tab groups (kept compact)
+    3) Then ungrouped tabs
+  - Among ungrouped tabs, normal **web** tabs are kept before **system** tabs (`chrome://`, `brave://`, `about:`, etc.)
+- **Keep groups “clean” (auto-ungrouping for new tabs)**:
+  - If a *newly created* tab ends up inside an existing group (e.g., opening a link in a new tab while focused on a grouped tab), the extension automatically removes it from the group.
+  - This is meant to keep groups stable/intentional, while new tabs start ungrouped by default.
+  - A startup/session-restore grace period is used to avoid accidental ungrouping during browser restore.
 - **Horizontal tab bar UI (in-page)**:
+  - The UI is injected at the top of normal web pages and provides quick access to your tabs without relying on the browser tab strip.
   - Level 1: pinned favicons + ungrouped tabs (web + system separated by a divider)
   - “Groups” trigger to navigate into groups
 - **Group navigation (multi-level)**:
@@ -53,7 +58,7 @@ The Bodhi Bar can be toggled on or off globally via the extension's action menu.
 *   **Reflow**: `page-shift.js` monitors the bar's visibility; if the bar is detected as hidden (via `getComputedStyle`), it triggers `restoreShiftedHeaders()` to clean up the DOM.
 
 ## Important
-- The UI is injected only on normal websites (`http(s)://...`). It will not run on browser system pages like `chrome://extensions`.
+- The UI is injected only on normal websites (`http(s)://...`). It will not run on browser-restricted/system pages (e.g., `chrome://extensions`), where content scripts cannot be injected.
 - “System tabs” (e.g., `chrome://`, `brave://`, `about:`) are still managed by the background layout rules, but they are shown in the bar only as a separate “system” section when the bar is injected on a normal website.
 
 ## Project Structure
