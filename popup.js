@@ -28,6 +28,56 @@ const RESTRICTED_PREFIXES = [
   'opera://'
 ];
 
+const STORAGE_KEY_HIDDEN = 'tz_hidden';
+
+function getToggleButton() {
+  return document.getElementById('toggleBar');
+}
+
+function setButtonState({ text, disabled = false } = {}) {
+  const btn = getToggleButton();
+  if (!btn) return;
+  if (typeof text === 'string') btn.textContent = text;
+  btn.disabled = !!disabled;
+  btn.style.opacity = disabled ? '0.7' : '';
+  btn.style.cursor = disabled ? 'default' : '';
+}
+
+function storageGet(key) {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.local.get([key], (obj) => resolve(obj || {}));
+    } catch {
+      resolve({});
+    }
+  });
+}
+
+function storageSet(obj) {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.local.set(obj, () => resolve(true));
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+function sendVisibilityToTab(tabId, hidden) {
+  return new Promise((resolve) => {
+    try {
+      if (!chrome.tabs?.sendMessage || tabId == null) return resolve(false);
+      chrome.tabs.sendMessage(tabId, { action: 'SET_VISIBILITY', hidden: !!hidden }, () => {
+        const err = chrome.runtime?.lastError;
+        if (err) return resolve(false);
+        resolve(true);
+      });
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
 function isRestrictedUrl(url = '') {
   if (!url || typeof url !== 'string') return true; // defensive: if unknown, treat as restricted
   const u = url.trim().toLowerCase();
@@ -96,7 +146,7 @@ function showRestrictedMessage() {
   msg.style.margin = '6px 0';
   msg.style.fontSize = '12px';
   msg.style.lineHeight = '1.3';
-  msg.style.color = '#222';
+  msg.style.color = '#1a1a1a';
   msg.style.background = '#fff7e6';
   msg.style.border = '1px solid #f1d9a8';
   msg.style.borderRadius = '4px';
@@ -123,37 +173,55 @@ function showRestrictedMessage() {
 }
 
 function initPopup() {
-  // Query active tab
+  setButtonState({ text: 'Loading...', disabled: true });
+
   try {
-    if (!chrome.tabs || !chrome.tabs.query) {
-      // If chrome.tabs unavailable, be conservative and show the message
+    if (!chrome.tabs?.query) {
       hideToggleButtons();
       showRestrictedMessage();
       return;
     }
 
-    chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, async (tabs) => {
       const tab = (tabs && tabs[0]) ? tabs[0] : null;
       const url = tab?.url || tab?.pendingUrl || '';
-      if (!tab) {
-        // No active tab: treat as restricted context
-        hideToggleButtons();
+
+      if (!tab || isRestrictedUrl(String(url || ''))) {
+        // Restricted: keep a single disabled button + show message
+        setButtonState({ text: 'Not available on this page', disabled: true });
         showRestrictedMessage();
         return;
       }
 
-      if (isRestrictedUrl(String(url || ''))) {
-        hideToggleButtons();
-        showRestrictedMessage();
-        return;
-      }
+      // Normal page: enable toggle behavior
+      const btn = getToggleButton();
+      if (!btn) return;
 
-      // Not restricted: do nothing and allow existing popup logic to run.
-      // This keeps original show/hide behavior intact.
+      const obj = await storageGet(STORAGE_KEY_HIDDEN);
+      let hidden = !!obj[STORAGE_KEY_HIDDEN];
+
+      const render = () => {
+        setButtonState({ text: hidden ? 'Show Bar' : 'Hide Bar', disabled: false });
+      };
+
+      // Ensure we don't stack multiple listeners if popup re-inits
+      btn.onclick = null;
+      btn.addEventListener('click', async () => {
+        // Optimistic UI
+        hidden = !hidden;
+        render();
+
+        await storageSet({ [STORAGE_KEY_HIDDEN]: hidden });
+
+        // Best-effort: tell the active tab to update immediately (may fail on some pages)
+        await sendVisibilityToTab(tab.id, hidden);
+      }, { once: false });
+
+      render();
     });
-  } catch (e) {
-    // On unexpected error, hide toggles and show the explanatory message to avoid confusion.
-    hideToggleButtons();
+  } catch {
+    // Fail closed: don't leave "Loading..." forever
+    setButtonState({ text: 'Error', disabled: true });
     showRestrictedMessage();
   }
 }
