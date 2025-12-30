@@ -10,6 +10,14 @@ Chrome extension that improves tab management by enforcing a stable tab layout (
     3) Then ungrouped tabs
   - Among ungrouped tabs, normal **web** tabs are kept before **system** tabs (`chrome://`, `brave://`, `about:`, etc.)
 - **Keep groups “clean” (auto-ungrouping for new tabs)**:
+  - If a newly created tab ends up inside an existing group, the extension automatically removes it from the group.
+  - This is implemented in an event-driven way (no periodic “sweeps”) to avoid accidental mass-ungrouping during session restore.
+  - Tabs are considered eligible for auto-ungrouping only when there is strong evidence they were user-created (e.g., link-opened tabs with `openerTabId`, plus tabs created via the extension UI).
+- **Native tab strip group collapsing (opinionated)**:
+  - On every tab activation, the extension collapses all tab groups in the current window.
+  - If the active tab belongs to a group, that group is kept expanded while all other groups are collapsed.
+  - This affects the browser’s native tab strip (not just the in-page bar) and is skipped during the startup/session-restore grace period.
+- **Keep groups “clean” (auto-ungrouping for new tabs)**:
   - If a *newly created* tab ends up inside an existing group (e.g., opening a link in a new tab while focused on a grouped tab), the extension automatically removes it from the group.
   - This is meant to keep groups stable/intentional, while new tabs start ungrouped by default.
   - A startup/session-restore grace period is used to avoid accidental ungrouping during browser restore.
@@ -55,6 +63,7 @@ The Bodhi Bar can be toggled on or off globally via the extension's action menu.
 *   **State Management**: The `tz_hidden` key in storage tracks the UI state.
 *   **Messaging**: `popup.js` communicates with `content.js` via `chrome.tabs.sendMessage` using the `SET_VISIBILITY` action.
 *   **CSS Injection**: The bar is hidden using `display: none !important` to ensure it overrides site-specific styles.
+*   **Reflow**: `page-shift.js` checks bar visibility and restores shifted headers / safe-area padding when the bar is hidden, then triggers a resize to let the page reflow.
 *   **Reflow**: `page-shift.js` monitors the bar's visibility; if the bar is detected as hidden (via `getComputedStyle`), it triggers `restoreShiftedHeaders()` to clean up the DOM.
 
 ## Important
