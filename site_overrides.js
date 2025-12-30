@@ -1,46 +1,66 @@
-// site_overrides.js
 /*
- NOTE: For any edits that touch content scripts or the background/service worker,
- please also add these files to the chat so I can make coordinated, minimal changes:
-   - background.js
-   - constants.js
-   - messaging.js
-   - content.js
-   - render.js
-   - popup.js / popup.html
-   - manifest.json
-   - dom-helpers.js
-   - page-shift.js
-   - zoom.js
+ site_overrides.js
+ Per-site CSS patches only. Injected by background.js into all frames.
 */
 
- // site_overrides.js
- // Per-site exceptions only. Injected by background.js into all frames.
+(() => {
+  function ensureStyleTag(key) {
+    const head = document.head || document.documentElement;
+    if (!head) return null;
 
- (() => {
-   const api = {
-     headerShiftMode(el) {
-       try {
-         const host = location.hostname || '';
-         if ((host === 'www.youtube.com' || host.endsWith('.youtube.com')) && el?.id === 'masthead-container') {
-           return { mode: 'transform' };
-         }
-       } catch {}
-       return null;
-     },
+    const attr = 'data-tz-site-overrides';
+    const existing = head.querySelector(`style[${attr}="${key}"]`);
+    if (existing) return existing;
 
-     getSafeBottomContainer() {
-       try {
-         const host = location.hostname || '';
-         if (host === 'docs.google.com' && location.pathname.includes('/spreadsheets/')) {
-           return document.getElementById('0-grid-container') || null;
-         }
-       } catch {}
-       return null;
-     }
-   };
+    const st = document.createElement('style');
+    st.setAttribute(attr, key);
+    head.appendChild(st);
+    return st;
+  }
 
-   window.__TZ_SITE_OVERRIDES__ = api;
-   window.TZ_SITE_OVERRIDES = api;
-   window.TZ_SITE_OVERRIDES_LOADED = true;
- })();
+  function addCss(key, cssText) {
+    const css = String(cssText || '').trim();
+    if (!css) return;
+    const st = ensureStyleTag(key);
+    if (!st) return;
+
+    // Idempotent: if already applied, do nothing.
+    if (st.textContent && st.textContent.includes(css)) return;
+
+    st.textContent = (st.textContent ? (st.textContent + '\n') : '') + css + '\n';
+  }
+
+  function hostIs(host, suffix) {
+    return host === suffix || host.endsWith(`.${suffix}`);
+  }
+
+  const host = String(location.hostname || '');
+  const path = String(location.pathname || '');
+
+  // ---- YouTube: avoid masthead collision by forcing transform-based offset ----
+  if (hostIs(host, 'youtube.com')) {
+    addCss('youtube.com', `
+      /* Bodhi Bar site override: YouTube masthead */
+      #masthead-container{
+        transform: translateY(var(--tz-h, 0px)) !important;
+        will-change: transform !important;
+      }
+    `);
+  }
+
+  // ---- Google Sheets: ensure bottom safe area doesn't get clipped by grid container ----
+  // Previously this was done by selecting a "safe bottom container" in JS.
+  // Now we apply a CSS padding-bottom patch to the known container.
+  if (host === 'docs.google.com' && path.includes('/spreadsheets/')) {
+    addCss('docs.google.com/spreadsheets', `
+      /* Bodhi Bar site override: Google Sheets bottom clipper */
+      #0-grid-container{
+        padding-bottom: min(var(--tz-h, 0px), 48px) !important;
+        box-sizing: border-box !important;
+      }
+    `);
+  }
+
+  // Backward-compat flags (optional, but harmless if something checks them)
+  window.TZ_SITE_OVERRIDES_LOADED = true;
+})();
