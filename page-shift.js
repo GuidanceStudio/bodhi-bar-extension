@@ -237,8 +237,10 @@ function applyPageShift() {
     // If bar is hidden, restore pages and remove added padding
     try { restoreShiftedHeaders(); } catch {}
     try {
-      body.style.setProperty('padding-top', '0px', 'important');
-      body.style.setProperty('padding-bottom', '0px', 'important');
+      body.style.removeProperty('padding-top');
+      body.style.removeProperty('padding-bottom');
+      const st = document.head?.querySelector(`style[${TZ_SAFE_STYLE_ATTR}]`);
+      if (st) st.remove();
     } catch {}
     return;
   }

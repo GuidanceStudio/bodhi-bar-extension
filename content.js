@@ -159,6 +159,9 @@ async function boot() {
       bar.style.setProperty('display', 'none', 'important');
     }
 
+    // Ensure page shift state matches initial visibility
+    if (typeof applyPageShift === 'function') applyPageShift();
+
     applyZoomCompensatedMetrics(true);
     requestTabList();
   } catch {
@@ -176,3 +179,19 @@ if (document.readyState === 'loading') {
 } else {
   boot();
 }
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'SET_VISIBILITY') {
+    const bar = document.getElementById(TZ_BAR_ID);
+    if (bar) {
+      if (request.hidden) {
+        bar.style.setProperty('display', 'none', 'important');
+      } else {
+        bar.style.display = '';
+        requestTabList();
+      }
+      if (typeof applyPageShift === 'function') applyPageShift();
+    }
+    sendResponse({ success: true });
+  }
+});
