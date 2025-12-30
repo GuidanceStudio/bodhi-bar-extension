@@ -1011,6 +1011,42 @@ chrome.tabs.onCreated.addListener(tab => {
   if (tab?.windowId != null) touch(tab.windowId, 'onCreated');
 });
 
+// Native tab strip: keep a "clean" groups state on every tab activation.
+// Policy B: collapse all groups; if the active tab is grouped, expand its group.
+const groupCollapsePolicy = {
+  timers: new Map(), // windowId -> timerId
+  lastKeyByWindow: new Map(), // windowId -> string key to avoid redundant work
+  DEBOUNCE_MS: 120,
+};
+
+async function applyCleanGroupsState(windowId, activeGroupId) {
+  if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return;
+
+  try {
+    const groups = await chrome.tabGroups.query({ windowId });
+    const list = groups || [];
+
+    const ops = [];
+    for (const g of list) {
+      if (g?.id == null) continue;
+
+      const shouldCollapse = (activeGroupId == null || activeGroupId === chrome.tabGroups.TAB_GROUP_ID_NONE)
+        ? true
+        : (g.id !== activeGroupId);
+
+      // Only update if it would change something.
+      if (!!g.collapsed !== shouldCollapse) {
+        ops.push(chrome.tabGroups.update(g.id, { collapsed: shouldCollapse }));
+      }
+    }
+
+    if (ops.length) await Promise.allSettled(ops);
+  } catch (e) {
+    if (isDraggingError(e)) return; // ignore edit-lock periods
+    warn('applyCleanGroupsState failed', { windowId, activeGroupId, message: String(e?.message || e) });
+  }
+}
+
 chrome.tabs.onMoved.addListener((tabId, info) => {
   log('EV onMoved', { tabId, windowId: info.windowId, from: info.fromIndex, to: info.toIndex });
   touch(info.windowId, 'onMoved', { motion: true, drag: true });
@@ -1028,12 +1064,51 @@ chrome.tabs.onDetached.addListener((tabId, info) => {
 
 chrome.tabs.onRemoved.addListener((tabId, info) => {
   clearAutoUngroupEligible(tabId);
+
+  if (info?.isWindowClosing) {
+    groupCollapsePolicy.lastKeyByWindow.delete(info.windowId);
+    const tm = groupCollapsePolicy.timers.get(info.windowId);
+    if (tm) clearTimeout(tm);
+    groupCollapsePolicy.timers.delete(info.windowId);
+  }
+
   log('EV onRemoved', { tabId, windowId: info.windowId, isWindowClosing: info.isWindowClosing });
   touch(info.windowId, 'onRemoved');
 });
 
 chrome.tabs.onActivated.addListener((info) => {
   log('EV onActivated', { tabId: info.tabId, windowId: info.windowId });
+
+  // Policy B: always collapse all groups; if active tab is grouped, keep its group expanded.
+  if (!inStartupGrace() && info?.windowId != null && info?.tabId != null) {
+    const windowId = info.windowId;
+
+    const prev = groupCollapsePolicy.timers.get(windowId);
+    if (prev) clearTimeout(prev);
+
+    const t = setTimeout(async () => {
+      groupCollapsePolicy.timers.delete(windowId);
+
+      try {
+        const tab = await chrome.tabs.get(info.tabId);
+        const gid = (typeof tab?.groupId === 'number') ? tab.groupId : chrome.tabGroups.TAB_GROUP_ID_NONE;
+
+        // Avoid redundant work if nothing changed (same active group vs ungrouped).
+        const key = String(gid);
+        const lastKey = groupCollapsePolicy.lastKeyByWindow.get(windowId);
+        if (lastKey === key) return;
+        groupCollapsePolicy.lastKeyByWindow.set(windowId, key);
+
+        await applyCleanGroupsState(windowId, gid);
+      } catch (e) {
+        if (isDraggingError(e)) return;
+        // ignore other errors
+      }
+    }, groupCollapsePolicy.DEBOUNCE_MS);
+
+    groupCollapsePolicy.timers.set(windowId, t);
+  }
+
   touch(info.windowId, 'onActivated');
 });
 
