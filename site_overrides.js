@@ -60,7 +60,4 @@
       }
     `);
   }
-
-  // Backward-compat flags (optional, but harmless if something checks them)
-  window.TZ_SITE_OVERRIDES_LOADED = true;
 })();

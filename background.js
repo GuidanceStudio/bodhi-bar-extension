@@ -14,7 +14,7 @@
  * favicons inside each group tile without extra per-group requests.
  */
 
-// Constants (duplicated here because service workers can't share globals with content scripts)
+// Constants
 const TZ_PORT_NAME = 'TZ_UI_PORT';
 const TZ_HANDSHAKE_MSG = { action: '__TZ_HANDSHAKE__' };
 
