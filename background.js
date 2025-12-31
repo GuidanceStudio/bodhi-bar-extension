@@ -1044,6 +1044,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
       }
 
+      if (action === 'GET_EXPORT_PAYLOAD') {
+        try {
+          const payload = await buildExportPayload();
+          sendResponse({ ok: true, payload });
+          return;
+        } catch (e) {
+          sendResponse({ ok: false, error: String(e?.message || e || 'GET_EXPORT_PAYLOAD failed') });
+          return;
+        }
+      }
+
+      if (action === 'DOWNLOAD_JSON') {
+        try {
+          const payload = request?.payload;
+          const filename = String(request?.filename || '').trim() || makeExportFilename();
+          const res = await downloadJsonObject(payload, filename);
+          sendResponse({ ok: true, ...res });
+          return;
+        } catch (e) {
+          sendResponse({ ok: false, error: String(e?.message || e || 'DOWNLOAD_JSON failed') });
+          return;
+        }
+      }
+
       if (action === 'EXPORT_TABS') {
         try {
           const payload = await buildExportPayload();
@@ -1055,6 +1079,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({ ok: false, error: String(e?.message || e || 'EXPORT_TABS failed') });
           return;
         }
+      }
+
+      if (action === 'GET_UNGROUPED_TABS') {
+        const payload = await buildUngroupedPayload();
+        sendResponse(payload);
+        return;
       }
 
       sendResponse(null);
