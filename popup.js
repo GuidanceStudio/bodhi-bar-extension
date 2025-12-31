@@ -29,7 +29,7 @@ const RESTRICTED_PREFIXES = [
 ];
 
 const STORAGE_KEY_HIDDEN = 'tz_hidden';
-const STORAGE_KEY_PRESETS = 'tz_presets_v1';
+const STORAGE_KEY_WORKSPACES = 'tz_workspaces_v1';
 const PRESET_NAME_MAX_LEN = 60;
 
 function getToggleButton() {
@@ -65,7 +65,7 @@ function storageSet(obj) {
   });
 }
 
-function sanitizePresetName(name) {
+function sanitizeWorkspaceName(name) {
   const s = String(name || '').trim().replace(/\s+/g, ' ');
   if (!s) return '';
   return s.slice(0, PRESET_NAME_MAX_LEN);
@@ -81,12 +81,12 @@ function escapeFilenamePart(name) {
     .slice(0, 80) || 'preset';
 }
 
-function storageGetPresets() {
-  return storageGet(STORAGE_KEY_PRESETS).then(obj => obj[STORAGE_KEY_PRESETS] || {});
+function storageGetWorkspaces() {
+  return storageGet(STORAGE_KEY_WORKSPACES).then(obj => obj[STORAGE_KEY_WORKSPACES] || {});
 }
 
-function storageSetPresets(map) {
-  return storageSet({ [STORAGE_KEY_PRESETS]: map || {} });
+function storageSetWorkspaces(map) {
+  return storageSet({ [STORAGE_KEY_WORKSPACES]: map || {} });
 }
 
 function sendVisibilityToTab(tabId, hidden) {
@@ -168,31 +168,31 @@ function showRestrictedMessage() {
   return msg;
 }
 
-function renderPresetsList(presetsMap) {
-  const ul = document.getElementById('presetsList');
+function renderWorkspacesList(workspacesMap) {
+  const ul = document.getElementById('workspacesList');
   if (!ul) return;
 
   ul.innerHTML = '';
 
-  const names = Object.keys(presetsMap || {}).sort((a, b) => a.localeCompare(b));
+  const names = Object.keys(workspacesMap || {}).sort((a, b) => a.localeCompare(b));
   if (!names.length) {
     const li = document.createElement('li');
-    li.className = 'preset-item empty';
-    li.textContent = 'No presets saved yet.';
+    li.className = 'workspace-item empty';
+    li.textContent = 'No workspaces saved yet.';
     ul.appendChild(li);
     return;
   }
 
   for (const name of names) {
     const li = document.createElement('li');
-    li.className = 'preset-item';
+    li.className = 'workspace-item';
 
     const title = document.createElement('div');
-    title.className = 'preset-title';
+    title.className = 'workspace-title';
     title.textContent = name;
 
     const actions = document.createElement('div');
-    actions.className = 'preset-actions';
+    actions.className = 'workspace-actions';
 
     const downloadBtn = document.createElement('button');
     downloadBtn.className = 'btn small';
@@ -200,10 +200,10 @@ function renderPresetsList(presetsMap) {
     downloadBtn.addEventListener('click', async () => {
       downloadBtn.disabled = true;
       try {
-        const payload = presetsMap[name]?.payload || null;
+        const payload = workspacesMap[name]?.payload || null;
         if (!payload) return;
 
-        const filename = `bodhi-preset_${escapeFilenamePart(name)}.json`;
+        const filename = `bodhi-workspace_${escapeFilenamePart(name)}.json`;
         await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload });
       } finally {
         downloadBtn.disabled = false;
@@ -214,11 +214,11 @@ function renderPresetsList(presetsMap) {
     delBtn.className = 'btn small danger';
     delBtn.textContent = 'Delete';
     delBtn.addEventListener('click', async () => {
-      if (!confirm(`Delete preset "${name}"?`)) return;
-      const cur = await storageGetPresets();
+      if (!confirm(`Delete workspace "${name}"?`)) return;
+      const cur = await storageGetWorkspaces();
       delete cur[name];
-      await storageSetPresets(cur);
-      renderPresetsList(cur);
+      await storageSetWorkspaces(cur);
+      renderWorkspacesList(cur);
     });
 
     actions.appendChild(downloadBtn);
@@ -243,14 +243,14 @@ function initPopup() {
       const tab = (tabs && tabs[0]) ? tabs[0] : null;
       const url = tab?.url || tab?.pendingUrl || '';
 
-      // Presets UI (available even on restricted pages)
-      const createBtn = document.getElementById('createPreset');
+      // Workspaces UI (available even on restricted pages)
+      const createBtn = document.getElementById('createWorkspace');
       if (createBtn) {
         createBtn.onclick = null;
         createBtn.addEventListener('click', async () => {
-          const raw = prompt('Preset name:');
-          const presetName = sanitizePresetName(raw);
-          if (!presetName) return;
+          const raw = prompt('Workspace name:');
+          const workspaceName = sanitizeWorkspaceName(raw);
+          if (!workspaceName) return;
 
           createBtn.disabled = true;
           try {
@@ -263,23 +263,23 @@ function initPopup() {
               return;
             }
 
-            const presets = await storageGetPresets();
-            if (presets[presetName]) {
-              const overwrite = confirm(`Preset "${presetName}" already exists. Overwrite?`);
+            const workspaces = await storageGetWorkspaces();
+            if (workspaces[workspaceName]) {
+              const overwrite = confirm(`Workspace "${workspaceName}" already exists. Overwrite?`);
               if (!overwrite) return;
             }
 
-            presets[presetName] = {
-              name: presetName,
+            workspaces[workspaceName] = {
+              name: workspaceName,
               createdAt: Date.now(),
               payload: exp.payload
             };
 
-            await storageSetPresets(presets);
-            renderPresetsList(presets);
+            await storageSetWorkspaces(workspaces);
+            renderWorkspacesList(workspaces);
 
-            // Finally: download the JSON using the preset name
-            const filename = `bodhi-preset_${escapeFilenamePart(presetName)}.json`;
+            // Finally: download the JSON using the workspace name
+            const filename = `bodhi-workspace_${escapeFilenamePart(workspaceName)}.json`;
             await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload: exp.payload });
           } finally {
             createBtn.disabled = false;
@@ -287,9 +287,9 @@ function initPopup() {
         }, { once: false });
       }
 
-      // Initial presets list render
-      const presets = await storageGetPresets();
-      renderPresetsList(presets);
+      // Initial workspaces list render
+      const workspaces = await storageGetWorkspaces();
+      renderWorkspacesList(workspaces);
 
       if (!tab || isRestrictedUrl(String(url || ''))) {
         // Restricted: keep a single disabled button + show message
