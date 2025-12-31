@@ -603,33 +603,34 @@ async function buildExportPayload() {
   const pinnedTabs = [];
   const groupTabsMap = new Map(); // groupId -> tabItem[]
 
-  for (const t of tabs) {
-    const item = tabToItem(t);
+  // minimal tab export helper
+  const tabToExport = (t) => ({
+    url: t.url || t.pendingUrl || ''
+  });
 
-    if (item.pinned) {
-      pinnedTabs.push(item);
+  for (const t of tabs) {
+    if (t?.pinned) {
+      const ex = tabToExport(t);
+      if (ex.url) pinnedTabs.push(ex);
       continue;
     }
 
-    // Only include grouped tabs inside allTabGroups
-    if (item.groupId != null && item.groupId !== -1) {
-      if (!groupTabsMap.has(item.groupId)) groupTabsMap.set(item.groupId, []);
-      groupTabsMap.get(item.groupId).push(item);
+    const gid = (typeof t?.groupId === 'number') ? t.groupId : -1;
+    if (gid !== -1) {
+      const ex = tabToExport(t);
+      if (!ex.url) continue;
+      if (!groupTabsMap.has(gid)) groupTabsMap.set(gid, []);
+      groupTabsMap.get(gid).push(ex);
     }
   }
 
   const allTabGroups = (groups || []).map(g => ({
-    id: g.id,
     title: g.title || 'Group',
     color: g.color || 'default',
-    collapsed: !!g.collapsed,
-    tabs: (groupTabsMap.get(g.id) || []).slice().sort((a, b) => (a.index ?? 0) - (b.index ?? 0)),
+    tabs: (groupTabsMap.get(g.id) || []).slice()
   }));
 
-  return {
-    pinnedTabs: pinnedTabs.slice().sort((a, b) => (a.index ?? 0) - (b.index ?? 0)),
-    allTabGroups
-  };
+  return { pinnedTabs, allTabGroups };
 }
 
 async function buildGroupTabsPayload(groupId) {
