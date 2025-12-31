@@ -590,6 +590,48 @@ async function buildUngroupedPayload() {
   };
 }
 
+async function buildExportPayload() {
+  const active = await getActiveTab();
+  if (!active) return { pinnedTabs: [], allTabGroups: [] };
+
+  const windowId = active.windowId;
+  const [tabs, groups] = await Promise.all([
+    getTabsInWindow(windowId),
+    getAllGroupsInWindow(windowId)
+  ]);
+
+  const pinnedTabs = [];
+  const groupTabsMap = new Map(); // groupId -> tabItem[]
+
+  for (const t of tabs) {
+    const item = tabToItem(t);
+
+    if (item.pinned) {
+      pinnedTabs.push(item);
+      continue;
+    }
+
+    // Only include grouped tabs inside allTabGroups
+    if (item.groupId != null && item.groupId !== -1) {
+      if (!groupTabsMap.has(item.groupId)) groupTabsMap.set(item.groupId, []);
+      groupTabsMap.get(item.groupId).push(item);
+    }
+  }
+
+  const allTabGroups = (groups || []).map(g => ({
+    id: g.id,
+    title: g.title || 'Group',
+    color: g.color || 'default',
+    collapsed: !!g.collapsed,
+    tabs: (groupTabsMap.get(g.id) || []).slice().sort((a, b) => (a.index ?? 0) - (b.index ?? 0)),
+  }));
+
+  return {
+    pinnedTabs: pinnedTabs.slice().sort((a, b) => (a.index ?? 0) - (b.index ?? 0)),
+    allTabGroups
+  };
+}
+
 async function buildGroupTabsPayload(groupId) {
   const active = await getActiveTab();
   if (!active) return { tabs: [], groupTitle: 'Group' };
@@ -961,7 +1003,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       if (action === 'EXPORT_TABS') {
         try {
-          const payload = await buildUngroupedPayload();
+          const payload = await buildExportPayload();
           const filename = makeExportFilename();
           const res = await downloadJsonObject(payload, filename);
           sendResponse({ ok: true, ...res });
