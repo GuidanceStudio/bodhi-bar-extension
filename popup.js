@@ -161,6 +161,30 @@ function showRestrictedMessage() {
   return msg;
 }
 
+function appendImportRow(ul) {
+  const li = document.createElement('li');
+  li.className = 'workspace-item import-row';
+
+  const spacer = document.createElement('div');
+  spacer.className = 'workspace-title';
+  spacer.textContent = '';
+
+  const actions = document.createElement('div');
+  actions.className = 'workspace-actions';
+
+  const importBtn = document.createElement('button');
+  importBtn.className = 'btn small';
+  importBtn.textContent = 'Import';
+  importBtn.addEventListener('click', () => {
+    // TODO: implement import from JSON file
+  });
+
+  actions.appendChild(importBtn);
+  li.appendChild(spacer);
+  li.appendChild(actions);
+  ul.appendChild(li);
+}
+
 function renderWorkspacesList(workspacesMap) {
   const ul = document.getElementById('workspacesList');
   if (!ul) return;
@@ -173,6 +197,7 @@ function renderWorkspacesList(workspacesMap) {
     li.className = 'workspace-item empty';
     li.textContent = 'No workspaces saved yet.';
     ul.appendChild(li);
+    appendImportRow(ul);
     return;
   }
 
@@ -187,11 +212,18 @@ function renderWorkspacesList(workspacesMap) {
     const actions = document.createElement('div');
     actions.className = 'workspace-actions';
 
-    const downloadBtn = document.createElement('button');
-    downloadBtn.className = 'btn small';
-    downloadBtn.textContent = 'Download';
-    downloadBtn.addEventListener('click', async () => {
-      downloadBtn.disabled = true;
+    const restoreBtn = document.createElement('button');
+    restoreBtn.className = 'btn small';
+    restoreBtn.textContent = 'Restore';
+    restoreBtn.addEventListener('click', async () => {
+      // TODO: implement restore/apply workspace
+    });
+
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'btn small';
+    exportBtn.textContent = 'Export';
+    exportBtn.addEventListener('click', async () => {
+      exportBtn.disabled = true;
       try {
         const payload = workspacesMap[name]?.payload || null;
         if (!payload) return;
@@ -199,7 +231,7 @@ function renderWorkspacesList(workspacesMap) {
         const filename = `bodhi-workspace_${escapeFilenamePart(name)}.json`;
         await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload });
       } finally {
-        downloadBtn.disabled = false;
+        exportBtn.disabled = false;
       }
     });
 
@@ -214,13 +246,16 @@ function renderWorkspacesList(workspacesMap) {
       renderWorkspacesList(cur);
     });
 
-    actions.appendChild(downloadBtn);
+    actions.appendChild(restoreBtn);
+    actions.appendChild(exportBtn);
     actions.appendChild(delBtn);
 
     li.appendChild(title);
     li.appendChild(actions);
     ul.appendChild(li);
   }
+
+  appendImportRow(ul);
 }
 
 function initPopup() {
