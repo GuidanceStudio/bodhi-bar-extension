@@ -61,6 +61,14 @@ function canInjectIntoUrl(url = '') {
   return true;
 }
 
+function isSystemPage(tabOrUrl) {
+  const url = (typeof tabOrUrl === 'string')
+    ? tabOrUrl
+    : (tabOrUrl?.url || tabOrUrl?.pendingUrl || '');
+  if (!url) return false;
+  return SYSTEM_PREFIXES.some(prefix => String(url).startsWith(prefix));
+}
+
 async function injectOverrides(tabId, url) {
   if (tabId == null) return;
   if (!canInjectIntoUrl(url)) return;

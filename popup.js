@@ -155,11 +155,29 @@ function initPopup() {
       const tab = (tabs && tabs[0]) ? tabs[0] : null;
       const url = tab?.url || tab?.pendingUrl || '';
 
+      // Wire Export link immediately so it is available on restricted pages too.
+      const exportBtn = document.getElementById('exportTabs');
+      if (exportBtn) {
+        exportBtn.style.display = '';
+        exportBtn.onclick = null;
+        exportBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          exportBtn.style.pointerEvents = 'none';
+          exportBtn.style.opacity = '0.6';
+          const resp = await runtimeSendMessage({ action: 'EXPORT_TABS' });
+          exportBtn.style.pointerEvents = '';
+          exportBtn.style.opacity = '';
+          if (!resp?.ok) {
+            const m = showRestrictedMessage();
+            m.textContent = resp?.error || 'Export failed.';
+            m.style.display = '';
+          }
+        }, { once: false });
+      }
+
       if (!tab || isRestrictedUrl(String(url || ''))) {
         // Restricted: keep a single disabled button + show message
         setButtonState({ text: 'Not available on this page', disabled: true });
-        const exportBtn = document.getElementById('exportTabs');
-        if (exportBtn) exportBtn.style.display = 'none';
         showRestrictedMessage();
         return;
       }
@@ -190,23 +208,6 @@ function initPopup() {
         // Best-effort: tell the active tab to update immediately (may fail on some pages)
         await sendVisibilityToTab(tab.id, hidden);
       }, { once: false });
-
-      const exportBtn = document.getElementById('exportTabs');
-      if (exportBtn) {
-        exportBtn.style.display = '';
-        exportBtn.disabled = false;
-        exportBtn.onclick = null;
-        exportBtn.addEventListener('click', async () => {
-          exportBtn.disabled = true;
-          const resp = await runtimeSendMessage({ action: 'EXPORT_TABS' });
-          exportBtn.disabled = false;
-          if (!resp?.ok) {
-            const m = showRestrictedMessage();
-            m.textContent = resp?.error || 'Export failed.';
-            m.style.display = '';
-          }
-        }, { once: false });
-      }
 
       render();
     });
