@@ -125,9 +125,12 @@ function isRestrictedUrl(url = '') {
   return RESTRICTED_PREFIXES.some(p => u.startsWith(p));
 }
 
-function showRestrictedMessage() {
-  const existing = document.getElementById('restricted-msg');
-  const message = 'Bodhi Bar is not available on this type of page (browser internal/restricted pages). Open a regular website tab to use Show/Hide.';
+function showToggleMessage(text) {
+  const id = 'toggle-msg';
+  const message = String(text || '').trim();
+  if (!message) return null;
+
+  const existing = document.getElementById(id);
   if (existing) {
     existing.textContent = message;
     existing.style.display = '';
@@ -135,9 +138,9 @@ function showRestrictedMessage() {
   }
 
   const msg = document.createElement('div');
-  msg.id = 'restricted-msg';
+  msg.id = id;
   msg.textContent = message;
-  // Minimal inline styling so message is readable in the popup even if popup.html has different styles.
+
   msg.style.padding = '8px 10px';
   msg.style.margin = '8px 0 0 0';
   msg.style.fontSize = '12px';
@@ -149,15 +152,53 @@ function showRestrictedMessage() {
   msg.style.maxWidth = '320px';
   msg.style.wordBreak = 'break-word';
 
-  // Insert directly under the toggle button (preferred UX).
   const btn = getToggleButton();
   if (btn && btn.parentNode) {
     if (btn.nextSibling) btn.parentNode.insertBefore(msg, btn.nextSibling);
     else btn.parentNode.appendChild(msg);
   } else {
-    // Fallback: append to body
     document.body.appendChild(msg);
   }
+  return msg;
+}
+
+function showWorkspacesMessage(text) {
+  const id = 'workspaces-msg';
+  const message = String(text || '').trim();
+  if (!message) return null;
+
+  const existing = document.getElementById(id);
+  if (existing) {
+    existing.textContent = message;
+    existing.style.display = '';
+    return existing;
+  }
+
+  const msg = document.createElement('div');
+  msg.id = id;
+  msg.textContent = message;
+
+  // same visual style as toggle message
+  msg.style.padding = '8px 10px';
+  msg.style.margin = '8px 0 0 0';
+  msg.style.fontSize = '12px';
+  msg.style.lineHeight = '1.3';
+  msg.style.color = '#1a1a1a';
+  msg.style.background = '#fff7e6';
+  msg.style.border = '1px solid #f1d9a8';
+  msg.style.borderRadius = '4px';
+  msg.style.wordBreak = 'break-word';
+
+  const section = document.getElementById('workspaces-section');
+  const note = document.getElementById('workspaces-note');
+  if (section) {
+    // Put message at the bottom of the workspaces section, just above the note if present.
+    if (note && note.parentNode === section) section.insertBefore(msg, note);
+    else section.appendChild(msg);
+  } else {
+    document.body.appendChild(msg);
+  }
+
   return msg;
 }
 
@@ -231,9 +272,7 @@ function renderWorkspacesList(workspacesMap) {
         const filename = `bodhi-workspace_${escapeFilenamePart(name)}.json`;
         const res = await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload });
         if (!res?.ok) {
-          const m = showRestrictedMessage();
-          m.textContent = res?.error || 'Export failed.';
-          m.style.display = '';
+          showWorkspacesMessage(res?.error || 'Export failed.');
         }
       } finally {
         exportBtn.disabled = false;
@@ -268,7 +307,7 @@ function initPopup() {
 
   try {
     if (!chrome.tabs?.query) {
-      showRestrictedMessage();
+      showToggleMessage('Bodhi Bar is not available on this type of page (browser internal/restricted pages). Open a regular website tab to use Show/Hide.');
       return;
     }
 
@@ -290,9 +329,7 @@ function initPopup() {
             // Request the export payload (no download)
             const exp = await runtimeSendMessage({ action: 'GET_EXPORT_PAYLOAD' });
             if (!exp?.ok || !exp?.payload) {
-              const m = showRestrictedMessage();
-              m.textContent = exp?.error || 'Could not get export payload.';
-              m.style.display = '';
+              showWorkspacesMessage(exp?.error || 'Could not get export payload.');
               return;
             }
 
@@ -315,9 +352,7 @@ function initPopup() {
             const filename = `bodhi-workspace_${escapeFilenamePart(workspaceName)}.json`;
             const res = await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload: exp.payload });
             if (!res?.ok) {
-              const m = showRestrictedMessage();
-              m.textContent = res?.error || 'Export failed.';
-              m.style.display = '';
+              showWorkspacesMessage(res?.error || 'Export failed.');
             }
           } finally {
             createBtn.disabled = false;
@@ -331,15 +366,15 @@ function initPopup() {
 
       if (!tab || isRestrictedUrl(String(url || ''))) {
         // Restricted: keep a single disabled button + show message
-        setButtonState({ text: 'Not available on this page', disabled: true });
-        showRestrictedMessage();
+        setButtonState({ text: 'Bar not available on this page', disabled: true });
+        showToggleMessage('Bodhi Bar is not available on this type of page (browser internal/restricted pages). Open a regular website tab to use Show/Hide.');
         return;
       }
 
       // Normal page: enable toggle behavior
       const btn = getToggleButton();
       if (!btn) {
-        showRestrictedMessage();
+        showToggleMessage('Bodhi Bar is not available on this type of page (browser internal/restricted pages). Open a regular website tab to use Show/Hide.');
         return;
       }
 
@@ -368,7 +403,7 @@ function initPopup() {
   } catch {
     // Fail closed: don't leave "Loading..." forever
     setButtonState({ text: 'Error', disabled: true });
-    showRestrictedMessage();
+    showToggleMessage('Bodhi Bar is not available on this type of page (browser internal/restricted pages). Open a regular website tab to use Show/Hide.');
   }
 }
 
