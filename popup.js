@@ -9,9 +9,9 @@
  Notes:
  - The popup HTML may use different IDs/classes for the show/hide buttons across versions.
    To avoid editing popup.html, this script attempts a few common selectors and also
-   hides buttons by inspecting their visible text.
+ hides buttons by inspecting their visible text.
  - This file was added standalone as requested; it intentionally performs a minimal DOM
-   touch to add a single message node when needed.
+ touch to add a single message node when needed.
 */
 
 const RESTRICTED_PREFIXES = [
@@ -29,6 +29,8 @@ const RESTRICTED_PREFIXES = [
 ];
 
 const STORAGE_KEY_HIDDEN = 'tz_hidden';
+const STORAGE_KEY_PRESETS = 'tz_presets_v1';
+const PRESET_NAME_MAX_LEN = 60;
 
 function getToggleButton() {
   return document.getElementById('toggleBar');
@@ -61,6 +63,30 @@ function storageSet(obj) {
       resolve(false);
     }
   });
+}
+
+function sanitizePresetName(name) {
+  const s = String(name || '').trim().replace(/\s+/g, ' ');
+  if (!s) return '';
+  return s.slice(0, PRESET_NAME_MAX_LEN);
+}
+
+function escapeFilenamePart(name) {
+  // Keep it simple and cross-platform safe
+  return String(name || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[\\/:*?"<>|]+/g, '-')
+    .replace(/\.+$/g, '')
+    .slice(0, 80) || 'preset';
+}
+
+function storageGetPresets() {
+  return storageGet(STORAGE_KEY_PRESETS).then(obj => obj[STORAGE_KEY_PRESETS] || {});
+}
+
+function storageSetPresets(map) {
+  return storageSet({ [STORAGE_KEY_PRESETS]: map || {} });
 }
 
 function sendVisibilityToTab(tabId, hidden) {
@@ -142,6 +168,68 @@ function showRestrictedMessage() {
   return msg;
 }
 
+function renderPresetsList(presetsMap) {
+  const ul = document.getElementById('presetsList');
+  if (!ul) return;
+
+  ul.innerHTML = '';
+
+  const names = Object.keys(presetsMap || {}).sort((a, b) => a.localeCompare(b));
+  if (!names.length) {
+    const li = document.createElement('li');
+    li.className = 'preset-item empty';
+    li.textContent = 'No presets saved yet.';
+    ul.appendChild(li);
+    return;
+  }
+
+  for (const name of names) {
+    const li = document.createElement('li');
+    li.className = 'preset-item';
+
+    const title = document.createElement('div');
+    title.className = 'preset-title';
+    title.textContent = name;
+
+    const actions = document.createElement('div');
+    actions.className = 'preset-actions';
+
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'btn small';
+    downloadBtn.textContent = 'Download';
+    downloadBtn.addEventListener('click', async () => {
+      downloadBtn.disabled = true;
+      try {
+        const payload = presetsMap[name]?.payload || null;
+        if (!payload) return;
+
+        const filename = `bodhi-preset_${escapeFilenamePart(name)}.json`;
+        await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload });
+      } finally {
+        downloadBtn.disabled = false;
+      }
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn small danger';
+    delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', async () => {
+      if (!confirm(`Delete preset "${name}"?`)) return;
+      const cur = await storageGetPresets();
+      delete cur[name];
+      await storageSetPresets(cur);
+      renderPresetsList(cur);
+    });
+
+    actions.appendChild(downloadBtn);
+    actions.appendChild(delBtn);
+
+    li.appendChild(title);
+    li.appendChild(actions);
+    ul.appendChild(li);
+  }
+}
+
 function initPopup() {
   setButtonState({ text: 'Loading...', disabled: true });
 
@@ -155,25 +243,53 @@ function initPopup() {
       const tab = (tabs && tabs[0]) ? tabs[0] : null;
       const url = tab?.url || tab?.pendingUrl || '';
 
-      // Wire Export link immediately so it is available on restricted pages too.
-      const exportBtn = document.getElementById('exportTabs');
-      if (exportBtn) {
-        exportBtn.style.display = '';
-        exportBtn.onclick = null;
-        exportBtn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          exportBtn.style.pointerEvents = 'none';
-          exportBtn.style.opacity = '0.6';
-          const resp = await runtimeSendMessage({ action: 'EXPORT_TABS' });
-          exportBtn.style.pointerEvents = '';
-          exportBtn.style.opacity = '';
-          if (!resp?.ok) {
-            const m = showRestrictedMessage();
-            m.textContent = resp?.error || 'Export failed.';
-            m.style.display = '';
+      // Presets UI (available even on restricted pages)
+      const createBtn = document.getElementById('createPreset');
+      if (createBtn) {
+        createBtn.onclick = null;
+        createBtn.addEventListener('click', async () => {
+          const raw = prompt('Preset name:');
+          const presetName = sanitizePresetName(raw);
+          if (!presetName) return;
+
+          createBtn.disabled = true;
+          try {
+            // Request the export payload (no download)
+            const exp = await runtimeSendMessage({ action: 'GET_EXPORT_PAYLOAD' });
+            if (!exp?.ok || !exp?.payload) {
+              const m = showRestrictedMessage();
+              m.textContent = exp?.error || 'Could not get export payload.';
+              m.style.display = '';
+              return;
+            }
+
+            const presets = await storageGetPresets();
+            if (presets[presetName]) {
+              const overwrite = confirm(`Preset "${presetName}" already exists. Overwrite?`);
+              if (!overwrite) return;
+            }
+
+            presets[presetName] = {
+              name: presetName,
+              createdAt: Date.now(),
+              payload: exp.payload
+            };
+
+            await storageSetPresets(presets);
+            renderPresetsList(presets);
+
+            // Finally: download the JSON using the preset name
+            const filename = `bodhi-preset_${escapeFilenamePart(presetName)}.json`;
+            await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload: exp.payload });
+          } finally {
+            createBtn.disabled = false;
           }
         }, { once: false });
       }
+
+      // Initial presets list render
+      const presets = await storageGetPresets();
+      renderPresetsList(presets);
 
       if (!tab || isRestrictedUrl(String(url || ''))) {
         // Restricted: keep a single disabled button + show message
