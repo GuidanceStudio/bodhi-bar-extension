@@ -101,20 +101,62 @@ const uiRefreshTimers = new Map(); // windowId -> timerId
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-function makeExportFilename() {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  const ts = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
-  return `bodhi-bar-export_${ts}.json`;
+/*
+  Helper additions for missing utilities:
+  - queryOrderedTabs(windowId): returns tabs sorted by index for the window
+  - waitForStableLayout(windowId): simple sampling-based stability check
+  - isDraggingError(e): best-effort detection of edit-lock / dragging errors
+
+  These are intentionally minimal and defensive: they avoid throwing and
+  return sensible defaults so the service worker remains robust even on
+  browsers with different error messages.
+*/
+async function queryOrderedTabs(windowId) {
+  try {
+    const tabs = await chrome.tabs.query({ windowId });
+    return (tabs || []).slice().sort((a, b) => (Number(a.index) || 0) - (Number(b.index) || 0));
+  } catch (e) {
+    warn('queryOrderedTabs failed', { windowId, message: String(e?.message || e) });
+    return [];
+  }
 }
 
-async function downloadJsonObject(obj, filename) {
-  const json = JSON.stringify(obj, null, 2);
-  // MV3 service workers may not support Blob/ObjectURL reliably.
-  // Use a data URL instead.
-  const url = `data:application/json;charset=utf-8,${encodeURIComponent(json)}`;
-  const id = await chrome.downloads.download({ url, filename, saveAs: true });
-  return { ok: true, downloadId: id };
+async function waitForStableLayout(windowId) {
+  // Sample the ordered tab ids a few times with a small gap. If we observe
+  // the same ordering for STABLE.REQUIRED_MATCHES consecutive samples, treat
+  // the layout as stable.
+  try {
+    let last = null;
+    let consecutiveMatches = 0;
+
+    for (let attempt = 0; attempt < STABLE.MAX_ATTEMPTS; attempt++) {
+      const tabs = await queryOrderedTabs(windowId);
+      const ids = tabs.map(t => String(t.id)).join(',');
+      if (ids === last) {
+        consecutiveMatches += 1;
+        if (consecutiveMatches >= STABLE.REQUIRED_MATCHES) {
+          return { stable: true, attempts: attempt + 1 };
+        }
+      } else {
+        consecutiveMatches = 1;
+      }
+      last = ids;
+      // small pause between samples
+      await sleep(STABLE.SAMPLE_GAP_MS);
+    }
+
+    return { stable: false, attempts: STABLE.MAX_ATTEMPTS };
+  } catch (e) {
+    warn('waitForStableLayout failed', { windowId, message: String(e?.message || e) });
+    return { stable: false, attempts: 0 };
+  }
+}
+
+function isDraggingError(e) {
+  if (!e) return false;
+  const msg = String(e?.message || e).toLowerCase();
+  // Best-effort pattern matching for common Chrome/Brave "locked/dragging" messages.
+  return /drag|locked|being dragged|editing|cannot (?:complete|move|remove)|temporaril|tab is being/i.test(msg);
 }
 
 // ---------------- Scheduler state ----------------
