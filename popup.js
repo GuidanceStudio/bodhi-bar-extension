@@ -78,6 +78,21 @@ function sendVisibilityToTab(tabId, hidden) {
   });
 }
 
+function runtimeSendMessage(msg) {
+  return new Promise((resolve) => {
+    try {
+      if (!chrome.runtime?.sendMessage) return resolve(null);
+      chrome.runtime.sendMessage(msg, (resp) => {
+        const err = chrome.runtime?.lastError;
+        if (err) return resolve(null);
+        resolve(resp ?? null);
+      });
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
 function isRestrictedUrl(url = '') {
   if (!url || typeof url !== 'string') return true; // defensive: if unknown, treat as restricted
   const u = url.trim().toLowerCase();
@@ -143,6 +158,8 @@ function initPopup() {
       if (!tab || isRestrictedUrl(String(url || ''))) {
         // Restricted: keep a single disabled button + show message
         setButtonState({ text: 'Not available on this page', disabled: true });
+        const exportBtn = document.getElementById('exportTabs');
+        if (exportBtn) exportBtn.style.display = 'none';
         showRestrictedMessage();
         return;
       }
@@ -173,6 +190,23 @@ function initPopup() {
         // Best-effort: tell the active tab to update immediately (may fail on some pages)
         await sendVisibilityToTab(tab.id, hidden);
       }, { once: false });
+
+      const exportBtn = document.getElementById('exportTabs');
+      if (exportBtn) {
+        exportBtn.style.display = '';
+        exportBtn.disabled = false;
+        exportBtn.onclick = null;
+        exportBtn.addEventListener('click', async () => {
+          exportBtn.disabled = true;
+          const resp = await runtimeSendMessage({ action: 'EXPORT_TABS' });
+          exportBtn.disabled = false;
+          if (!resp?.ok) {
+            const m = showRestrictedMessage();
+            m.textContent = resp?.error || 'Export failed.';
+            m.style.display = '';
+          }
+        }, { once: false });
+      }
 
       render();
     });

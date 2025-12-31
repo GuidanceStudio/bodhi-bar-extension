@@ -9,7 +9,8 @@
     "tabGroups",
     "scripting",
     "windows",
-    "storage"
+    "storage",
+    "downloads"
   ],
   "action": {
     "default_popup": "popup.html"

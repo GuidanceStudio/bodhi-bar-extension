@@ -93,46 +93,23 @@ const uiRefreshTimers = new Map(); // windowId -> timerId
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-function isSystemPage(tab) {
-  const url = effectiveUrl(tab);
-  return !!url && SYSTEM_PREFIXES.some(prefix => url.startsWith(prefix));
+function makeExportFilename() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const ts = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+  return `bodhi-bar-export_${ts}.json`;
 }
 
-function isDraggingError(e) {
-  const msg = String(e?.message || e || '');
-  return msg.includes('Tabs cannot be edited right now');
-}
-
-async function queryOrderedTabs(windowId) {
-  return (await chrome.tabs.query({ windowId })).slice().sort((a, b) => a.index - b.index);
-}
-
-async function getLayoutSignature(windowId) {
-  const tabs = await queryOrderedTabs(windowId);
-  const sig = tabs.map(t => `${t.id}:${t.groupId}:${t.pinned ? 1 : 0}`).join('|');
-  return { sig, tabs };
-}
-
-async function waitForStableLayout(windowId) {
-  let lastSig = null;
-  let matches = 0;
-  let lastTabs = null;
-
-  for (let attempt = 1; attempt <= STABLE.MAX_ATTEMPTS; attempt++) {
-    const { sig, tabs } = await getLayoutSignature(windowId);
-    lastTabs = tabs;
-
-    const same = (sig === lastSig);
-    matches = same ? (matches + 1) : 0;
-
-    log('stable', { windowId, attempt, same, matches });
-
-    if (matches >= (STABLE.REQUIRED_MATCHES - 1)) return { stable: true, tabs };
-    lastSig = sig;
-    await sleep(STABLE.SAMPLE_GAP_MS);
+async function downloadJsonObject(obj, filename) {
+  const json = JSON.stringify(obj, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const id = await chrome.downloads.download({ url, filename, saveAs: true });
+    return { ok: true, downloadId: id };
+  } finally {
+    setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 30_000);
   }
-
-  return { stable: false, tabs: lastTabs };
 }
 
 // ---------------- Scheduler state ----------------
@@ -973,6 +950,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         } catch (e) {
           warn('UNGROUP_TAB error', { tabId, message: String(e?.message || e) });
           sendResponse({ ok: false, error: 'UNGROUP_TAB failed' });
+          return;
+        }
+      }
+
+      if (action === 'EXPORT_TABS') {
+        try {
+          const payload = await buildUngroupedPayload();
+          const filename = makeExportFilename();
+          const res = await downloadJsonObject(payload, filename);
+          sendResponse({ ok: true, ...res });
+          return;
+        } catch (e) {
+          sendResponse({ ok: false, error: String(e?.message || e || 'EXPORT_TABS failed') });
           return;
         }
       }
