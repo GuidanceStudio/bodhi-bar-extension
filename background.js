@@ -110,14 +110,11 @@ function makeExportFilename() {
 
 async function downloadJsonObject(obj, filename) {
   const json = JSON.stringify(obj, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  try {
-    const id = await chrome.downloads.download({ url, filename, saveAs: true });
-    return { ok: true, downloadId: id };
-  } finally {
-    setTimeout(() => { try { URL.revokeObjectURL(url); } catch {} }, 30_000);
-  }
+  // MV3 service workers may not support Blob/ObjectURL reliably.
+  // Use a data URL instead.
+  const url = `data:application/json;charset=utf-8,${encodeURIComponent(json)}`;
+  const id = await chrome.downloads.download({ url, filename, saveAs: true });
+  return { ok: true, downloadId: id };
 }
 
 // ---------------- Scheduler state ----------------
