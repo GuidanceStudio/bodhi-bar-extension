@@ -139,7 +139,7 @@ function showRestrictedMessage() {
   msg.textContent = message;
   // Minimal inline styling so message is readable in the popup even if popup.html has different styles.
   msg.style.padding = '8px 10px';
-  msg.style.margin = '6px 0';
+  msg.style.margin = '8px 0 0 0';
   msg.style.fontSize = '12px';
   msg.style.lineHeight = '1.3';
   msg.style.color = '#1a1a1a';
@@ -149,19 +149,12 @@ function showRestrictedMessage() {
   msg.style.maxWidth = '320px';
   msg.style.wordBreak = 'break-word';
 
-  // Try to insert into a reasonable place in the popup:
-  // Prefer a container with class/id likely present; otherwise append to body.
-  const preferredSelectors = ['.popup-body', '#popup', '#root', '.controls', '.actions', '.tz-popup'];
-  let inserted = false;
-  for (const sel of preferredSelectors) {
-    const c = document.querySelector(sel);
-    if (c) {
-      c.insertBefore(msg, c.firstChild);
-      inserted = true;
-      break;
-    }
-  }
-  if (!inserted) {
+  // Insert directly under the toggle button (preferred UX).
+  const btn = getToggleButton();
+  if (btn && btn.parentNode) {
+    if (btn.nextSibling) btn.parentNode.insertBefore(msg, btn.nextSibling);
+    else btn.parentNode.appendChild(msg);
+  } else {
     // Fallback: append to body
     document.body.appendChild(msg);
   }
