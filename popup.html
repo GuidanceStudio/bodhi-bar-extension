@@ -11,9 +11,11 @@
 
     <section id="workspaces-section" aria-labelledby="workspaces-heading" class="workspaces-section">
       <div class="workspaces-header">
-        <h3 id="workspaces-heading">Workspaces</h3>
-        <div class="workspaces-controls">
-          <button id="createWorkspace" class="btn small">Create</button>
+        <div class="workspaces-title-row">
+          <h3 id="workspaces-heading">Workspaces</h3>
+          <button id="createWorkspace" class="btn small" title="Save the current window tabs/groups as a workspace">
+            Save current
+          </button>
         </div>
       </div>
 
@@ -22,7 +24,7 @@
       </ul>
 
       <div id="workspaces-note" class="note">
-        Saved workspaces are stored locally. You can delete them or download a workspace JSON file. (Applying/loading workspaces is not available yet.)
+        Workspaces are snapshots of your current window (pinned tabs + tab groups). Save one with "Save current". You can delete them or download a workspace JSON file. (Restore/apply is not available yet.)
       </div>
     </section>
   </div>
