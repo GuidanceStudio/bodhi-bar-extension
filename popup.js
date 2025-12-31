@@ -229,7 +229,12 @@ function renderWorkspacesList(workspacesMap) {
         if (!payload) return;
 
         const filename = `bodhi-workspace_${escapeFilenamePart(name)}.json`;
-        await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload });
+        const res = await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload });
+        if (!res?.ok) {
+          const m = showRestrictedMessage();
+          m.textContent = res?.error || 'Export failed.';
+          m.style.display = '';
+        }
       } finally {
         exportBtn.disabled = false;
       }
@@ -308,7 +313,12 @@ function initPopup() {
 
             // Finally: download the JSON using the workspace name
             const filename = `bodhi-workspace_${escapeFilenamePart(workspaceName)}.json`;
-            await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload: exp.payload });
+            const res = await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload: exp.payload });
+            if (!res?.ok) {
+              const m = showRestrictedMessage();
+              m.textContent = res?.error || 'Export failed.';
+              m.style.display = '';
+            }
           } finally {
             createBtn.disabled = false;
           }

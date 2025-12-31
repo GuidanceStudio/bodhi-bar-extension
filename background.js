@@ -101,6 +101,34 @@ const uiRefreshTimers = new Map(); // windowId -> timerId
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+function makeExportFilename() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const ts = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+  return `bodhi-workspace_${ts}.json`;
+}
+
+async function downloadJsonObject(obj, filename) {
+  const safeName = String(filename || '').trim() || makeExportFilename();
+  const json = JSON.stringify(obj ?? null, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  try {
+    const downloadId = await chrome.downloads.download({
+      url,
+      filename: safeName,
+      saveAs: true
+    });
+    return { downloadId };
+  } finally {
+    // Revoke after a delay so the download has time to start.
+    setTimeout(() => {
+      try { URL.revokeObjectURL(url); } catch {}
+    }, 10_000);
+  }
+}
+
 /*
   Helper additions for missing utilities:
   - queryOrderedTabs(windowId): returns tabs sorted by index for the window
