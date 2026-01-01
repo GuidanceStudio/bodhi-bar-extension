@@ -91,7 +91,14 @@ function normalizeImportedWorkspaceJson(raw) {
   if (!isPlainObject(raw)) return { ok: false, error: 'Invalid JSON: expected an object.' };
 
   const version = raw.version || '1.0';
-  // Future-proofing: if (version !== '1.0') { ... }
+  // Supported versions
+  const SUPPORTED_VERSIONS = ['1.0'];
+  if (!SUPPORTED_VERSIONS.includes(version)) {
+    return { 
+      ok: false, 
+      error: `Unsupported workspace version: ${version}. Please update the extension.` 
+    };
+  }
   const payload = raw.payload;
   if (!isPlainObject(payload)) return { ok: false, error: 'Invalid workspace file: missing "payload" object.' };
 
