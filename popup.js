@@ -81,6 +81,40 @@ function escapeFilenamePart(name) {
     .slice(0, 80) || 'preset';
 }
 
+function isPlainObject(v) {
+  return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
+function normalizeImportedWorkspaceJson(raw) {
+  // Expected export format:
+  // { name: string, payload: { pinnedTabs: [{url}], allTabGroups: [{title,color,tabs:[{url}]}] } }
+  if (!isPlainObject(raw)) return { ok: false, error: 'Invalid JSON: expected an object.' };
+
+  const payload = raw.payload;
+  if (!isPlainObject(payload)) return { ok: false, error: 'Invalid workspace file: missing "payload" object.' };
+
+  const pinnedTabs = payload.pinnedTabs;
+  const allTabGroups = payload.allTabGroups;
+
+  if (pinnedTabs != null && !Array.isArray(pinnedTabs)) {
+    return { ok: false, error: 'Invalid payload: "pinnedTabs" must be an array.' };
+  }
+  if (allTabGroups != null && !Array.isArray(allTabGroups)) {
+    return { ok: false, error: 'Invalid payload: "allTabGroups" must be an array.' };
+  }
+
+  const name = (typeof raw.name === 'string') ? sanitizeWorkspaceName(raw.name) : '';
+  return { ok: true, name, payload };
+}
+
+function deriveWorkspaceNameFromFilename(filename) {
+  const base = String(filename || '').trim();
+  if (!base) return '';
+  const noExt = base.replace(/\.[^.]+$/, '');
+  const stripped = noExt.replace(/^bodhi-workspace[_-]*/i, '');
+  return sanitizeWorkspaceName(stripped || noExt);
+}
+
 function storageGetWorkspaces() {
   return storageGet(STORAGE_KEY_WORKSPACES).then(obj => obj[STORAGE_KEY_WORKSPACES] || {});
 }
@@ -216,8 +250,78 @@ function appendImportRow(ul) {
   const importBtn = document.createElement('button');
   importBtn.className = 'btn small';
   importBtn.textContent = 'Import';
-  importBtn.addEventListener('click', () => {
-    // TODO: implement import from JSON file
+  importBtn.addEventListener('click', async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.style.display = 'none';
+
+    const cleanup = () => {
+      try { input.remove(); } catch {}
+    };
+
+    input.addEventListener('change', async () => {
+      try {
+        const file = input.files && input.files[0] ? input.files[0] : null;
+        if (!file) return;
+
+        importBtn.disabled = true;
+
+        const text = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onerror = () => reject(new Error('Could not read file.'));
+          r.onload = () => resolve(String(r.result || ''));
+          r.readAsText(file);
+        });
+
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          showWorkspacesMessage('Invalid JSON file.');
+          return;
+        }
+
+        const norm = normalizeImportedWorkspaceJson(parsed);
+        if (!norm.ok) {
+          showWorkspacesMessage(norm.error || 'Invalid workspace file.');
+          return;
+        }
+
+        // Determine name: JSON name > filename-derived > prompt
+        let name = norm.name;
+        if (!name) name = deriveWorkspaceNameFromFilename(file.name);
+        if (!name) {
+          const raw = prompt('Workspace name:');
+          name = sanitizeWorkspaceName(raw);
+        }
+        if (!name) return;
+
+        const workspaces = await storageGetWorkspaces();
+        if (workspaces[name]) {
+          const overwrite = confirm(`Workspace "${name}" already exists. Overwrite?`);
+          if (!overwrite) return;
+        }
+
+        workspaces[name] = {
+          name,
+          createdAt: Date.now(),
+          payload: norm.payload
+        };
+
+        await storageSetWorkspaces(workspaces);
+        renderWorkspacesList(workspaces);
+        showWorkspacesMessage(`Imported workspace "${name}".`);
+      } catch (e) {
+        showWorkspacesMessage(String(e?.message || 'Import failed.'));
+      } finally {
+        importBtn.disabled = false;
+        cleanup();
+      }
+    }, { once: true });
+
+    document.body.appendChild(input);
+    input.click();
   });
 
   actions.appendChild(importBtn);
@@ -229,6 +333,9 @@ function appendImportRow(ul) {
 function renderWorkspacesList(workspacesMap) {
   const ul = document.getElementById('workspacesList');
   if (!ul) return;
+
+  const msg = document.getElementById('workspaces-msg');
+  if (msg) msg.style.display = 'none';
 
   ul.innerHTML = '';
 
