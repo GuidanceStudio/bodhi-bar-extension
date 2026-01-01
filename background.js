@@ -1076,6 +1076,37 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
       }
 
+      if (action === 'APPLY_WORKSPACE') {
+        try {
+          const { payload } = request;
+          const { pinnedTabs, allTabGroups } = payload;
+
+          // Create pinned tabs
+          for (const t of pinnedTabs) {
+            await chrome.tabs.create({ url: t.url, pinned: true });
+          }
+
+          // Create groups and their tabs
+          for (const g of allTabGroups) {
+            const tabIds = [];
+            for (const t of g.tabs) {
+              const created = await chrome.tabs.create({ url: t.url, active: false });
+              tabIds.push(created.id);
+            }
+            if (tabIds.length > 0) {
+              const groupId = await chrome.tabs.group({ tabIds });
+              await chrome.tabGroups.update(groupId, { title: g.title, color: g.color });
+            }
+          }
+
+          sendResponse({ ok: true });
+          return;
+        } catch (e) {
+          sendResponse({ ok: false, error: e.message });
+          return;
+        }
+      }
+
       if (action === 'DOWNLOAD_JSON') {
         try {
           const payload = request?.payload;
