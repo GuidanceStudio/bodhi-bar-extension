@@ -30,6 +30,12 @@ Chrome extension that improves tab management by enforcing a stable tab layout (
   - Create new tab (+)
   - Group an ungrouped web tab into an existing group or a new group
   - Ungroup a grouped tab (Level 3 menu)
+- **Workspaces (Import/Export)**:
+  - Save the current window state (pinned tabs and all tab groups) as a named Workspace.
+  - **Export**: Workspaces can be downloaded as JSON files for backup or sharing.
+  - **Import**: Restore workspaces from JSON files. The system prevents duplicates and allows overwriting existing workspaces.
+  - **Restore**: Instantly recreate a saved workspace. The extension opens all saved pinned tabs and recreates all tab groups with their original titles and colors in the current window.
+  - **Versioning**: Exported files include a version (starting at `1.0`) to ensure compatibility. The extension validates the version during import to prevent data corruption.
 - **Drag & drop reordering**:
   - Reorder pinned tabs among pinned tabs
   - Reorder ungrouped web tabs among web tabs, and system tabs among system tabs
@@ -61,6 +67,7 @@ The Bodhi Bar can be toggled on or off globally via the extension's action menu.
 *   **CSS Injection**: The bar is hidden using `display: none !important` to ensure it overrides site-specific styles.
 *   **Reflow**: `page-shift.js` checks bar visibility and restores shifted headers / safe-area padding when the bar is hidden, then triggers a resize to let the page reflow.
 *   **Reflow**: `page-shift.js` monitors the bar's visibility; if the bar is detected as hidden (via `getComputedStyle`), it triggers `restoreShiftedHeaders()` to clean up the DOM.
+*   **Workspace Versioning**: The extension uses a `version` field in exported JSONs. Currently, version `1.0` is supported. The import logic in `popup.js` strictly validates this version to ensure the data schema is compatible with the current extension version.
 
 ## Important
 - The UI is injected only on normal websites (`http(s)://...`). It will not run on browser-restricted/system pages (e.g., `chrome://extensions`), where content scripts cannot be injected.
@@ -68,7 +75,8 @@ The Bodhi Bar can be toggled on or off globally via the extension's action menu.
 
 ## Project Structure
 Our codebase is organized into specialized components:
-- **background.js**: service worker enforcing tab layout + handling UI actions (switch/close/move/group/ungroup).
+- **background.js**: service worker enforcing tab layout + handling UI actions (switch/close/move/group/ungroup) + **workspace payload generation and JSON downloads**.
+- **popup.js**: extension action popup handling visibility toggle and **workspace management (save/import/export/delete)**.
 - **content.js**: UI entry point + navigation state + refresh handling.
 - **render.js**: bar rendering (Level 1/2/3) and dynamic layout updates.
 - **search.js**: search state + search popover trigger.
