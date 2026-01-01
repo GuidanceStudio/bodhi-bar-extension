@@ -90,6 +90,8 @@ function normalizeImportedWorkspaceJson(raw) {
   // { name: string, payload: { pinnedTabs: [{url}], allTabGroups: [{title,color,tabs:[{url}]}] } }
   if (!isPlainObject(raw)) return { ok: false, error: 'Invalid JSON: expected an object.' };
 
+  const version = raw.version || '1.0';
+  // Future-proofing: if (version !== '1.0') { ... }
   const payload = raw.payload;
   if (!isPlainObject(payload)) return { ok: false, error: 'Invalid workspace file: missing "payload" object.' };
 
@@ -377,7 +379,7 @@ function renderWorkspacesList(workspacesMap) {
         if (!payload) return;
 
         const filename = `bodhi-workspace_${escapeFilenamePart(name)}.json`;
-        const exportObj = { name, payload };
+        const exportObj = { version: '1.0', name, payload };
         const res = await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload: exportObj });
         if (!res?.ok) {
           showWorkspacesMessage(res?.error || 'Export failed.');
@@ -458,7 +460,7 @@ function initPopup() {
 
             // Finally: download the JSON using the workspace name
             const filename = `bodhi-workspace_${escapeFilenamePart(workspaceName)}.json`;
-            const exportObj = { name: workspaceName, payload: exp.payload };
+            const exportObj = { version: '1.0', name: workspaceName, payload: exp.payload };
             const res = await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload: exportObj });
             if (!res?.ok) {
               showWorkspacesMessage(res?.error || 'Export failed.');
