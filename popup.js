@@ -373,7 +373,20 @@ function renderWorkspacesList(workspacesMap) {
     restoreBtn.className = 'btn small';
     restoreBtn.textContent = 'Restore';
     restoreBtn.addEventListener('click', async () => {
-      // TODO: implement restore/apply workspace
+      const payload = workspacesMap[name]?.payload;
+      if (!payload) return;
+
+      restoreBtn.disabled = true;
+      try {
+        const res = await runtimeSendMessage({ action: 'APPLY_WORKSPACE', payload });
+        if (!res?.ok) {
+          showWorkspacesMessage(res?.error || 'Restore failed.');
+        } else {
+          window.close(); // Close popup on success
+        }
+      } finally {
+        restoreBtn.disabled = false;
+      }
     });
 
     const exportBtn = document.createElement('button');
