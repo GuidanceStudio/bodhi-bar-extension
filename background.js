@@ -1089,6 +1089,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return;
           }
 
+          // Create a placeholder "new tab" (Ctrl+T style) so we can move it to the end later.
+          const placeholderTab = await chrome.tabs.create({ windowId: activeWindow.id, active: false });
+          const placeholderTabId = placeholderTab?.id;
+
           // Create pinned tabs
           for (const t of pinnedTabs) {
             await chrome.tabs.create({ url: t.url, pinned: true, active: false });
@@ -1112,6 +1116,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           for (const g of allGroups) {
             if (g.id != null && !g.collapsed) {
               try { await chrome.tabGroups.update(g.id, { collapsed: true }); } catch {}
+            }
+          }
+
+          // Reuse existing ordering/enforcement to place pinned first and compact groups.
+          try { touch(activeWindow.id, 'APPLY_WORKSPACE:postCreate', { motion: true, drag: true }); } catch {}
+
+          // Move the placeholder tab to the very end (after ordering has settled)
+          if (placeholderTabId != null) {
+            try {
+              // Give enforcement a moment to run and settle indices.
+              await sleep(600);
+
+              const tabsNow = await chrome.tabs.query({ windowId: activeWindow.id });
+              const lastIndex = Math.max(0, (tabsNow?.length || 1) - 1);
+
+              await chrome.tabs.move(placeholderTabId, { index: lastIndex });
+            } catch (e) {
+              // ignore move failures (drag lock, etc.)
             }
           }
 
