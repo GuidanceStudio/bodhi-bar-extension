@@ -396,45 +396,22 @@ function renderWorkspacesList(workspacesMap) {
     const li = document.createElement('li');
     li.className = 'workspace-item';
 
-    // Row container
-    const row = document.createElement('div');
-    row.className = 'workspace-row';
-    row.style.display = 'flex';
-    row.style.alignItems = 'center';
-    row.style.gap = '8px';
-    row.style.flex = '1';
-    row.style.minWidth = '0';
-
-    // View state: shows name
-    const viewState = document.createElement('div');
-    viewState.className = 'workspace-view-state';
-    viewState.style.display = 'flex';
-    viewState.style.alignItems = 'center';
-    viewState.style.gap = '6px';
-    viewState.style.flex = '1';
-    viewState.style.minWidth = '0';
-
+    // Workspace name
     const nameSpan = document.createElement('span');
     nameSpan.className = 'workspace-title';
     nameSpan.textContent = name;
     nameSpan.title = name;
-    viewState.appendChild(nameSpan);
 
-    // Actions state: shows buttons (hidden by default)
-    const actionsState = document.createElement('div');
-    actionsState.className = 'workspace-actions-state';
-    actionsState.style.display = 'none';
-    actionsState.style.alignItems = 'center';
-    actionsState.style.gap = '6px';
-    actionsState.style.flex = '1';
-    actionsState.style.justifyContent = 'flex-end';
-
+    // Actions container
     const actions = document.createElement('div');
     actions.className = 'workspace-actions';
+    actions.style.display = 'flex';
+    actions.style.gap = '6px';
+    actions.style.alignItems = 'center';
 
     const restoreBtn = document.createElement('button');
     restoreBtn.className = 'btn small';
-    restoreBtn.innerHTML = '&#8634;'; // ↩️ Restore icon
+    restoreBtn.innerHTML = '&#128260;'; // 🔄 Restore
     restoreBtn.title = 'Restore';
     restoreBtn.addEventListener('click', async () => {
       const payload = workspacesMap[name]?.payload;
@@ -458,7 +435,7 @@ function renderWorkspacesList(workspacesMap) {
 
     const renameBtn = document.createElement('button');
     renameBtn.className = 'btn small';
-    renameBtn.innerHTML = '&#9998;'; // ✏️ Rename icon
+    renameBtn.innerHTML = '&#9997;'; // ✏️ Rename
     renameBtn.title = 'Rename';
     renameBtn.addEventListener('click', async () => {
       const oldName = name;
@@ -490,7 +467,7 @@ function renderWorkspacesList(workspacesMap) {
 
     const exportBtn = document.createElement('button');
     exportBtn.className = 'btn small';
-    exportBtn.innerHTML = '&#8595;'; // ⬇️ Export icon
+    exportBtn.innerHTML = '&#128228;'; // 📤 Export
     exportBtn.title = 'Export';
     exportBtn.addEventListener('click', async () => {
       exportBtn.disabled = true;
@@ -511,7 +488,7 @@ function renderWorkspacesList(workspacesMap) {
 
     const delBtn = document.createElement('button');
     delBtn.className = 'btn small danger';
-    delBtn.innerHTML = '&#128465;'; // 🗑️ Delete icon
+    delBtn.innerHTML = '&#10060;'; // ❌ Delete
     delBtn.title = 'Delete';
     delBtn.addEventListener('click', async () => {
       if (!confirm(`Delete workspace "${name}"?`)) return;
@@ -526,52 +503,8 @@ function renderWorkspacesList(workspacesMap) {
     actions.appendChild(exportBtn);
     actions.appendChild(delBtn);
 
-    actionsState.appendChild(actions);
-
-    // Toggle button (gear/arrow)
-    const toggleBtn = document.createElement('button');
-    toggleBtn.className = 'btn small gear-btn';
-    toggleBtn.innerHTML = '&#9654;'; // Play icon (▶)
-    toggleBtn.title = 'Show actions';
-    toggleBtn.type = 'button';
-
-    // Toggle function
-    const toggleActions = (e) => {
-      e?.stopPropagation();
-      const isExpanded = actionsState.style.display === 'flex';
-
-      // Close all other expanded items
-      document.querySelectorAll('.workspace-actions-state').forEach(el => {
-        if (el !== actionsState) {
-          el.style.display = 'none';
-        }
-      });
-      document.querySelectorAll('.gear-btn').forEach(btn => {
-        if (btn !== toggleBtn) {
-          btn.innerHTML = '&#9654;';
-          btn.title = 'Show actions';
-        }
-      });
-
-      if (!isExpanded) {
-        viewState.style.display = 'none';
-        actionsState.style.display = 'flex';
-        toggleBtn.innerHTML = '&#9664;'; // Back icon (◀)
-        toggleBtn.title = 'Hide actions';
-      } else {
-        viewState.style.display = 'flex';
-        actionsState.style.display = 'none';
-        toggleBtn.innerHTML = '&#9654;';
-        toggleBtn.title = 'Show actions';
-      }
-    };
-
-    toggleBtn.addEventListener('click', toggleActions);
-
-    row.appendChild(viewState);
-    row.appendChild(toggleBtn);
-    row.appendChild(actionsState);
-    li.appendChild(row);
+    li.appendChild(nameSpan);
+    li.appendChild(actions);
     ul.appendChild(li);
   }
 
