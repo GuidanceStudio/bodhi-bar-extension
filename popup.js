@@ -493,8 +493,8 @@ function renderWorkspacesList(workspacesMap) {
     });
 
     actions.appendChild(restoreBtn);
-    actions.appendChild(exportBtn);
     actions.appendChild(renameBtn);
+    actions.appendChild(exportBtn);
     actions.appendChild(delBtn);
 
     li.appendChild(title);
