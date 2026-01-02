@@ -434,7 +434,8 @@ function renderWorkspacesList(workspacesMap) {
 
     const restoreBtn = document.createElement('button');
     restoreBtn.className = 'btn small';
-    restoreBtn.textContent = 'Restore';
+    restoreBtn.innerHTML = '&#8634;'; // ↩️ Restore icon
+    restoreBtn.title = 'Restore';
     restoreBtn.addEventListener('click', async () => {
       const payload = workspacesMap[name]?.payload;
       if (!payload) return;
@@ -457,7 +458,8 @@ function renderWorkspacesList(workspacesMap) {
 
     const renameBtn = document.createElement('button');
     renameBtn.className = 'btn small';
-    renameBtn.textContent = 'Rename';
+    renameBtn.innerHTML = '&#9998;'; // ✏️ Rename icon
+    renameBtn.title = 'Rename';
     renameBtn.addEventListener('click', async () => {
       const oldName = name;
       const cur = await storageGetWorkspaces();
@@ -488,7 +490,8 @@ function renderWorkspacesList(workspacesMap) {
 
     const exportBtn = document.createElement('button');
     exportBtn.className = 'btn small';
-    exportBtn.textContent = 'Export';
+    exportBtn.innerHTML = '&#8595;'; // ⬇️ Export icon
+    exportBtn.title = 'Export';
     exportBtn.addEventListener('click', async () => {
       exportBtn.disabled = true;
       try {
@@ -508,7 +511,8 @@ function renderWorkspacesList(workspacesMap) {
 
     const delBtn = document.createElement('button');
     delBtn.className = 'btn small danger';
-    delBtn.textContent = 'Delete';
+    delBtn.innerHTML = '&#128465;'; // 🗑️ Delete icon
+    delBtn.title = 'Delete';
     delBtn.addEventListener('click', async () => {
       if (!confirm(`Delete workspace "${name}"?`)) return;
       const cur = await storageGetWorkspaces();
