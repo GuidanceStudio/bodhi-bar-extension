@@ -1081,6 +1081,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           const { payload } = request;
           const { pinnedTabs, allTabGroups } = payload;
 
+          // Close all existing tabs in the current window first
+          const activeWindow = await chrome.windows.getLastFocused({});
+          if (activeWindow?.id) {
+            const existingTabs = await chrome.tabs.query({ windowId: activeWindow.id });
+            const tabIds = existingTabs.map(t => t.id).filter(id => id != null);
+            if (tabIds.length > 0) {
+              await chrome.tabs.remove(tabIds);
+            }
+          }
+
           // Create pinned tabs
           for (const t of pinnedTabs) {
             await chrome.tabs.create({ url: t.url, pinned: true });
