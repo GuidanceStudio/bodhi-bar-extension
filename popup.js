@@ -401,6 +401,16 @@ function renderWorkspacesList(workspacesMap) {
     title.textContent = name;
     title.title = name;
 
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'btn small gear-btn';
+    toggleBtn.innerHTML = '&#9881;'; // Gear icon
+    toggleBtn.title = 'Actions';
+    toggleBtn.type = 'button';
+
+    const actionsWrapper = document.createElement('div');
+    actionsWrapper.className = 'workspace-actions-wrapper';
+    actionsWrapper.style.display = 'none';
+
     const actions = document.createElement('div');
     actions.className = 'workspace-actions';
 
@@ -497,13 +507,55 @@ function renderWorkspacesList(workspacesMap) {
     actions.appendChild(exportBtn);
     actions.appendChild(delBtn);
 
-    li.appendChild(title);
-    li.appendChild(actions);
+    actionsWrapper.appendChild(actions);
+
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isHidden = actionsWrapper.style.display === 'none';
+      actionsWrapper.style.display = isHidden ? 'flex' : 'none';
+      toggleBtn.setAttribute('aria-expanded', isHidden);
+    });
+
+    li.appendChild(toggleBtn);
+    li.appendChild(actionsWrapper);
     ul.appendChild(li);
   }
 
   appendImportRow(ul);
 }
+
+// Gear icon styles
+const gearStyle = document.createElement('style');
+gearStyle.textContent = `
+  .gear-btn {
+    background: none !important;
+    border: none !important;
+    padding: 4px 6px !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+    min-width: 28px !important;
+    opacity: 0.6 !important;
+  }
+  .gear-btn:hover {
+    opacity: 1 !important;
+    background: rgba(0,0,0,0.05) !important;
+  }
+  .workspace-actions-wrapper {
+    display: flex !important;
+    gap: 4px !important;
+    flex-wrap: nowrap !important;
+  }
+  .workspace-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .workspace-title {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+`;
+document.head.appendChild(gearStyle);
 
 function initPopup() {
   setButtonState({ text: 'Loading...', disabled: true });
