@@ -392,6 +392,9 @@ function renderWorkspacesList(workspacesMap) {
       const payload = workspacesMap[name]?.payload;
       if (!payload) return;
 
+      const confirmed = confirm('This will close all current tabs and groups and replace them with the workspace tabs. Continue?');
+      if (!confirmed) return;
+
       restoreBtn.disabled = true;
       try {
         const res = await runtimeSendMessage({ action: 'APPLY_WORKSPACE', payload });
