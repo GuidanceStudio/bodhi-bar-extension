@@ -1093,21 +1093,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           const placeholderTab = await chrome.tabs.create({ windowId: activeWindow.id, active: false });
           const placeholderTabId = placeholderTab?.id;
 
+          // Close everything else (keep the placeholder so the window never reaches 0 tabs)
+          const existingTabs = await chrome.tabs.query({ windowId: activeWindow.id });
+          const toClose = (existingTabs || [])
+            .map(t => t?.id)
+            .filter(id => id != null && id !== placeholderTabId);
+
+          if (toClose.length) {
+            await chrome.tabs.remove(toClose);
+          }
+
           // Create pinned tabs
           for (const t of pinnedTabs) {
-            await chrome.tabs.create({ url: t.url, pinned: true, active: false });
+            const url = String(t?.url || '').trim();
+            if (!url) continue;
+            await chrome.tabs.create({ windowId: activeWindow.id, url, pinned: true, active: false });
           }
 
           // Create groups and their tabs
           for (const g of allTabGroups) {
+            const tabs = Array.isArray(g?.tabs) ? g.tabs : [];
             const groupTabIds = [];
-            for (const t of g.tabs) {
-              const created = await chrome.tabs.create({ url: t.url, active: false });
-              groupTabIds.push(created.id);
+
+            for (const t of tabs) {
+              const url = String(t?.url || '').trim();
+              if (!url) continue;
+
+              const created = await chrome.tabs.create({ windowId: activeWindow.id, url, active: false });
+              if (created?.id != null) groupTabIds.push(created.id);
             }
+
             if (groupTabIds.length > 0) {
               const groupId = await chrome.tabs.group({ tabIds: groupTabIds });
-              await chrome.tabGroups.update(groupId, { title: g.title, color: g.color });
+
+              // Be defensive: title/color may be missing or invalid
+              const title = (typeof g?.title === 'string' && g.title.trim()) ? g.title.trim() : 'Group';
+              const color = (typeof g?.color === 'string' && g.color.trim()) ? g.color.trim() : 'default';
+
+              try {
+                await chrome.tabGroups.update(groupId, { title, color });
+              } catch {
+                try { await chrome.tabGroups.update(groupId, { title }); } catch {}
+              }
             }
           }
 
@@ -1119,21 +1146,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
           }
 
-          // Reuse existing ordering/enforcement to place pinned first and compact groups.
-          try { touch(activeWindow.id, 'APPLY_WORKSPACE:postCreate', { motion: true, drag: true }); } catch {}
-
-          // Move the placeholder tab to the very end (after ordering has settled)
+          // Move the placeholder tab to the very end
           if (placeholderTabId != null) {
             try {
-              // Give enforcement a moment to run and settle indices.
-              await sleep(600);
-
               const tabsNow = await chrome.tabs.query({ windowId: activeWindow.id });
               const lastIndex = Math.max(0, (tabsNow?.length || 1) - 1);
-
               await chrome.tabs.move(placeholderTabId, { index: lastIndex });
-            } catch (e) {
-              // ignore move failures (drag lock, etc.)
+            } catch {
+              // ignore move failures
             }
           }
 
