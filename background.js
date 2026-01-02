@@ -1102,27 +1102,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
           // Create pinned tabs
           for (const t of pinnedTabs) {
-            await chrome.tabs.create({ url: t.url, pinned: true });
+            await chrome.tabs.create({ url: t.url, pinned: true, minimized: true });
           }
 
           // Create groups and their tabs
           for (const g of allTabGroups) {
             const tabIds = [];
             for (const t of g.tabs) {
-              const created = await chrome.tabs.create({ url: t.url, active: false });
+              const created = await chrome.tabs.create({ url: t.url, active: false, minimized: true });
               tabIds.push(created.id);
             }
             if (tabIds.length > 0) {
               const groupId = await chrome.tabs.group({ tabIds });
               await chrome.tabGroups.update(groupId, { title: g.title, color: g.color });
-            }
-          }
-
-          // Minimize all tabs first
-          const allTabsBeforeMove = await chrome.tabs.query({ windowId: activeWindow.id });
-          for (const t of allTabsBeforeMove) {
-            if (t.id !== blankTab.id && t.id != null) {
-              try { await chrome.tabs.update(t.id, { minimized: true }); } catch {}
             }
           }
 
