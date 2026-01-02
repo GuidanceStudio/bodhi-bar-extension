@@ -477,14 +477,6 @@ function initPopup() {
 
             await storageSetWorkspaces(workspaces);
             renderWorkspacesList(workspaces);
-
-            // Finally: download the JSON using the workspace name
-            const filename = `bodhi-workspace_${escapeFilenamePart(workspaceName)}.json`;
-            const exportObj = { version: '1.0', name: workspaceName, payload: exp.payload };
-            const res = await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload: exportObj });
-            if (!res?.ok) {
-              showWorkspacesMessage(res?.error || 'Export failed.');
-            }
           } finally {
             createBtn.disabled = false;
           }
