@@ -81,13 +81,13 @@ The Bodhi Bar can be toggled on or off globally via the extension's action menu.
     *   If the bar is currently visible, the popup will show a **"Hide Bar"** button.
     *   If the bar is hidden, the popup will show a **"Show Bar"** button.
 3.  **Instant Layout Adjustment**: When hidden, the extension automatically removes the `padding-top` and `margin` adjustments from the current webpage, allowing the site's original headers and content to return to their default positions.
-4.  **Persistence**: Your visibility preference is saved in `chrome.storage.local`. If you hide the bar, it will remain hidden across browser restarts and on all new tabs until you choose to show it again.
+4.  **Persistence**: Your visibility preference is saved in `chrome.storage.local` per tab. If you hide the bar on a tab, it will remain hidden for that tab across reloads/restarts (until you show it again).
 5.  **Context Awareness**: The toggle sends a real-time message to the active tab to hide/show the bar instantly without requiring a page refresh.
 
 ---
 
 ## Technical Implementation Details (for Developers)
-*   **State Management**: The `tz_hidden` key in storage tracks the UI state.
+*   **State Management**: The `tz_hidden_by_tab` key in storage tracks visibility per tabId.
 *   **Messaging**: `popup.js` communicates with `content.js` via `chrome.tabs.sendMessage` using the `SET_VISIBILITY` action.
 *   **CSS Injection**: The bar is hidden using `display: none !important` to ensure it overrides site-specific styles.
 *   **Reflow**: `page-shift.js` checks bar visibility and restores shifted headers / safe-area padding when the bar is hidden, then triggers a resize to let the page reflow.

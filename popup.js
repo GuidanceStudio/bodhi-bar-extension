@@ -28,7 +28,7 @@ const RESTRICTED_PREFIXES = [
   'opera://'
 ];
 
-const STORAGE_KEY_HIDDEN = 'tz_hidden';
+const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
 const STORAGE_KEY_WORKSPACES = 'tz_workspaces_v1';
 const PRESET_NAME_MAX_LEN = 60;
 
@@ -141,6 +141,17 @@ function deriveWorkspaceNameFromFilename(filename) {
   const noExt = base.replace(/\.[^.]+$/, '');
   const stripped = noExt.replace(/^bodhi-workspace[_-]*/i, '');
   return sanitizeWorkspaceName(stripped || noExt);
+}
+
+function storageGetHiddenByTab() {
+  return storageGet(STORAGE_KEY_HIDDEN_BY_TAB).then(obj => {
+    const map = obj?.[STORAGE_KEY_HIDDEN_BY_TAB];
+    return (map && typeof map === 'object') ? map : {};
+  });
+}
+
+function storageSetHiddenByTab(map) {
+  return storageSet({ [STORAGE_KEY_HIDDEN_BY_TAB]: map || {} });
 }
 
 function storageGetWorkspaces() {
@@ -590,24 +601,25 @@ function initPopup() {
         return;
       }
 
-      const obj = await storageGet(STORAGE_KEY_HIDDEN);
-      let hidden = !!obj[STORAGE_KEY_HIDDEN];
+      const tabId = tab.id;
+
+      const hiddenByTab = await storageGetHiddenByTab();
+      let hidden = !!hiddenByTab[String(tabId)];
 
       const render = () => {
         setButtonState({ text: hidden ? 'Show Bar' : 'Hide Bar', disabled: false });
       };
 
-      // Ensure we don't stack multiple listeners if popup re-inits
       btn.onclick = null;
       btn.addEventListener('click', async () => {
-        // Optimistic UI
         hidden = !hidden;
         render();
 
-        await storageSet({ [STORAGE_KEY_HIDDEN]: hidden });
+        const map = await storageGetHiddenByTab();
+        map[String(tabId)] = hidden;
+        await storageSetHiddenByTab(map);
 
-        // Best-effort: tell the active tab to update immediately (may fail on some pages)
-        await sendVisibilityToTab(tab.id, hidden);
+        await sendVisibilityToTab(tabId, hidden);
       }, { once: false });
 
       render();
