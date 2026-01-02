@@ -1088,8 +1088,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return;
           }
 
-          // Create a placeholder blank tab FIRST (so we never have 0 tabs)
-          const blankTab = await chrome.tabs.create({ url: 'about:blank' });
+          // Create a placeholder new tab FIRST (so we never have 0 tabs)
+          const blankTab = await chrome.tabs.create({ active: false });
 
           // Now close all existing tabs (except the blank one we just created)
           const existingTabs = await chrome.tabs.query({ windowId: activeWindow.id });
@@ -1115,6 +1115,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (tabIds.length > 0) {
               const groupId = await chrome.tabs.group({ tabIds });
               await chrome.tabGroups.update(groupId, { title: g.title, color: g.color });
+            }
+          }
+
+          // Minimize all tabs first
+          const allTabsBeforeMove = await chrome.tabs.query({ windowId: activeWindow.id });
+          for (const t of allTabsBeforeMove) {
+            if (t.id !== blankTab.id && t.id != null) {
+              try { await chrome.tabs.update(t.id, { minimized: true }); } catch {}
             }
           }
 
