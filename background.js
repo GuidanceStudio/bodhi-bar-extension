@@ -1118,6 +1118,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
           }
 
+          // Minimize all groups (so they're collapsed)
+          const allGroups = await chrome.tabGroups.query({ windowId: activeWindow.id });
+          for (const g of allGroups) {
+            if (g.id != null && !g.collapsed) {
+              try { await chrome.tabGroups.update(g.id, { collapsed: true }); } catch {}
+            }
+          }
+
           // Move the blank tab to the end
           const allTabs = await chrome.tabs.query({ windowId: activeWindow.id });
           const lastIndex = allTabs.length - 1;
