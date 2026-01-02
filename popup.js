@@ -358,7 +358,7 @@ function appendImportRow(ul) {
 
         await storageSetWorkspaces(workspaces);
         renderWorkspacesList(workspaces);
-        showWorkspacesMessage(`Imported workspace "${name}".`);
+        showWorkspacesMessage(`Imported workspace "${finalName}".`);
       } catch (e) {
         alert('Import failed: ' + String(e?.message || 'Unknown error'));
       } finally {
