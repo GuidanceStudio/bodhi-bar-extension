@@ -308,20 +308,20 @@ function appendImportRow(ul) {
 
         const workspaces = await storageGetWorkspaces();
         if (workspaces[name]) {
-          const overwrite = confirm(`Workspace "${name}" already exists. Overwrite?`);
-          if (!overwrite) return;
-        }
-
-        // Handle duplicate name by asking for a new name
-        if (workspaces[name]) {
           let newName = prompt(`Workspace "${name}" already exists. Enter a new name:`);
-          if (!newName) return; // cancelled
+          if (!newName) {
+            alert('Import cancelled.');
+            return;
+          }
           
           newName = sanitizeWorkspaceName(newName);
           while (workspaces[newName]) {
-            showWorkspacesMessage(`Name "${newName}" is already used.`);
+            alert(`Name "${newName}" is already used. Please choose a different name.`);
             newName = prompt(`Workspace "${name}" already exists. Enter a new name:`);
-            if (!newName) return; // cancelled
+            if (!newName) {
+              alert('Import cancelled.');
+              return;
+            }
             newName = sanitizeWorkspaceName(newName);
           }
           name = newName;
@@ -337,7 +337,7 @@ function appendImportRow(ul) {
         renderWorkspacesList(workspaces);
         showWorkspacesMessage(`Imported workspace "${name}".`);
       } catch (e) {
-        showWorkspacesMessage(String(e?.message || 'Import failed.'));
+        alert('Import failed: ' + String(e?.message || 'Unknown error'));
       } finally {
         importBtn.disabled = false;
         cleanup();
