@@ -6,20 +6,22 @@ Bodhi Bar enforces a stable tab structure (pinned → groups → ungrouped), add
 
 ## Recommended setup: Vertical tabs (Chromium-based browsers)
 
-Bodhi Bar works best when your browser's native tab strip is set to **vertical tabs** (especially in Brave).
-Vertical tabs scale better with many tabs, while Bodhi Bar provides the fast "workspace layer" on top:
+Bodhi Bar works best when you set your browser's native tab strip to **vertical tabs** (especially in Brave).
+This gives you a scalable overview of many tabs, while Bodhi Bar provides the fast "workspace layer" on top:
 stable ordering, group-focused navigation, and search.
+
+Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical tabs panel when you're not using it.
 
 ### Brave (Chromium)
 - Enable vertical tabs (official instructions): https://brave.com/blog/vertical-tabs/
-- Hide the vertical tabs panel completely when minimized: https://brave.com/whats-new/hide-vertical-tabs/
+- (Optional) Hide the vertical tabs panel completely when minimized: https://brave.com/whats-new/hide-vertical-tabs/
 
 ### Microsoft Edge (Chromium)
 - Vertical tabs (official page + FAQ, including how to enable/disable): https://www.microsoft.com/en-us/edge/features/vertical-tabs
 
 ### Vivaldi (Chromium)
 - Move the Tab Bar to the left/right (vertical) + Tab Bar visibility: https://help.vivaldi.com/desktop/tabs/tab-bar/
-- Hide browser UI (includes "Hide the Tab Bar"): https://help.vivaldi.com/desktop/appearance-customization/hide-browser-windows-user-interface/
+- (Optional) Hide browser UI / Tab Bar (includes "Hide the Tab Bar"): https://help.vivaldi.com/desktop/appearance-customization/hide-browser-windows-user-interface/
 
 ## Key Features
 - **Stable tab layout enforcement (background service worker)**:
