@@ -1100,6 +1100,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             await chrome.tabs.remove(tabIds);
           }
 
+          // Small delay to let Chrome settle after closing tabs
+          await sleep(100);
+
           // Create pinned tabs
           for (const t of pinnedTabs) {
             await chrome.tabs.create({ url: t.url, pinned: true, minimized: true });
