@@ -1088,21 +1088,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return;
           }
 
-          // Create a placeholder new tab FIRST (so we never have 0 tabs)
-          const blankTab = await chrome.tabs.create({ active: false });
-
-          // Now close all existing tabs (except the blank one we just created)
-          const existingTabs = await chrome.tabs.query({ windowId: activeWindow.id });
-          const tabIds = existingTabs
-            .map(t => t.id)
-            .filter(id => id != null && id !== blankTab.id);
-          if (tabIds.length > 0) {
-            await chrome.tabs.remove(tabIds);
-          }
-
-          // Small delay to let Chrome settle after closing tabs
-          await sleep(100);
-
           // Create pinned tabs
           for (const t of pinnedTabs) {
             await chrome.tabs.create({ url: t.url, pinned: true, minimized: true });
@@ -1127,14 +1112,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (g.id != null && !g.collapsed) {
               try { await chrome.tabGroups.update(g.id, { collapsed: true }); } catch {}
             }
-          }
-
-          // Move the blank tab to the end
-          const allTabs = await chrome.tabs.query({ windowId: activeWindow.id });
-          const lastIndex = allTabs.length - 1;
-          const blankTabCurrent = allTabs.find(t => t.id === blankTab.id);
-          if (blankTabCurrent && typeof blankTabCurrent.index === 'number' && blankTabCurrent.index !== lastIndex) {
-            await chrome.tabs.move(blankTab.id, { index: lastIndex });
           }
 
           sendResponse({ ok: true });
