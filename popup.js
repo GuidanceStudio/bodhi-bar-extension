@@ -396,20 +396,38 @@ function renderWorkspacesList(workspacesMap) {
     const li = document.createElement('li');
     li.className = 'workspace-item';
 
-    const title = document.createElement('div');
-    title.className = 'workspace-title';
-    title.textContent = name;
-    title.title = name;
+    // Row container
+    const row = document.createElement('div');
+    row.className = 'workspace-row';
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.gap = '8px';
+    row.style.flex = '1';
+    row.style.minWidth = '0';
 
-    const toggleBtn = document.createElement('button');
-    toggleBtn.className = 'btn small gear-btn';
-    toggleBtn.innerHTML = '&#9881;'; // Gear icon
-    toggleBtn.title = 'Actions';
-    toggleBtn.type = 'button';
+    // View state: shows name
+    const viewState = document.createElement('div');
+    viewState.className = 'workspace-view-state';
+    viewState.style.display = 'flex';
+    viewState.style.alignItems = 'center';
+    viewState.style.gap = '6px';
+    viewState.style.flex = '1';
+    viewState.style.minWidth = '0';
 
-    const actionsWrapper = document.createElement('div');
-    actionsWrapper.className = 'workspace-actions-wrapper';
-    actionsWrapper.style.display = 'none';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'workspace-title';
+    nameSpan.textContent = name;
+    nameSpan.title = name;
+    viewState.appendChild(nameSpan);
+
+    // Actions state: shows buttons (hidden by default)
+    const actionsState = document.createElement('div');
+    actionsState.className = 'workspace-actions-state';
+    actionsState.style.display = 'none';
+    actionsState.style.alignItems = 'center';
+    actionsState.style.gap = '6px';
+    actionsState.style.flex = '1';
+    actionsState.style.justifyContent = 'flex-end';
 
     const actions = document.createElement('div');
     actions.className = 'workspace-actions';
@@ -430,11 +448,42 @@ function renderWorkspacesList(workspacesMap) {
         if (!res?.ok) {
           showWorkspacesMessage(res?.error || 'Restore failed.');
         } else {
-          window.close(); // Close popup on success
+          window.close();
         }
       } finally {
         restoreBtn.disabled = false;
       }
+    });
+
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'btn small';
+    renameBtn.textContent = 'Rename';
+    renameBtn.addEventListener('click', async () => {
+      const oldName = name;
+      const cur = await storageGetWorkspaces();
+      const existing = cur[oldName];
+      if (!existing) {
+        alert('Workspace not found (it may have been deleted).');
+        return;
+      }
+
+      let newName = sanitizeWorkspaceName(prompt(`Rename workspace "${oldName}" to:`));
+      if (!newName) return;
+
+      while (newName !== oldName && cur[newName]) {
+        alert(`A workspace named "${newName}" already exists. Please choose a different name.`);
+        newName = sanitizeWorkspaceName(prompt(`Rename workspace "${oldName}" to:`));
+        if (!newName) return;
+      }
+
+      if (newName === oldName) return;
+
+      delete cur[oldName];
+      cur[newName] = { ...existing, name: newName };
+
+      await storageSetWorkspaces(cur);
+      renderWorkspacesList(cur);
+      showWorkspacesMessage(`Renamed workspace to "${newName}".`);
     });
 
     const exportBtn = document.createElement('button');
@@ -457,40 +506,6 @@ function renderWorkspacesList(workspacesMap) {
       }
     });
 
-    const renameBtn = document.createElement('button');
-    renameBtn.className = 'btn small';
-    renameBtn.textContent = 'Rename';
-    renameBtn.addEventListener('click', async () => {
-      const oldName = name;
-
-      const cur = await storageGetWorkspaces();
-      const existing = cur[oldName];
-      if (!existing) {
-        alert('Workspace not found (it may have been deleted).');
-        return;
-      }
-
-      // Keep prompting until user cancels or provides a non-empty, unused name.
-      let newName = sanitizeWorkspaceName(prompt(`Rename workspace "${oldName}" to:`));
-      if (!newName) return;
-
-      while (newName !== oldName && cur[newName]) {
-        alert(`A workspace named "${newName}" already exists. Please choose a different name.`);
-        newName = sanitizeWorkspaceName(prompt(`Rename workspace "${oldName}" to:`));
-        if (!newName) return;
-      }
-
-      if (newName === oldName) return;
-
-      // Move entry under new key and update stored name field
-      delete cur[oldName];
-      cur[newName] = { ...existing, name: newName };
-
-      await storageSetWorkspaces(cur);
-      renderWorkspacesList(cur);
-      showWorkspacesMessage(`Renamed workspace to "${newName}".`);
-    });
-
     const delBtn = document.createElement('button');
     delBtn.className = 'btn small danger';
     delBtn.textContent = 'Delete';
@@ -507,17 +522,52 @@ function renderWorkspacesList(workspacesMap) {
     actions.appendChild(exportBtn);
     actions.appendChild(delBtn);
 
-    actionsWrapper.appendChild(actions);
+    actionsState.appendChild(actions);
 
-    toggleBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isHidden = actionsWrapper.style.display === 'none';
-      actionsWrapper.style.display = isHidden ? 'flex' : 'none';
-      toggleBtn.setAttribute('aria-expanded', isHidden);
-    });
+    // Toggle button (gear/arrow)
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'btn small gear-btn';
+    toggleBtn.innerHTML = '&#9654;'; // Play icon (▶)
+    toggleBtn.title = 'Show actions';
+    toggleBtn.type = 'button';
 
-    li.appendChild(toggleBtn);
-    li.appendChild(actionsWrapper);
+    // Toggle function
+    const toggleActions = (e) => {
+      e?.stopPropagation();
+      const isExpanded = actionsState.style.display === 'flex';
+
+      // Close all other expanded items
+      document.querySelectorAll('.workspace-actions-state').forEach(el => {
+        if (el !== actionsState) {
+          el.style.display = 'none';
+        }
+      });
+      document.querySelectorAll('.gear-btn').forEach(btn => {
+        if (btn !== toggleBtn) {
+          btn.innerHTML = '&#9654;';
+          btn.title = 'Show actions';
+        }
+      });
+
+      if (!isExpanded) {
+        viewState.style.display = 'none';
+        actionsState.style.display = 'flex';
+        toggleBtn.innerHTML = '&#9664;'; // Back icon (◀)
+        toggleBtn.title = 'Hide actions';
+      } else {
+        viewState.style.display = 'flex';
+        actionsState.style.display = 'none';
+        toggleBtn.innerHTML = '&#9654;';
+        toggleBtn.title = 'Show actions';
+      }
+    };
+
+    toggleBtn.addEventListener('click', toggleActions);
+
+    row.appendChild(viewState);
+    row.appendChild(toggleBtn);
+    row.appendChild(actionsState);
+    li.appendChild(row);
     ul.appendChild(li);
   }
 

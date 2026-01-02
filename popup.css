@@ -235,25 +235,41 @@ a.export-link {
   color: var(--white);
 }
 
-.workspace-actions {
+.workspace-row {
   display: flex;
-  gap: 6px;
   align-items: center;
-  flex-shrink: 0;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
 }
 
-.workspace-actions .btn.small {
-  padding: 5px 8px;
-  font-size: 11px;
-  min-width: 52px;
-  text-align: center;
+.workspace-view-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
 }
 
-.workspace-actions .btn.small.danger {
-  background: rgba(255, 80, 80, 0.15);
-  color: #ff6b6b;
+.workspace-actions-state {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  justify-content: flex-end;
 }
 
-.workspace-actions .btn.small.danger:hover {
-  background: rgba(255, 80, 80, 0.25);
+.gear-btn {
+  background: none !important;
+  border: none !important;
+  padding: 4px 6px !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  min-width: 28px !important;
+  opacity: 0.6 !important;
+}
+
+.gear-btn:hover {
+  opacity: 1 !important;
+  background: rgba(255,255,255,0.05) !important;
 }
