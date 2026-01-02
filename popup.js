@@ -327,28 +327,31 @@ function appendImportRow(ul) {
         if (!name) return;
 
         const workspaces = await storageGetWorkspaces();
-        if (workspaces[name]) {
-          let newName = prompt(`Workspace "${name}" already exists. Enter a new name:`);
+        let finalName = name;
+
+        if (workspaces[finalName]) {
+          // Ask for a new name
+          const newName = sanitizeWorkspaceName(prompt(`A workspace named "${finalName}" already exists. Enter a different name to import:`));
           if (!newName) {
-            alert('Import cancelled.');
+            showWorkspacesMessage('Import cancelled.');
             return;
           }
-          
-          newName = sanitizeWorkspaceName(newName);
+
+          // Check if the new name also exists
           while (workspaces[newName]) {
-            alert(`Name "${newName}" is already used. Please choose a different name.`);
-            newName = prompt(`Workspace "${name}" already exists. Enter a new name:`);
-            if (!newName) {
-              alert('Import cancelled.');
+            alert(`A workspace named "${newName}" already exists. Please choose a different name.`);
+            const again = sanitizeWorkspaceName(prompt(`Enter a different name to import:`));
+            if (!again) {
+              showWorkspacesMessage('Import cancelled.');
               return;
             }
-            newName = sanitizeWorkspaceName(newName);
+            finalName = again;
           }
-          name = newName;
+          finalName = newName;
         }
 
-        workspaces[name] = {
-          name,
+        workspaces[finalName] = {
+          name: finalName,
           createdAt: Date.now(),
           payload: norm.payload
         };
