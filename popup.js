@@ -451,19 +451,29 @@ function renderWorkspacesList(workspacesMap) {
     renameBtn.className = 'btn small';
     renameBtn.textContent = 'Rename';
     renameBtn.addEventListener('click', async () => {
+      const oldName = name;
+
       const cur = await storageGetWorkspaces();
-      const existing = cur[name];
-      if (!existing) return;
+      const existing = cur[oldName];
+      if (!existing) {
+        alert('Workspace not found (it may have been deleted).');
+        return;
+      }
 
-      // Build a map excluding the current name so renaming to same name is allowed (no-op)
-      const withoutCurrent = { ...cur };
-      delete withoutCurrent[name];
+      // Keep prompting until user cancels or provides a non-empty, unused name.
+      let newName = sanitizeWorkspaceName(prompt(`Rename workspace "${oldName}" to:`));
+      if (!newName) return;
 
-      const newName = promptForUniqueWorkspaceName(name, withoutCurrent, 'New workspace name:');
-      if (!newName || newName === name) return;
+      while (newName !== oldName && cur[newName]) {
+        alert(`A workspace named "${newName}" already exists. Please choose a different name.`);
+        newName = sanitizeWorkspaceName(prompt(`Rename workspace "${oldName}" to:`));
+        if (!newName) return;
+      }
+
+      if (newName === oldName) return;
 
       // Move entry under new key and update stored name field
-      delete cur[name];
+      delete cur[oldName];
       cur[newName] = { ...existing, name: newName };
 
       await storageSetWorkspaces(cur);
