@@ -167,9 +167,13 @@ async function boot() {
 
   try {
     const tabId = await getThisTabId();
-    const data = await chrome.storage.local.get(STORAGE_KEY_HIDDEN_BY_TAB);
-    const map = data?.[STORAGE_KEY_HIDDEN_BY_TAB] || {};
-    const isHidden = !!(tabId != null && map[String(tabId)]);
+    let isHidden = false;
+
+    if (tabId != null) {
+      const data = await chrome.storage.local.get(STORAGE_KEY_HIDDEN_BY_TAB);
+      const map = data?.[STORAGE_KEY_HIDDEN_BY_TAB] || {};
+      isHidden = !!map[String(tabId)];
+    }
     captureBaseDPR();
     safeConnectPort();
     const bar = ensureBar();
