@@ -1107,13 +1107,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
           // Create groups and their tabs
           for (const g of allTabGroups) {
-            const tabIds = [];
+            const groupTabIds = [];
             for (const t of g.tabs) {
               const created = await chrome.tabs.create({ url: t.url, active: false, minimized: true });
-              tabIds.push(created.id);
+              groupTabIds.push(created.id);
             }
-            if (tabIds.length > 0) {
-              const groupId = await chrome.tabs.group({ tabIds });
+            if (groupTabIds.length > 0) {
+              const groupId = await chrome.tabs.group({ tabIds: groupTabIds });
               await chrome.tabGroups.update(groupId, { title: g.title, color: g.color });
             }
           }
