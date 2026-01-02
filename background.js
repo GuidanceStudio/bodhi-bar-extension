@@ -1081,14 +1081,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           const { payload } = request;
           const { pinnedTabs, allTabGroups } = payload;
 
-          // Close all existing tabs in the current window first
+          // Get current window
           const activeWindow = await chrome.windows.getLastFocused({});
-          if (activeWindow?.id) {
-            const existingTabs = await chrome.tabs.query({ windowId: activeWindow.id });
-            const tabIds = existingTabs.map(t => t.id).filter(id => id != null);
-            if (tabIds.length > 0) {
-              await chrome.tabs.remove(tabIds);
-            }
+          if (!activeWindow?.id) {
+            sendResponse({ ok: false, error: 'No active window' });
+            return;
+          }
+
+          // Create a placeholder blank tab FIRST (so we never have 0 tabs)
+          const blankTab = await chrome.tabs.create({ url: 'about:blank' });
+
+          // Now close all existing tabs (except the blank one we just created)
+          const existingTabs = await chrome.tabs.query({ windowId: activeWindow.id });
+          const tabIds = existingTabs
+            .map(t => t.id)
+            .filter(id => id != null && id !== blankTab.id);
+          if (tabIds.length > 0) {
+            await chrome.tabs.remove(tabIds);
           }
 
           // Create pinned tabs
@@ -1107,6 +1116,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               const groupId = await chrome.tabs.group({ tabIds });
               await chrome.tabGroups.update(groupId, { title: g.title, color: g.color });
             }
+          }
+
+          // Move the blank tab to the end
+          const allTabs = await chrome.tabs.query({ windowId: activeWindow.id });
+          const lastIndex = allTabs.length - 1;
+          const blankTabCurrent = allTabs.find(t => t.id === blankTab.id);
+          if (blankTabCurrent && typeof blankTabCurrent.index === 'number' && blankTabCurrent.index !== lastIndex) {
+            await chrome.tabs.move(blankTab.id, { index: lastIndex });
           }
 
           sendResponse({ ok: true });
