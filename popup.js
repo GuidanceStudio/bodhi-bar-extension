@@ -71,6 +71,25 @@ function sanitizeWorkspaceName(name) {
   return s.slice(0, PRESET_NAME_MAX_LEN);
 }
 
+function promptForUniqueWorkspaceName(initialName, workspaces, promptText) {
+  const ws = workspaces || {};
+  const base = sanitizeWorkspaceName(initialName);
+
+  let name = base;
+  if (!name) {
+    name = sanitizeWorkspaceName(prompt(promptText || 'Workspace name:'));
+  }
+  if (!name) return '';
+
+  while (ws[name]) {
+    const next = prompt(`Workspace "${name}" already exists. Enter a new name:`);
+    if (!next) return '';
+    name = sanitizeWorkspaceName(next);
+    if (!name) return '';
+  }
+  return name;
+}
+
 function escapeFilenamePart(name) {
   // Keep it simple and cross-platform safe
   return String(name || '')
@@ -428,6 +447,30 @@ function renderWorkspacesList(workspacesMap) {
       }
     });
 
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'btn small';
+    renameBtn.textContent = 'Rename';
+    renameBtn.addEventListener('click', async () => {
+      const cur = await storageGetWorkspaces();
+      const existing = cur[name];
+      if (!existing) return;
+
+      // Build a map excluding the current name so renaming to same name is allowed (no-op)
+      const withoutCurrent = { ...cur };
+      delete withoutCurrent[name];
+
+      const newName = promptForUniqueWorkspaceName(name, withoutCurrent, 'New workspace name:');
+      if (!newName || newName === name) return;
+
+      // Move entry under new key and update stored name field
+      delete cur[name];
+      cur[newName] = { ...existing, name: newName };
+
+      await storageSetWorkspaces(cur);
+      renderWorkspacesList(cur);
+      showWorkspacesMessage(`Renamed workspace to "${newName}".`);
+    });
+
     const delBtn = document.createElement('button');
     delBtn.className = 'btn small danger';
     delBtn.textContent = 'Delete';
@@ -441,6 +484,7 @@ function renderWorkspacesList(workspacesMap) {
 
     actions.appendChild(restoreBtn);
     actions.appendChild(exportBtn);
+    actions.appendChild(renameBtn);
     actions.appendChild(delBtn);
 
     li.appendChild(title);
