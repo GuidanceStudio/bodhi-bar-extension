@@ -11,6 +11,22 @@ let cachedTabGroups = [];
 let cachedAllTabs = [];
 let suppressClickUntil = 0;
 
+const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
+
+function getThisTabId() {
+  return new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ action: 'GET_TAB_ID' }, (resp) => {
+        const err = chrome.runtime?.lastError;
+        if (err) return resolve(null);
+        resolve(resp?.tabId ?? null);
+      });
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
 // Tab action handlers
 function handleCloseTab(tabId) {
   safeRuntimeSendMessageWithRetry({ action: "CLOSE_TAB", tabId }, 2).then(() => requestTabList());
@@ -150,12 +166,15 @@ async function boot() {
   _tzDidBoot = true;
 
   try {
-    const data = await chrome.storage.local.get('tz_hidden');
+    const tabId = await getThisTabId();
+    const data = await chrome.storage.local.get(STORAGE_KEY_HIDDEN_BY_TAB);
+    const map = data?.[STORAGE_KEY_HIDDEN_BY_TAB] || {};
+    const isHidden = !!(tabId != null && map[String(tabId)]);
     captureBaseDPR();
     safeConnectPort();
     const bar = ensureBar();
     
-    if (data.tz_hidden) {
+    if (isHidden) {
       bar.style.setProperty('display', 'none', 'important');
     }
 

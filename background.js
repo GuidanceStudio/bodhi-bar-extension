@@ -17,6 +17,7 @@
 // Constants
 const TZ_PORT_NAME = 'TZ_UI_PORT';
 const TZ_HANDSHAKE_MSG = { action: '__TZ_HANDSHAKE__' };
+const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
 
 const DEBUG = true;
 const TAG = '[BodhiBar]';
@@ -90,6 +91,20 @@ async function injectOverrides(tabId, url) {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   overridesInjected.delete(tabId);
+
+  // Cleanup per-tab visibility state
+  try {
+    chrome.storage.local.get([STORAGE_KEY_HIDDEN_BY_TAB], (obj) => {
+      const map = obj?.[STORAGE_KEY_HIDDEN_BY_TAB];
+      if (!map || typeof map !== 'object') return;
+      if (!Object.prototype.hasOwnProperty.call(map, String(tabId))) return;
+
+      delete map[String(tabId)];
+      chrome.storage.local.set({ [STORAGE_KEY_HIDDEN_BY_TAB]: map }, () => {});
+    });
+  } catch {
+    // ignore
+  }
 });
 
 // ---- UI bridge / receiver (content.js) ----
@@ -743,6 +758,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   (async () => {
     try {
       const action = request?.action;
+
+      if (action === 'GET_TAB_ID') {
+        sendResponse({ ok: true, tabId: sender?.tab?.id ?? null });
+        return;
+      }
 
       if (action === 'GET_UNGROUPED_TABS') {
         const payload = await buildUngroupedPayload();
