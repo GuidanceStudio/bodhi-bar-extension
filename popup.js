@@ -287,13 +287,13 @@ function appendImportRow(ul) {
         try {
           parsed = JSON.parse(text);
         } catch {
-          showWorkspacesMessage('Invalid JSON file.');
+          alert('Invalid JSON file.');
           return;
         }
 
         const norm = normalizeImportedWorkspaceJson(parsed);
         if (!norm.ok) {
-          showWorkspacesMessage(norm.error || 'Invalid workspace file.');
+          alert(norm.error || 'Invalid workspace file.');
           return;
         }
 
