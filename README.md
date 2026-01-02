@@ -1,6 +1,25 @@
 # Bodhi Bar - Smart Tab Manager
 
-Chrome extension that improves tab management by enforcing a stable tab layout (pinned → groups → ungrouped) and providing a horizontal in-page tab bar UI.
+A Chromium-based browser productivity layer that turns a browser window into a **repeatable workspace**.
+
+Bodhi Bar enforces a stable tab structure (pinned → groups → ungrouped), adds a fast in-page horizontal tab bar, and introduces **Workspaces**: named snapshots of your window you can restore, export, and import. This is especially useful on browsers like **Brave** (including setups with a vertical tab strip), where you may want a consistent “workspace” model independent of the native tab UI.
+
+## Recommended setup: Vertical tabs (Chromium-based browsers)
+
+Bodhi Bar works best when your browser's native tab strip is set to **vertical tabs** (especially in Brave).
+Vertical tabs scale better with many tabs, while Bodhi Bar provides the fast "workspace layer" on top:
+stable ordering, group-focused navigation, and search.
+
+### Brave (Chromium)
+- Enable vertical tabs (official instructions): https://brave.com/blog/vertical-tabs/
+- Hide the vertical tabs panel completely when minimized: https://brave.com/whats-new/hide-vertical-tabs/
+
+### Microsoft Edge (Chromium)
+- Vertical tabs (official page + FAQ, including how to enable/disable): https://www.microsoft.com/en-us/edge/features/vertical-tabs
+
+### Vivaldi (Chromium)
+- Move the Tab Bar to the left/right (vertical) + Tab Bar visibility: https://help.vivaldi.com/desktop/tabs/tab-bar/
+- Hide browser UI (includes "Hide the Tab Bar"): https://help.vivaldi.com/desktop/appearance-customization/hide-browser-windows-user-interface/
 
 ## Key Features
 - **Stable tab layout enforcement (background service worker)**:
@@ -16,7 +35,7 @@ Chrome extension that improves tab management by enforcing a stable tab layout (
 - **Native tab strip group collapsing (opinionated)**:
   - On every tab activation, the extension collapses all tab groups in the current window.
   - If the active tab belongs to a group, that group is kept expanded while all other groups are collapsed.
-  - This affects the browser’s native tab strip (not just the in-page bar) and is skipped during the startup/session-restore grace period.
+  - This affects the browser's native tab strip (not just the in-page bar) and is skipped during the startup/session-restore grace period.
 - **Horizontal tab bar UI (in-page)**:
   - The UI is injected at the top of normal web pages and provides quick access to your tabs without relying on the browser tab strip.
   - Level 1: pinned favicons + ungrouped tabs (web + system separated by a divider)
@@ -38,8 +57,8 @@ Chrome extension that improves tab management by enforcing a stable tab layout (
     - **Rename**: Give the workspace a new name.
     - **Export**: Download the workspace as a JSON file for backup or sharing.
     - **Delete**: Remove the workspace from storage.
-  - **Import**: Restore workspaces from JSON files. The system prevents duplicates and allows overwriting existing workspaces.
-  - **Versioning**: Exported files include a version (starting at `1.0`) to ensure compatibility. The extension validates the version during import to prevent data corruption.
+  - **Import**: Restore workspaces from JSON files. If the imported workspace name already exists, Bodhi asks you to choose a different name.
+  - **Versioning**: Exported files include a workspace version field (`wv`, currently `1.0`). Import validates the version to ensure compatibility.
 - **Drag & drop reordering**:
   - Reorder pinned tabs among pinned tabs
   - Reorder ungrouped web tabs among web tabs, and system tabs among system tabs
@@ -71,7 +90,7 @@ The Bodhi Bar can be toggled on or off globally via the extension's action menu.
 *   **CSS Injection**: The bar is hidden using `display: none !important` to ensure it overrides site-specific styles.
 *   **Reflow**: `page-shift.js` checks bar visibility and restores shifted headers / safe-area padding when the bar is hidden, then triggers a resize to let the page reflow.
 *   **Reflow**: `page-shift.js` monitors the bar's visibility; if the bar is detected as hidden (via `getComputedStyle`), it triggers `restoreShiftedHeaders()` to clean up the DOM.
-*   **Workspace Versioning**: The extension uses a `version` field in exported JSONs. Currently, version `1.0` is supported. The import logic in `popup.js` strictly validates this version to ensure the data schema is compatible with the current extension version.
+*   **Workspace file format**: Exported JSON includes a workspace version field (`wv`, currently `1.0`). Import validates the version and basic schema before saving.
 
 ## Important
 - The UI is injected only on normal websites (`http(s)://...`). It will not run on browser-restricted/system pages (e.g., `chrome://extensions`), where content scripts cannot be injected.
@@ -117,6 +136,3 @@ Our codebase is organized into specialized components:
 - Best-effort handling for restricted pages and timing edges (BFCache / late injection)
 - Full Manifest V3 compatibility
 - Ready for deployment to Chrome Web Store (packaged extension)
-
-> Project lovingly maintained with modern development tools
-
