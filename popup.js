@@ -365,6 +365,7 @@ function renderWorkspacesList(workspacesMap) {
     const title = document.createElement('div');
     title.className = 'workspace-title';
     title.textContent = name;
+    title.title = name;
 
     const actions = document.createElement('div');
     actions.className = 'workspace-actions';
