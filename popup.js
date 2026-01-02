@@ -545,6 +545,20 @@ gearStyle.textContent = `
     gap: 4px !important;
     flex-wrap: nowrap !important;
   }
+
+  .gear-btn {
+    background: none !important;
+    border: none !important;
+    padding: 4px 6px !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+    min-width: 28px !important;
+    opacity: 0.6 !important;
+  }
+  .gear-btn:hover {
+    opacity: 1 !important;
+    background: rgba(0,0,0,0.05) !important;
+  }
   .workspace-item {
     display: flex !important;
     align-items: center !important;
