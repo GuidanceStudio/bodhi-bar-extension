@@ -90,7 +90,7 @@ function normalizeImportedWorkspaceJson(raw) {
   // { name: string, payload: { pinnedTabs: [{url}], allTabGroups: [{title,color,tabs:[{url}]}] } }
   if (!isPlainObject(raw)) return { ok: false, error: 'Invalid JSON: expected an object.' };
 
-  const version = raw.wv || '1.1';
+  const version = raw.wv || '1.0';
   // Supported versions
   const SUPPORTED_VERSIONS = ['1.0'];
   if (!SUPPORTED_VERSIONS.includes(version)) {
@@ -400,7 +400,7 @@ function renderWorkspacesList(workspacesMap) {
         if (!payload) return;
 
         const filename = `bodhi-workspace_${escapeFilenamePart(name)}.json`;
-        const exportObj = { wv: '1.1', name, payload };
+        const exportObj = { wv: '1.0', name, payload };
         const res = await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload: exportObj });
         if (!res?.ok) {
           showWorkspacesMessage(res?.error || 'Export failed.');
