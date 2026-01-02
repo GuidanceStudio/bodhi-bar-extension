@@ -312,6 +312,21 @@ function appendImportRow(ul) {
           if (!overwrite) return;
         }
 
+        // Handle duplicate name by asking for a new name
+        if (workspaces[name]) {
+          let newName = prompt(`Workspace "${name}" already exists. Enter a new name:`);
+          if (!newName) return; // cancelled
+          
+          newName = sanitizeWorkspaceName(newName);
+          while (workspaces[newName]) {
+            showWorkspacesMessage(`Name "${newName}" is already used.`);
+            newName = prompt(`Workspace "${name}" already exists. Enter a new name:`);
+            if (!newName) return; // cancelled
+            newName = sanitizeWorkspaceName(newName);
+          }
+          name = newName;
+        }
+
         workspaces[name] = {
           name,
           createdAt: Date.now(),
