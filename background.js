@@ -1078,8 +1078,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       if (action === 'APPLY_WORKSPACE') {
         try {
-          const { payload } = request;
-          const { pinnedTabs, allTabGroups } = payload;
+          const payload = request?.payload;
+          const pinnedTabs = Array.isArray(payload?.pinnedTabs) ? payload.pinnedTabs : [];
+          const allTabGroups = Array.isArray(payload?.allTabGroups) ? payload.allTabGroups : [];
 
           // Get current window
           const activeWindow = await chrome.windows.getLastFocused({});
@@ -1090,14 +1091,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
           // Create pinned tabs
           for (const t of pinnedTabs) {
-            await chrome.tabs.create({ url: t.url, pinned: true, minimized: true });
+            await chrome.tabs.create({ url: t.url, pinned: true, active: false });
           }
 
           // Create groups and their tabs
           for (const g of allTabGroups) {
             const groupTabIds = [];
             for (const t of g.tabs) {
-              const created = await chrome.tabs.create({ url: t.url, active: false, minimized: true });
+              const created = await chrome.tabs.create({ url: t.url, active: false });
               groupTabIds.push(created.id);
             }
             if (groupTabIds.length > 0) {
