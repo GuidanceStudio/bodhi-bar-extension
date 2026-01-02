@@ -73,7 +73,7 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
 
 ## Visibility Control (Hide/Show)
 
-The Bodhi Bar can be toggled on or off globally via the extension's action menu. This allows you to reclaim full screen space on specific sites or during focused work without disabling the extension.
+The Bodhi Bar can be toggled on or off **per tab** via the extension's action menu. This allows you to reclaim full screen space on specific sites or during focused work without disabling the extension.
 
 ### How it works:
 1.  **Extension Icon**: Click the Bodhi Bar icon in the Chrome toolbar.
