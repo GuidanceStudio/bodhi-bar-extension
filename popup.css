@@ -76,21 +76,44 @@ a.export-link {
   color: var(--white);
 }
 
-.workspace-actions .btn.small {
-  padding: 5px 6px !important;
-  font-size: 14px !important;
-  min-width: 32px !important;
-  text-align: center;
+/* Blue action buttons (Save current, Import) */
+.workspaces-header .btn.small,
+.workspace-item.import-row .btn.small {
+  background: #0078d4 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 6px 10px !important;
+  border: none;
+  border-radius: 4px;
 }
 
-.workspace-actions .btn.small.danger {
-  background: rgba(255, 80, 80, 0.15) !important;
-  color: #ff6b6b !important;
+.workspaces-header .btn.small:hover,
+.workspace-item.import-row .btn.small:hover {
+  background: #1a8cff !important;
 }
 
-.workspace-actions .btn.small.danger:hover {
-  background: rgba(255, 80, 80, 0.25) !important;
+/* Flat action icons (no button styling) */
+.workspace-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
 }
+
+.workspace-action-icon:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.workspace-action-icon.restore { color: #4ade80; }      /* Green */
+.workspace-action-icon.rename { color: #60a5fa; }       /* Blue */
+.workspace-action-icon.export { color: #a78bfa; }        /* Purple */
+.workspace-action-icon.delete { color: #f87171; }       /* Red */
 
 /* Presets list */
 .presets-list {
