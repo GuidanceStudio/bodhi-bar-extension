@@ -32,9 +32,13 @@ Chrome extension that improves tab management by enforcing a stable tab layout (
   - Ungroup a grouped tab (Level 3 menu)
 - **Workspaces (Import/Export)**:
   - Save the current window state (pinned tabs and all tab groups) as a named Workspace.
-  - **Export**: Workspaces can be downloaded as JSON files for backup or sharing.
+  - **Save current**: Click the blue button to save your current workspace with a custom name.
+  - **Actions**: Each workspace shows a row with its name and four flat action icons:
+    - 🔄 **Restore**: Instantly recreate the saved workspace (opens all pinned tabs and recreates all tab groups with their original titles and colors).
+    - ✏️ **Rename**: Give the workspace a new name.
+    - 📤 **Export**: Download the workspace as a JSON file for backup or sharing.
+    - 🗑️ **Delete**: Remove the workspace from storage.
   - **Import**: Restore workspaces from JSON files. The system prevents duplicates and allows overwriting existing workspaces.
-  - **Restore**: Instantly recreate a saved workspace. The extension opens all saved pinned tabs and recreates all tab groups with their original titles and colors in the current window.
   - **Versioning**: Exported files include a version (starting at `1.0`) to ensure compatibility. The extension validates the version during import to prevent data corruption.
 - **Drag & drop reordering**:
   - Reorder pinned tabs among pinned tabs
