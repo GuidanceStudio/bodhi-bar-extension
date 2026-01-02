@@ -224,7 +224,7 @@ function showToggleMessage(text) {
   return msg;
 }
 
-function showWorkspacesMessage(text) {
+function showWorkspacesMessage(text, isSuccess = false) {
   const id = 'workspaces-msg';
   const message = String(text || '').trim();
   if (!message) return null;
@@ -232,6 +232,7 @@ function showWorkspacesMessage(text) {
   const existing = document.getElementById(id);
   if (existing) {
     existing.textContent = message;
+    existing.className = isSuccess ? 'success' : '';
     existing.style.display = '';
     return existing;
   }
@@ -240,21 +241,25 @@ function showWorkspacesMessage(text) {
   msg.id = id;
   msg.textContent = message;
 
-  // same visual style as toggle message
+  if (isSuccess) {
+    msg.style.color = '#166534';
+    msg.style.background = '#dcfce7';
+    msg.style.border = '1px solid #86efac';
+  } else {
+    msg.style.color = '#1a1a1a';
+    msg.style.background = '#fff7e6';
+    msg.style.border = '1px solid #f1d9a8';
+  }
   msg.style.padding = '8px 10px';
   msg.style.margin = '8px 0 0 0';
   msg.style.fontSize = '12px';
   msg.style.lineHeight = '1.3';
-  msg.style.color = '#1a1a1a';
-  msg.style.background = '#fff7e6';
-  msg.style.border = '1px solid #f1d9a8';
   msg.style.borderRadius = '4px';
   msg.style.wordBreak = 'break-word';
 
   const section = document.getElementById('workspaces-section');
   const note = document.getElementById('workspaces-note');
   if (section) {
-    // Put message at the bottom of the workspaces section, just above the note if present.
     if (note && note.parentNode === section) section.insertBefore(msg, note);
     else section.appendChild(msg);
   } else {
@@ -358,7 +363,7 @@ function appendImportRow(ul) {
 
         await storageSetWorkspaces(workspaces);
         renderWorkspacesList(workspaces);
-        showWorkspacesMessage(`Imported workspace "${finalName}".`);
+        showWorkspacesMessage(`Imported workspace "${finalName}".`, true);
       } catch (e) {
         alert('Import failed: ' + String(e?.message || 'Unknown error'));
       } finally {
