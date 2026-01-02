@@ -278,6 +278,7 @@ function appendImportRow(ul) {
   const importBtn = document.createElement('button');
   importBtn.className = 'btn small';
   importBtn.textContent = 'Import';
+  importBtn.style.marginLeft = '8px';
   importBtn.addEventListener('click', async () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -406,21 +407,21 @@ function renderWorkspacesList(workspacesMap) {
     const actions = document.createElement('div');
     actions.className = 'workspace-actions';
     actions.style.display = 'flex';
-    actions.style.gap = '6px';
+    actions.style.gap = '4px';
     actions.style.alignItems = 'center';
 
-    const restoreBtn = document.createElement('button');
-    restoreBtn.className = 'btn small';
-    restoreBtn.innerHTML = '&#128260;'; // 🔄 Restore
-    restoreBtn.title = 'Restore';
-    restoreBtn.addEventListener('click', async () => {
+    const restoreIcon = document.createElement('span');
+    restoreIcon.className = 'workspace-action-icon restore';
+    restoreIcon.innerHTML = '&#128260;'; // 🔄
+    restoreIcon.title = 'Restore';
+    restoreIcon.addEventListener('click', async () => {
       const payload = workspacesMap[name]?.payload;
       if (!payload) return;
 
       const confirmed = confirm('This will close all current tabs and groups and replace them with the workspace tabs. Continue?');
       if (!confirmed) return;
 
-      restoreBtn.disabled = true;
+      restoreIcon.style.opacity = '0.5';
       try {
         const res = await runtimeSendMessage({ action: 'APPLY_WORKSPACE', payload });
         if (!res?.ok) {
@@ -429,15 +430,15 @@ function renderWorkspacesList(workspacesMap) {
           window.close();
         }
       } finally {
-        restoreBtn.disabled = false;
+        restoreIcon.style.opacity = '1';
       }
     });
 
-    const renameBtn = document.createElement('button');
-    renameBtn.className = 'btn small';
-    renameBtn.innerHTML = '&#9997;'; // ✏️ Rename
-    renameBtn.title = 'Rename';
-    renameBtn.addEventListener('click', async () => {
+    const renameIcon = document.createElement('span');
+    renameIcon.className = 'workspace-action-icon rename';
+    renameIcon.innerHTML = '&#9997;'; // ✏️
+    renameIcon.title = 'Rename';
+    renameIcon.addEventListener('click', async () => {
       const oldName = name;
       const cur = await storageGetWorkspaces();
       const existing = cur[oldName];
@@ -465,12 +466,12 @@ function renderWorkspacesList(workspacesMap) {
       showWorkspacesMessage(`Renamed workspace to "${newName}".`);
     });
 
-    const exportBtn = document.createElement('button');
-    exportBtn.className = 'btn small';
-    exportBtn.innerHTML = '&#128228;'; // 📤 Export
-    exportBtn.title = 'Export';
-    exportBtn.addEventListener('click', async () => {
-      exportBtn.disabled = true;
+    const exportIcon = document.createElement('span');
+    exportIcon.className = 'workspace-action-icon export';
+    exportIcon.innerHTML = '&#128228;'; // 📤
+    exportIcon.title = 'Export';
+    exportIcon.addEventListener('click', async () => {
+      exportIcon.style.opacity = '0.5';
       try {
         const payload = workspacesMap[name]?.payload || null;
         if (!payload) return;
@@ -482,15 +483,15 @@ function renderWorkspacesList(workspacesMap) {
           showWorkspacesMessage(res?.error || 'Export failed.');
         }
       } finally {
-        exportBtn.disabled = false;
+        exportIcon.style.opacity = '1';
       }
     });
 
-    const delBtn = document.createElement('button');
-    delBtn.className = 'btn small danger';
-    delBtn.innerHTML = '&#10060;'; // ❌ Delete
-    delBtn.title = 'Delete';
-    delBtn.addEventListener('click', async () => {
+    const delIcon = document.createElement('span');
+    delIcon.className = 'workspace-action-icon delete';
+    delIcon.innerHTML = '&#128465;'; // 🗑️
+    delIcon.title = 'Delete';
+    delIcon.addEventListener('click', async () => {
       if (!confirm(`Delete workspace "${name}"?`)) return;
       const cur = await storageGetWorkspaces();
       delete cur[name];
@@ -498,10 +499,10 @@ function renderWorkspacesList(workspacesMap) {
       renderWorkspacesList(cur);
     });
 
-    actions.appendChild(restoreBtn);
-    actions.appendChild(renameBtn);
-    actions.appendChild(exportBtn);
-    actions.appendChild(delBtn);
+    actions.appendChild(restoreIcon);
+    actions.appendChild(renameIcon);
+    actions.appendChild(exportIcon);
+    actions.appendChild(delIcon);
 
     li.appendChild(nameSpan);
     li.appendChild(actions);
