@@ -693,7 +693,7 @@ async function buildExportPayload() {
     tabs: (groupTabsMap.get(g.id) || []).slice()
   }));
 
-  return { wv: '1.0', pinnedTabs, allTabGroups };
+  return { wv: '1.1', pinnedTabs, allTabGroups };
 }
 
 async function buildGroupTabsPayload(groupId) {
