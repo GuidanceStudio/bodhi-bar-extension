@@ -76,18 +76,21 @@ a.export-link {
   color: var(--white);
 }
 
-/* Small utility button used in header */
-.btn.small {
-  padding: 6px 8px;
-  font-size: 12px;
-  border-radius: 4px;
-  background: linear-gradient(#0b5fa8, #0061c0);
-  color: var(--white);
-  border: none;
-  cursor: pointer;
+.workspace-actions .btn.small {
+  padding: 5px 6px !important;
+  font-size: 14px !important;
+  min-width: 32px !important;
+  text-align: center;
 }
 
-.btn.small:active { transform: translateY(1px); }
+.workspace-actions .btn.small.danger {
+  background: rgba(255, 80, 80, 0.15) !important;
+  color: #ff6b6b !important;
+}
+
+.workspace-actions .btn.small.danger:hover {
+  background: rgba(255, 80, 80, 0.25) !important;
+}
 
 /* Presets list */
 .presets-list {
