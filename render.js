@@ -136,12 +136,16 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
 
   bar.appendChild(createSearchBar());
 
+  // Check if there are any groups
+  const hasGroups = allTabGroups && allTabGroups.length > 0;
+
   const trigger = document.createElement('div');
-  trigger.className = 'tz-trigger' + (isCurrentTabGrouped ? ' active' : '');
+  // Add 'tz-no-groups' class if there are no groups to hide it via CSS
+  trigger.className = 'tz-trigger' + (isCurrentTabGrouped ? ' active' : '') + (!hasGroups ? ' tz-no-groups' : '');
 
   const triggerLabel = isCurrentTabGrouped
     ? getDisplayedTitle(currentTabTitle)
-    : (allTabGroups.length > 0 ? 'Groups' : 'Bodhi Bar');
+    : (hasGroups ? 'Groups' : 'Bodhi Bar');
 
   const caret = document.createElement('span');
   caret.className = 'caret';
@@ -154,6 +158,7 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
   trigger.appendChild(lbl);
 
   trigger.onclick = () => {
+    if (!hasGroups) return; // Do nothing if there are no groups
     if (allTabGroups.length === 1) {
       currentViewedGroupId = allTabGroups[0].id;
       navigationState = NAV_LEVELS.LEVEL_3;
