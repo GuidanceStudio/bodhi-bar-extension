@@ -683,7 +683,8 @@ async function buildExportPayload() {
 
   // minimal tab export helper
   const tabToExport = (t) => ({
-    url: t.url || t.pendingUrl || ''
+    url: t.url || t.pendingUrl || '',
+    muted: !!(t.mutedInfo && t.mutedInfo.muted) // NEW: capture muted state
   });
 
   for (const t of tabs) {
@@ -1127,7 +1128,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           for (const t of pinnedTabs) {
             const url = String(t?.url || '').trim();
             if (!url) continue;
-            await chrome.tabs.create({ windowId: activeWindow.id, url, pinned: true, active: false });
+            const muted = !!t.muted; // NEW: get muted state
+            const created = await chrome.tabs.create({ windowId: activeWindow.id, url, pinned: true, active: false });
+            if (created && muted) {
+              try { await chrome.tabs.update(created.id, { muted: true }); } catch {}
+            }
           }
 
           // Create groups and their tabs
@@ -1138,9 +1143,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             for (const t of tabs) {
               const url = String(t?.url || '').trim();
               if (!url) continue;
+              const muted = !!t.muted; // NEW: get muted state
 
               const created = await chrome.tabs.create({ windowId: activeWindow.id, url, active: false });
-              if (created?.id != null) groupTabIds.push(created.id);
+              if (created?.id != null) {
+                groupTabIds.push(created.id);
+                if (muted) {
+                  try { await chrome.tabs.update(created.id, { muted: true }); } catch {}
+                }
+              }
             }
 
             if (groupTabIds.length > 0) {
