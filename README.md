@@ -40,6 +40,7 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
   - This affects the browser's native tab strip (not just the in-page bar) and is skipped during the startup/session-restore grace period.
 - **Horizontal tab bar UI (in-page)**:
   - The UI is injected at the top of normal web pages and provides quick access to your tabs without relying on the browser tab strip.
+  - **Minimize/Expand**: click the small icon button at the far left of the bar to collapse it to a tiny control; click again to restore. This state is saved **per tab**.
   - Level 1: pinned favicons + ungrouped tabs (web + system separated by a divider)
   - “Groups” trigger to navigate into groups
 - **Group navigation (multi-level)**:
@@ -51,6 +52,7 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
   - Create new tab (+)
   - Group an ungrouped web tab into an existing group or a new group
   - Ungroup a grouped tab (Level 3 menu)
+  - Icons in the bar brighten slightly on hover for clearer affordance (applies across all levels).
 - **Workspaces (Import/Export)**:
   - Save the current window state (pinned tabs and all tab groups) as a named Workspace.
   - **Save current**: Click the blue button to save your current workspace with a custom name.
@@ -75,6 +77,8 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
 
 The Bodhi Bar can be toggled on or off **per tab** via the extension's action menu. This allows you to reclaim full screen space on specific sites or during focused work without disabling the extension.
 
+Note: **Hide** is different from **Minimize**. Hiding fully removes the bar from the page. Minimizing keeps a small control visible so you can quickly restore the bar.
+
 ### How it works:
 1.  **Extension Icon**: Click the Bodhi Bar icon in the Chrome toolbar.
 2.  **Dynamic Toggle**:
@@ -87,10 +91,13 @@ The Bodhi Bar can be toggled on or off **per tab** via the extension's action me
 ---
 
 ## Technical Implementation Details (for Developers)
-*   **State Management**: The `tz_hidden_by_tab` key in storage tracks visibility per tabId.
+*   **State Management**:
+    *   `tz_hidden_by_tab` tracks full hide/show per tabId.
+    *   `tz_minimized_by_tab` tracks minimized/expanded state per tabId.
 *   **Messaging**: `popup.js` communicates with `content.js` via `chrome.tabs.sendMessage` using the `SET_VISIBILITY` action.
 *   **CSS Injection**: The bar is hidden using `display: none !important` to ensure it overrides site-specific styles.
 *   **Reflow**: `page-shift.js` checks bar visibility and restores shifted headers / safe-area padding when the bar is hidden, then triggers a resize to let the page reflow.
+*   **Layout behavior**: when minimized, the bar collapses to the minimize button and `page-shift.js` removes the safe-area padding / header shifting (treats minimized like hidden for page layout).
 *   **Reflow**: `page-shift.js` monitors the bar's visibility; if the bar is detected as hidden (via `getComputedStyle`), it triggers `restoreShiftedHeaders()` to clean up the DOM.
 *   **Workspace file format**: Exported JSON includes a workspace version field (`wv`, currently `1.0`). Import validates the version and basic schema before saving.
 
