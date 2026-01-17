@@ -204,6 +204,12 @@ function shiftOverlappingTopHeaders() {
   const bar = document.getElementById(TZ_BAR_ID);
   if (!bar) return;
 
+  // If bar is minimized, don't shift headers
+  if (bar.classList.contains('tz-minimized')) {
+    restoreShiftedHeaders();
+    return;
+  }
+
   const barRect = bar.getBoundingClientRect();
   const barH = Math.round(barRect.height || 0);
   if (!barH) return;
@@ -232,9 +238,10 @@ function applyPageShift() {
 
   const bar = document.getElementById(TZ_BAR_ID);
   const isHidden = !bar || bar.style.display === 'none' || getComputedStyle(bar).display === 'none';
+  const isMinimized = bar && bar.classList.contains('tz-minimized');
 
-  if (isHidden) {
-    // If bar is hidden, restore pages and remove added padding
+  if (isHidden || isMinimized) {
+    // If bar is hidden or minimized, restore pages and remove added padding
     try { restoreShiftedHeaders(); } catch {}
     try {
       body.style.removeProperty('padding-top');
