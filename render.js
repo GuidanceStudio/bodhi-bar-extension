@@ -73,7 +73,7 @@ function syncMinimizeButtonUI() {
   if (!btn) return;
 
   const minimized = bar.classList.contains('tz-minimized');
-  btn.textContent = minimized ? '▸' : '▾';
+  btn.textContent = minimized ? '▸' : '◂';
   btn.title = minimized ? 'Expand bar' : 'Minimize bar';
 }
 
@@ -105,7 +105,7 @@ function createMinimizeButton(tabId) {
   const btn = document.createElement('div');
   btn.className = 'tz-minimize-btn';
   btn.title = 'Minimize bar';
-  btn.textContent = '▾';
+  btn.textContent = '◂';
 
   btn.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
   btn.onclick = (e) => {
