@@ -62,7 +62,19 @@ function setBarMinimized(minimized) {
   if (!bar) return;
   if (minimized) bar.classList.add('tz-minimized');
   else bar.classList.remove('tz-minimized');
+  syncMinimizeButtonUI();
   if (typeof applyPageShift === 'function') applyPageShift();
+}
+
+function syncMinimizeButtonUI() {
+  const bar = document.getElementById(TZ_BAR_ID);
+  if (!bar) return;
+  const btn = bar.querySelector('.tz-minimize-btn');
+  if (!btn) return;
+
+  const minimized = bar.classList.contains('tz-minimized');
+  btn.textContent = minimized ? '▸' : '▾';
+  btn.title = minimized ? 'Expand bar' : 'Minimize bar';
 }
 
 function applyMinimizedState(tabId) {
@@ -93,11 +105,7 @@ function createMinimizeButton(tabId) {
   const btn = document.createElement('div');
   btn.className = 'tz-minimize-btn';
   btn.title = 'Minimize bar';
-  btn.textContent = '▢';
-
-  // DEBUG: make it obvious even if CSS fails
-  btn.style.background = '#ff00ff';
-  btn.style.color = '#000';
+  btn.textContent = '▾';
 
   btn.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
   btn.onclick = (e) => {
