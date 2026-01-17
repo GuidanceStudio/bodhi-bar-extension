@@ -671,7 +671,7 @@
   all: initial;
   box-sizing:border-box;
   height:calc(var(--tz-h) - 10px);
-  width:38px;
+  width:28px;
   margin-left:6px;
   margin-right:2px;
   display:flex;
@@ -684,13 +684,13 @@
   line-height:1;
   color:#0078d4;
   background:transparent;
-  border:1px solid transparent;
-  border-radius:8px;
+  border:none;
+  border-radius:0;
   flex:0 0 auto;
+  transition: color 120ms ease, opacity 120ms ease;
 }
 #ungroup-automatic-tab-bar .tz-minimize-btn:hover{
-  background:#1f1f1f;
-  border-color:#333;
+  color:#4aa3ff; /* lighter */
 }
 
 /* ========================================
@@ -857,10 +857,37 @@
   width:auto !important;
   max-width:46px !important; /* button width + margins */
   overflow:hidden !important;
-  border-bottom-right-radius: 10px !important;
+  border-bottom-right-radius: 2px !important;
 }
 
 /* Hide everything except the minimize button */
 #ungroup-automatic-tab-bar.tz-minimized > *:not(.tz-minimize-btn){
   display:none !important;
+}
+
+/* Global icon hover: lighten icons across the bar (all levels) */
+#ungroup-automatic-tab-bar .tab-favicon,
+#ungroup-automatic-tab-bar .tz-search .icon,
+#ungroup-automatic-tab-bar .tz-plus-btn,
+#ungroup-automatic-tab-bar .plus-sticky,
+#ungroup-automatic-tab-bar .tz-trigger .caret,
+#ungroup-automatic-tab-bar .tz-back-btn .arrow,
+#ungroup-automatic-tab-bar .tz-close-x,
+#ungroup-automatic-tab-bar .tz-group-btn,
+#ungroup-automatic-tab-bar .tz-group-btn.tz-menu-btn,
+#ungroup-automatic-tab-bar .tz-minimize-btn{
+  transition: filter 120ms ease, opacity 120ms ease, color 120ms ease;
+}
+
+/* When hovering the clickable container, brighten the icon(s) inside */
+#ungroup-automatic-tab-bar .tz-tab-btn:hover .tab-favicon,
+#ungroup-automatic-tab-bar .tz-pin-fav-wrap:hover .tab-favicon,
+#ungroup-automatic-tab-bar .tz-lvl2-fav-wrap:hover .tab-favicon,
+#ungroup-automatic-tab-bar .tz-group-tile:hover .tab-favicon,
+#ungroup-automatic-tab-bar .tz-search:hover .icon,
+#ungroup-automatic-tab-bar .tz-plus-btn:hover,
+#ungroup-automatic-tab-bar .plus-sticky:hover,
+#ungroup-automatic-tab-bar .tz-trigger:hover .caret,
+#ungroup-automatic-tab-bar .tz-back-btn:hover .arrow{
+  filter: brightness(1.25);
 }
