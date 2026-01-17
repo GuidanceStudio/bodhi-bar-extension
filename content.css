@@ -667,27 +667,30 @@
 /* ========================================
    Minimize button
    ======================================== */
-#ungroup-automatic-tab-bar .tz-minimize-btn {
+#ungroup-automatic-tab-bar .tz-minimize-btn{
   all: initial;
-  width: 26px;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  user-select: none;
-  font-family: Arial, sans-serif;
-  font-size: 16px;
-  color: #0078d4;
-  font-weight: 700;
-  background: #282828;
-  margin-right: 2px;
-  transition: background 0.2s, transform 0.2s;
+  box-sizing:border-box;
+  height:calc(var(--tz-h) - 10px);
+  width:38px;
+  margin-left:6px;
+  margin-right:2px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  user-select:none;
+  font-family:Arial, sans-serif;
+  font-size:18px;
+  line-height:1;
+  color:#0078d4;
+  background:transparent;
+  border:1px solid transparent;
+  border-radius:8px;
+  flex:0 0 auto;
 }
-
-#ungroup-automatic-tab-bar .tz-minimize-btn:hover {
-  background: #3a3a3a;
-  transform: scale(1.05);
+#ungroup-automatic-tab-bar .tz-minimize-btn:hover{
+  background:#1f1f1f;
+  border-color:#333;
 }
 
 /* ========================================
@@ -847,4 +850,16 @@
 /* Nasconde il trigger dei gruppi quando non ci sono gruppi */
 .tz-trigger.tz-no-groups {
   display: none !important;
+}
+
+/* Minimized bar: collapse to only the minimize button */
+#ungroup-automatic-tab-bar.tz-minimized{
+  width:auto !important;
+  max-width:46px !important; /* button width + margins */
+  overflow:hidden !important;
+}
+
+/* Hide everything except the minimize button */
+#ungroup-automatic-tab-bar.tz-minimized > *:not(.tz-minimize-btn){
+  display:none !important;
 }
