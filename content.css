@@ -665,6 +665,32 @@
 }
 
 /* ========================================
+   Minimize button
+   ======================================== */
+#ungroup-automatic-tab-bar .tz-minimize-btn {
+  all: initial;
+  width: 26px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  font-family: Arial, sans-serif;
+  font-size: 16px;
+  color: #0078d4;
+  font-weight: 700;
+  background: #282828;
+  margin-right: 2px;
+  transition: background 0.2s, transform 0.2s;
+}
+
+#ungroup-automatic-tab-bar .tz-minimize-btn:hover {
+  background: #3a3a3a;
+  transform: scale(1.05);
+}
+
+/* ========================================
    Search icon
    ======================================== */
 #ungroup-automatic-tab-bar .tz-search .icon {
