@@ -12,6 +12,7 @@ let cachedAllTabs = [];
 let suppressClickUntil = 0;
 
 const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
+window.__tzCurrentTabId = null;
 
 function getThisTabId() {
   return new Promise((resolve) => {
@@ -71,6 +72,8 @@ function requestTabList() {
       renderDisconnectedBar('no receiver in background (GET_UNGROUPED_TABS)');
       return;
     }
+
+    window.__tzCurrentTabId = response.currentTabId ?? null;
 
     cachedTabGroups = response.allTabGroups || [];
     cachedTabGroups = [...cachedTabGroups].sort((a, b) => (a.tabs?.[0]?.index ?? 1e9) - (b.tabs?.[0]?.index ?? 1e9));

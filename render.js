@@ -54,6 +54,60 @@ function renderDisconnectedBar(reason = 'Disconnected') {
   applyPageShift();
 }
 
+// Minimize button helpers
+const STORAGE_KEY_MINIMIZED_BY_TAB = 'tz_minimized_by_tab';
+
+function setBarMinimized(minimized) {
+  const bar = document.getElementById(TZ_BAR_ID);
+  if (!bar) return;
+  if (minimized) bar.classList.add('tz-minimized');
+  else bar.classList.remove('tz-minimized');
+  if (typeof applyPageShift === 'function') applyPageShift();
+}
+
+function applyMinimizedState(tabId) {
+  if (tabId == null) return;
+  chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (obj) => {
+    const map = obj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
+    setBarMinimized(!!map[String(tabId)]);
+  });
+}
+
+function toggleMinimizedState(tabId) {
+  if (tabId == null) return;
+  const bar = document.getElementById(TZ_BAR_ID);
+  if (!bar) return;
+
+  const next = !bar.classList.contains('tz-minimized');
+  setBarMinimized(next);
+
+  chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (obj) => {
+    const map = obj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
+    if (next) map[String(tabId)] = true;
+    else delete map[String(tabId)];
+    chrome.storage.local.set({ [STORAGE_KEY_MINIMIZED_BY_TAB]: map });
+  });
+}
+
+function createMinimizeButton(tabId) {
+  const btn = document.createElement('div');
+  btn.className = 'tz-minimize-btn';
+  btn.title = 'Minimize bar';
+  btn.textContent = '▢';
+
+  // DEBUG: make it obvious even if CSS fails
+  btn.style.background = '#ff00ff';
+  btn.style.color = '#000';
+
+  btn.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    toggleMinimizedState(tabId);
+  };
+  return btn;
+}
+
 function createLevel2Favicon(tab, { interactive = true } = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'tz-lvl2-fav-wrap';
@@ -134,6 +188,7 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
 
   bar.innerHTML = '';
 
+  bar.appendChild(createMinimizeButton(currentTabId));
   bar.appendChild(createSearchBar());
 
   // Check if there are any groups
@@ -192,12 +247,15 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
   bar.appendChild(scrollContainer);
 
   updateDynamicLayout();
+  applyMinimizedState(currentTabId);
 }
 
 function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
   const bar = ensureBar();
 
   bar.innerHTML = '';
+
+  bar.appendChild(createMinimizeButton(window.__tzCurrentTabId));
 
   const backBtn = document.createElement('div');
   backBtn.className = 'tz-back-btn';
@@ -301,4 +359,5 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
   bar.appendChild(container);
 
   updateDynamicLayout();
+  applyMinimizedState(window.__tzCurrentTabId);
 }
