@@ -857,7 +857,7 @@
   width:auto !important;
   max-width:46px !important; /* button width + margins */
   overflow:hidden !important;
-  border-bottom-right-radius: 2px !important;
+  border-bottom-right-radius: 3px !important;
 }
 
 /* Hide everything except the minimize button */
