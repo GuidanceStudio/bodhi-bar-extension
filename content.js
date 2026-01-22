@@ -164,6 +164,27 @@ function hookViewportEvents() {
  // Boot
 let _tzDidBoot = false;
 
+/**
+ * Helper to check if the current URL matches a pattern with wildcards.
+ * Example: "docs.google.com/spreadsheets/*" matches "docs.google.com/spreadsheets/d/123"
+ */
+function matchesPattern(url, pattern) {
+  if (!url || !pattern) return false;
+  try {
+    // 1. Convert pattern to valid Regex
+    // Escape special regex characters except the asterisk *
+    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+    // Replace * with .* (any character, any number of times)
+    const regexStr = '^' + escaped.replace(/\*/g, '.*') + '$';
+
+    // 2. Test case-insensitive
+    return new RegExp(regexStr, 'i').test(url);
+  } catch (e) {
+    // If pattern is invalid, return false (safe)
+    return false;
+  }
+}
+
 async function boot() {
   if (_tzDidBoot) return;
   _tzDidBoot = true;
@@ -182,13 +203,13 @@ async function boot() {
         // Use explicit setting if it exists
         isHidden = explicitSetting;
       } else {
-        // 2. Otherwise, check default hidden sites list
+        // 2. Otherwise, check default hidden sites list (with wildcard support)
         const defaultData = await chrome.storage.local.get('tz_default_hidden_sites');
         const hiddenSites = defaultData?.['tz_default_hidden_sites'] || [];
-        const currentUrl = window.location.href.toLowerCase();
+        const currentUrl = window.location.href;
 
-        // Check if any stored site pattern is included in the current URL
-        if (hiddenSites.some(site => currentUrl.includes(site.toLowerCase()))) {
+        // Use the new matchesPattern function
+        if (hiddenSites.some(site => matchesPattern(currentUrl, site))) {
           isHidden = true;
         }
       }
