@@ -30,6 +30,7 @@ const RESTRICTED_PREFIXES = [
 
 const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
 const STORAGE_KEY_WORKSPACES = 'tz_workspaces_v1';
+const STORAGE_KEY_HIDDEN_SITES = 'tz_default_hidden_sites';
 const PRESET_NAME_MAX_LEN = 60;
 
 function getToggleButton() {
@@ -160,6 +161,60 @@ function storageGetWorkspaces() {
 
 function storageSetWorkspaces(map) {
   return storageSet({ [STORAGE_KEY_WORKSPACES]: map || {} });
+}
+
+function storageGetHiddenSites() {
+  return storageGet(STORAGE_KEY_HIDDEN_SITES).then(obj => obj[STORAGE_KEY_HIDDEN_SITES] || []);
+}
+
+function storageSetHiddenSites(list) {
+  return storageSet({ [STORAGE_KEY_HIDDEN_SITES]: list || [] });
+}
+
+function renderHiddenSitesList() {
+  const ul = document.getElementById('hiddenSitesList');
+  if (!ul) return;
+
+  storageGetHiddenSites().then(sites => {
+    ul.innerHTML = '';
+
+    if (!sites.length) {
+      const li = document.createElement('li');
+      li.className = 'workspace-item empty';
+      li.textContent = 'No hidden sites configured.';
+      ul.appendChild(li);
+      return;
+    }
+
+    sites.forEach(site => {
+      const li = document.createElement('li');
+      li.className = 'workspace-item';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'workspace-title';
+      nameSpan.textContent = site;
+      nameSpan.style.wordBreak = 'break-all';
+
+      const actions = document.createElement('div');
+      actions.className = 'workspace-actions';
+
+      const delIcon = document.createElement('span');
+      delIcon.className = 'workspace-action-icon delete';
+      delIcon.innerHTML = '&#128465;'; // 🗑️
+      delIcon.title = 'Remove';
+      delIcon.style.cursor = 'pointer';
+      delIcon.onclick = async () => {
+        const updated = sites.filter(s => s !== site);
+        await storageSetHiddenSites(updated);
+        renderHiddenSitesList();
+      };
+
+      actions.appendChild(delIcon);
+      li.appendChild(nameSpan);
+      li.appendChild(actions);
+      ul.appendChild(li);
+    });
+  });
 }
 
 function sendVisibilityToTab(tabId, hidden) {
@@ -623,6 +678,59 @@ function initPopup() {
       }, { once: false });
 
       render();
+
+      // --- START: Hidden Sites Logic ---
+
+      const hideCurrentBtn = document.getElementById('hideCurrentSiteBtn');
+      const addHiddenBtn = document.getElementById('addHiddenSiteBtn');
+      const newHiddenInput = document.getElementById('newHiddenSiteInput');
+
+      if (hideCurrentBtn) {
+        hideCurrentBtn.onclick = async () => {
+          if (!tab || !tab.url) return;
+          let siteToAdd = '';
+          try {
+            // Use hostname for cleaner list (e.g. "github.com")
+            siteToAdd = new URL(tab.url).hostname;
+          } catch { 
+            // Fallback to full URL if parsing fails
+            siteToAdd = tab.url; 
+          }
+
+          if (!siteToAdd) return;
+
+          const sites = await storageGetHiddenSites();
+          if (!sites.includes(siteToAdd)) {
+            sites.push(siteToAdd);
+            await storageSetHiddenSites(sites);
+            renderHiddenSitesList();
+          } else {
+            alert('This site is already in the hidden list.');
+          }
+        };
+      }
+
+      if (addHiddenBtn && newHiddenInput) {
+        addHiddenBtn.onclick = async () => {
+          const val = newHiddenInput.value.trim();
+          if (!val) return;
+
+          const sites = await storageGetHiddenSites();
+          if (!sites.includes(val)) {
+            sites.push(val);
+            await storageSetHiddenSites(sites);
+            newHiddenInput.value = '';
+            renderHiddenSitesList();
+          } else {
+            alert('This site is already in the hidden list.');
+          }
+        };
+      }
+
+      // Initial render of the hidden sites list
+      renderHiddenSitesList();
+
+      // --- END: Hidden Sites Logic ---
     });
   } catch {
     // Fail closed: don't leave "Loading..." forever

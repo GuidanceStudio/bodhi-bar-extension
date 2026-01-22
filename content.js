@@ -173,10 +173,27 @@ async function boot() {
     let isHidden = false;
 
     if (tabId != null) {
+      // 1. Check explicit per-tab visibility first
       const data = await chrome.storage.local.get(STORAGE_KEY_HIDDEN_BY_TAB);
       const map = data?.[STORAGE_KEY_HIDDEN_BY_TAB] || {};
-      isHidden = !!map[String(tabId)];
+      const explicitSetting = map[String(tabId)];
+
+      if (explicitSetting !== undefined) {
+        // Use explicit setting if it exists
+        isHidden = explicitSetting;
+      } else {
+        // 2. Otherwise, check default hidden sites list
+        const defaultData = await chrome.storage.local.get('tz_default_hidden_sites');
+        const hiddenSites = defaultData?.['tz_default_hidden_sites'] || [];
+        const currentUrl = window.location.href.toLowerCase();
+
+        // Check if any stored site pattern is included in the current URL
+        if (hiddenSites.some(site => currentUrl.includes(site.toLowerCase()))) {
+          isHidden = true;
+        }
+      }
     }
+
     captureBaseDPR();
     safeConnectPort();
     const bar = ensureBar();
