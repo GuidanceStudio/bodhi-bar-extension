@@ -9,25 +9,7 @@
   <div class="container">
     <button id="toggleBar">Loading...</button>
 
-    <section id="workspaces-section" aria-labelledby="workspaces-heading" class="workspaces-section">
-      <div class="workspaces-header">
-        <div class="workspaces-title-row">
-          <h3 id="workspaces-heading">Workspaces</h3>
-          <button id="createWorkspace" class="btn small" title="Save the current window tabs/groups as a workspace">
-            Save current
-          </button>
-        </div>
-      </div>
-
-      <ul id="workspacesList" class="workspaces-list" aria-live="polite" aria-relevant="additions removals">
-        <!-- Workspace items inserted here by popup.js -->
-      </ul>
-
-      <div id="workspaces-note" class="note">
-        Workspaces are snapshots of your current window (pinned tabs + tab groups). Save one with "Save current". You can restore, rename, export, or delete them.
-      </div>
-    </section>
-
+    <!-- Hidden Sites Section (Moved Up) -->
     <section id="hidden-sites-section" class="workspaces-section" style="margin-top: 16px; border-top: 1px solid #eee; padding-top: 12px;">
       <div class="workspaces-header">
         <div class="workspaces-title-row">
@@ -49,6 +31,26 @@
 
       <div id="hidden-sites-note" class="note" style="font-size: 11px; color: #666;">
         Use * as a wildcard (e.g. example.com/*). Explicit per-tab toggles override this list.
+      </div>
+    </section>
+
+    <!-- Workspaces Section (Moved Down) -->
+    <section id="workspaces-section" aria-labelledby="workspaces-heading" class="workspaces-section">
+      <div class="workspaces-header">
+        <div class="workspaces-title-row">
+          <h3 id="workspaces-heading">Workspaces</h3>
+          <button id="createWorkspace" class="btn small" title="Save the current window tabs/groups as a workspace">
+            Save current
+          </button>
+        </div>
+      </div>
+
+      <ul id="workspacesList" class="workspaces-list" aria-live="polite" aria-relevant="additions removals">
+        <!-- Workspace items inserted here by popup.js -->
+      </ul>
+
+      <div id="workspaces-note" class="note">
+        Workspaces are snapshots of your current window (pinned tabs + tab groups). Save one with "Save current". You can restore, rename, export, or delete them.
       </div>
     </section>
   </div>
