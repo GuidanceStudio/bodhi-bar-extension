@@ -63,6 +63,7 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
     - **Delete**: Remove the workspace from storage.
   - **Import**: Restore workspaces from JSON files. If the imported workspace name already exists, Bodhi asks you to choose a different name.
   - **Versioning**: Exported files include a workspace version field (`wv`, currently `1.0`). Import validates the version to ensure compatibility.
+- **Default Hidden Sites**: Configure a list of URLs or domains (e.g., `youtube.com`) where the bar is automatically hidden. This allows for a clean view on specific sites without manually hiding the bar every time. Explicit per-tab toggles override this default.
 - **Drag & drop reordering**:
   - Reorder pinned tabs among pinned tabs
   - Reorder ungrouped web tabs among web tabs, and system tabs among system tabs
@@ -77,6 +78,13 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
 
 The Bodhi Bar can be toggled on or off **per tab** via the extension's action menu. This allows you to reclaim full screen space on specific sites or during focused work without disabling the extension.
 
+Additionally, you can configure a **Default Hidden Sites** list in the popup. If the current URL matches an entry in this list, the bar will be hidden automatically.
+
+### Priority Logic:
+1.  **Explicit Toggle**: If you manually click "Show/Hide" in the popup, that setting is respected.
+2.  **Default List**: If no manual toggle exists, the extension checks the "Hidden Sites" list. If the current site is listed, the bar is hidden.
+3.  **Default**: If neither applies, the bar is shown.
+
 Note: **Hide** is different from **Minimize**. Hiding fully removes the bar from the page. Minimizing keeps a small control visible so you can quickly restore the bar.
 
 ### How it works:
@@ -84,9 +92,10 @@ Note: **Hide** is different from **Minimize**. Hiding fully removes the bar from
 2.  **Dynamic Toggle**:
     *   If the bar is currently visible, the popup will show a **"Hide Bar"** button.
     *   If the bar is hidden, the popup will show a **"Show Bar"** button.
-3.  **Instant Layout Adjustment**: When hidden, the extension automatically removes the `padding-top` and `margin` adjustments from the current webpage, allowing the site's original headers and content to return to their default positions.
-4.  **Persistence**: Your visibility preference is saved in `chrome.storage.local` per tab. If you hide the bar on a tab, it will remain hidden for that tab across reloads/restarts (until you show it again).
-5.  **Context Awareness**: The toggle sends a real-time message to the active tab to hide/show the bar instantly without requiring a page refresh.
+3.  **Default Sites**: Use the "Hidden Sites" section in the popup to add domains (e.g., `google.com`) or specific paths. The bar will be hidden on these pages automatically.
+4.  **Instant Layout Adjustment**: When hidden, the extension automatically removes the `padding-top` and `margin` adjustments from the current webpage, allowing the site's original headers and content to return to their default positions.
+5.  **Persistence**: Your visibility preference is saved in `chrome.storage.local` per tab. If you hide the bar on a tab, it will remain hidden for that tab across reloads/restarts (until you show it again).
+6.  **Context Awareness**: The toggle sends a real-time message to the active tab to hide/show the bar instantly without requiring a page refresh.
 
 ---
 
@@ -94,6 +103,7 @@ Note: **Hide** is different from **Minimize**. Hiding fully removes the bar from
 *   **State Management**:
     *   `tz_hidden_by_tab` tracks full hide/show per tabId.
     *   `tz_minimized_by_tab` tracks minimized/expanded state per tabId.
+    *   `tz_default_hidden_sites` stores an array of strings (URLs/domains) for default hiding behavior.
 *   **Messaging**: `popup.js` communicates with `content.js` via `chrome.tabs.sendMessage` using the `SET_VISIBILITY` action.
 *   **CSS Injection**: The bar is hidden using `display: none !important` to ensure it overrides site-specific styles.
 *   **Reflow**: `page-shift.js` checks bar visibility and restores shifted headers / safe-area padding when the bar is hidden, then triggers a resize to let the page reflow.
