@@ -190,14 +190,65 @@ function renderHiddenSitesList() {
       const li = document.createElement('li');
       li.className = 'workspace-item';
 
+      // Container for text or edit input
+      const contentContainer = document.createElement('div');
+      contentContainer.className = 'workspace-title';
+      contentContainer.style.flex = '1';
+      contentContainer.style.wordBreak = 'break-all';
+      contentContainer.style.display = 'flex';
+      contentContainer.style.alignItems = 'center';
+
+      // Text element
       const nameSpan = document.createElement('span');
-      nameSpan.className = 'workspace-title';
       nameSpan.textContent = site;
-      nameSpan.style.wordBreak = 'break-all';
+      nameSpan.style.flex = '1';
+      contentContainer.appendChild(nameSpan);
 
       const actions = document.createElement('div');
       actions.className = 'workspace-actions';
 
+      // Edit icon
+      const editIcon = document.createElement('span');
+      editIcon.className = 'workspace-action-icon edit';
+      editIcon.innerHTML = '&#9997;'; // ✏️
+      editIcon.title = 'Edit pattern';
+      editIcon.style.cursor = 'pointer';
+      editIcon.style.marginRight = '4px';
+
+      // Inline edit logic
+      editIcon.onclick = () => {
+        // Hide span, show input
+        nameSpan.style.display = 'none';
+        editIcon.style.display = 'none';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = site;
+        input.style.flex = '1';
+        input.style.marginRight = '4px';
+
+        const saveEdit = async () => {
+          const newVal = input.value.trim();
+          if (newVal && newVal !== site) {
+            const updated = sites.map(s => s === site ? newVal : s);
+            await storageSetHiddenSites(updated);
+            renderHiddenSitesList();
+          } else {
+            // Restore view if empty or unchanged
+            nameSpan.style.display = '';
+            editIcon.style.display = '';
+            input.remove();
+          }
+        };
+
+        input.onblur = saveEdit;
+        input.onkeydown = (e) => { if (e.key === 'Enter') { input.blur(); } };
+
+        contentContainer.insertBefore(input, nameSpan);
+        input.focus();
+      };
+
+      // Delete icon
       const delIcon = document.createElement('span');
       delIcon.className = 'workspace-action-icon delete';
       delIcon.innerHTML = '&#128465;'; // 🗑️
@@ -209,8 +260,9 @@ function renderHiddenSitesList() {
         renderHiddenSitesList();
       };
 
+      actions.appendChild(editIcon);
       actions.appendChild(delIcon);
-      li.appendChild(nameSpan);
+      li.appendChild(contentContainer);
       li.appendChild(actions);
       ul.appendChild(li);
     });
@@ -690,10 +742,16 @@ function initPopup() {
           if (!tab || !tab.url) return;
           let siteToAdd = '';
           try {
-            // Use hostname for cleaner list (e.g. "github.com")
-            siteToAdd = new URL(tab.url).hostname;
+            const u = new URL(tab.url);
+            // Intelligent logic: if there is a path, suggest hostname/path/*
+            // Eg: docs.google.com/spreadsheets -> docs.google.com/spreadsheets/*
+            const path = u.pathname;
+            if (path && path !== '/') {
+               siteToAdd = u.hostname + path + '*';
+            } else {
+               siteToAdd = u.hostname;
+            }
           } catch { 
-            // Fallback to full URL if parsing fails
             siteToAdd = tab.url; 
           }
 
@@ -705,7 +763,7 @@ function initPopup() {
             await storageSetHiddenSites(sites);
             renderHiddenSitesList();
           } else {
-            alert('This site is already in the hidden list.');
+            alert('This pattern is already in the hidden list.');
           }
         };
       }

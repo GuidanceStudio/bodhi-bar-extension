@@ -32,14 +32,14 @@
       <div class="workspaces-header">
         <div class="workspaces-title-row">
           <h3 id="hidden-sites-heading">Hidden Sites</h3>
-          <button id="hideCurrentSiteBtn" class="btn small" title="Add current site to hidden list">
-            Hide current site
+          <button id="hideCurrentSiteBtn" class="btn small" title="Add current site pattern to hidden list">
+            Hide bar on current site
           </button>
         </div>
       </div>
 
       <div id="hidden-sites-input-row" style="margin-bottom: 8px; display: flex; gap: 4px;">
-        <input type="text" id="newHiddenSiteInput" placeholder="URL or domain (e.g. google.com)" style="flex: 1; padding: 4px; box-sizing: border-box;">
+        <input type="text" id="newHiddenSiteInput" placeholder="Pattern (e.g. docs.google.com/spreadsheets/*)" style="flex: 1; padding: 4px; box-sizing: border-box;">
         <button id="addHiddenSiteBtn" class="btn small">Add</button>
       </div>
 
@@ -48,7 +48,7 @@
       </ul>
 
       <div id="hidden-sites-note" class="note" style="font-size: 11px; color: #666;">
-        The bar is hidden by default on these sites. You can still toggle it manually per tab.
+        Use * as a wildcard (e.g. example.com/*). Explicit per-tab toggles override this list.
       </div>
     </section>
   </div>
