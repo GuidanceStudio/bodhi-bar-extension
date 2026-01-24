@@ -91,6 +91,7 @@
   cursor:pointer;
   user-select:none;
   margin:0 calc(var(--tz-gap-x) + 2px);
+  margin-right: 6px;
   transition:background 120ms ease, transform 120ms ease;
 }
 #ungroup-automatic-tab-bar .tz-pin-fav-wrap:hover{
@@ -378,6 +379,7 @@
   align-items: center;
   padding: 0 var(--tz-pad-x);
   margin-right: var(--tz-gap-x);
+  margin-left: 6px;
   cursor: pointer;
   user-select: none;
   overflow: hidden;

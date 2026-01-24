@@ -139,7 +139,6 @@ function createLevel2Favicon(tab, { interactive = true } = {}) {
 function createPinnedFavicon(tab, isCurrent) {
   const wrap = document.createElement('div');
   wrap.className = 'tz-pin-fav-wrap';
-  wrap.style.marginRight = '6px';
   wrap.title = tab.title || tab.url || '';
   wrap.draggable = true;
   wrap.setAttribute('draggable', 'true');
@@ -211,7 +210,6 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
   const trigger = document.createElement('div');
   // Add 'tz-no-groups' class if there are no groups to hide it via CSS
   trigger.className = 'tz-trigger' + (isCurrentTabGrouped ? ' active' : '') + (!hasGroups ? ' tz-no-groups' : '');
-  trigger.style.marginLeft = '6px';
 
   const triggerLabel = isCurrentTabGrouped
     ? getDisplayedTitle(currentTabTitle)
