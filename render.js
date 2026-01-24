@@ -199,6 +199,11 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
   bar.appendChild(createMinimizeButton(currentTabId));
   bar.appendChild(createSearchBar());
 
+  // --- START CHANGE: Move Pinned Tabs here ---
+  const pinnedSorted = [...(pinnedTabs || [])].sort((a, b) => a.index - b.index);
+  pinnedSorted.forEach(tab => bar.appendChild(createPinnedFavicon(tab, tab.id === currentTabId)));
+  // --- END CHANGE ---
+
   // Check if there are any groups
   const hasGroups = allTabGroups && allTabGroups.length > 0;
 
@@ -236,11 +241,8 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
   const scrollContainer = document.createElement('div');
   scrollContainer.className = 'scroll-container';
 
-  const pinnedSorted = [...(pinnedTabs || [])].sort((a, b) => a.index - b.index);
   const webSorted = [...(webTabs || [])].sort((a, b) => a.index - b.index);
   const sysSorted = [...(systemTabs || [])].sort((a, b) => a.index - b.index);
-
-  pinnedSorted.forEach(tab => scrollContainer.appendChild(createPinnedFavicon(tab, tab.id === currentTabId)));
 
   webSorted.forEach(tab => scrollContainer.appendChild(createTabButton(tab, tab.id === currentTabId, 'web', true)));
 
