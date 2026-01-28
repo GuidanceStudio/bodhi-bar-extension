@@ -1086,6 +1086,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
       }
 
+      if (action === 'PIN_TAB') {
+        const tabId = request.tabId;
+        if (tabId == null) {
+          sendResponse({ ok: false, error: 'Missing tabId' });
+          return;
+        }
+        try {
+          const tab = await chrome.tabs.get(tabId);
+          if (!tab?.id || tab.windowId == null) {
+            sendResponse({ ok: false, error: 'Tab not found' });
+            return;
+          }
+          await chrome.tabs.update(tabId, { pinned: true });
+          touch(tab.windowId, 'PIN_TAB', { motion: true, drag: true });
+          sendResponse({ ok: true });
+          return;
+        } catch (e) {
+          warn('PIN_TAB error', { tabId, message: String(e?.message || e) });
+          sendResponse({ ok: false, error: 'PIN_TAB failed' });
+          return;
+        }
+      }
+
       if (action === 'GET_EXPORT_PAYLOAD') {
         try {
           const payload = await buildExportPayload();
