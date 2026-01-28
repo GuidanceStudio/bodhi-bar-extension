@@ -13,6 +13,15 @@ let _tzShiftRAF = 0;
 let _tzClipperEl = null;
 let _tzClipperPrev = null;
 
+window.currentVisibilityMode = VISIBILITY_MODES.PUSH;
+
+function setVisibilityMode(mode) {
+  if (Object.values(VISIBILITY_MODES).includes(mode)) {
+    window.currentVisibilityMode = mode;
+    scheduleHeaderShift(); // Re-evaluate layout when mode changes
+  }
+}
+
 function getBarHeightPx() {
   const bar = document.getElementById(TZ_BAR_ID);
   if (!bar) return 0;
@@ -237,7 +246,10 @@ function applyPageShift() {
   if (!body) return;
 
   const bar = document.getElementById(TZ_BAR_ID);
-  const isHidden = !bar || bar.style.display === 'none' || getComputedStyle(bar).display === 'none';
+  const isHiddenMode = window.currentVisibilityMode === VISIBILITY_MODES.HIDDEN;
+  const isOverlayMode = window.currentVisibilityMode === VISIBILITY_MODES.OVERLAY;
+
+  const isHidden = !bar || bar.style.display === 'none' || getComputedStyle(bar).display === 'none' || isHiddenMode;
   const isMinimized = bar && bar.classList.contains('tz-minimized');
 
   if (isHidden || isMinimized) {
@@ -252,6 +264,18 @@ function applyPageShift() {
     return;
   }
 
+  // --- OVERLAY MODE ---
+  if (isOverlayMode) {
+    // Bar is visible, but we do NOT want to shift content
+    restoreShiftedHeaders();
+    // Explicitly remove padding to ensure content goes under the bar
+    body.style.removeProperty('padding-top');
+    body.style.removeProperty('padding-bottom');
+    return;
+  }
+
+  // --- PUSH MODE (Standard) ---
+  // Bar is visible, we want to shift content down
   try { ensureSafeAreasStyle(); } catch {}
   try { setInlineSafeAreasFallback(); } catch {}
 

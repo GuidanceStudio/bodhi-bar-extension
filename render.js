@@ -85,6 +85,27 @@ function applyMinimizedState(tabId) {
   });
 }
 
+function applyVisibilityState(tabId) {
+  if (tabId == null) return;
+  chrome.storage.local.get([STORAGE_KEY_VISIBILITY_MODE], (obj) => {
+    const map = obj?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+    const mode = map[String(tabId)] || VISIBILITY_MODES.PUSH;
+    setVisibilityMode(mode);
+
+    // Sync the bar visibility
+    const bar = document.getElementById(TZ_BAR_ID);
+    if (bar) {
+      if (mode === VISIBILITY_MODES.HIDDEN) {
+        bar.style.setProperty('display', 'none', 'important');
+        bar.classList.add('tz-minimized');
+      } else {
+        bar.style.display = '';
+        bar.classList.remove('tz-minimized');
+      }
+    }
+  });
+}
+
 function toggleMinimizedState(tabId) {
   if (tabId == null) return;
   const bar = document.getElementById(TZ_BAR_ID);
@@ -104,15 +125,62 @@ function toggleMinimizedState(tabId) {
 function createMinimizeButton(tabId) {
   const btn = document.createElement('div');
   btn.className = 'tz-minimize-btn';
-  btn.title = 'Minimize bar';
-  btn.textContent = '‹';
 
-  btn.onmousedown = (e) => { e.stopPropagation(); e.preventDefault(); };
-  btn.onclick = (e) => {
+  // Determine current mode (default to PUSH if not set)
+  const mode = window.currentVisibilityMode || VISIBILITY_MODES.PUSH;
+
+  // Set icon and title based on mode
+  if (mode === VISIBILITY_MODES.HIDDEN) {
+    btn.textContent = '+'; // Show bar
+    btn.title = 'Show bar (currently hidden)';
+  } else if (mode === VISIBILITY_MODES.OVERLAY) {
+    btn.textContent = '◻'; // Square icon for Overlay
+    btn.title = 'Overlay mode - bar floats over content';
+  } else {
+    btn.textContent = '−'; // Minus to go to Overlay
+    btn.title = 'Push mode - bar pushes content down';
+  }
+
+  btn.onclick = async (e) => {
     e.stopPropagation();
-    e.preventDefault();
-    toggleMinimizedState(tabId);
+
+    // Cycle logic: PUSH -> OVERLAY -> HIDDEN -> PUSH
+    let nextMode;
+    if (mode === VISIBILITY_MODES.PUSH) nextMode = VISIBILITY_MODES.OVERLAY;
+    else if (mode === VISIBILITY_MODES.OVERLAY) nextMode = VISIBILITY_MODES.HIDDEN;
+    else nextMode = VISIBILITY_MODES.PUSH;
+
+    // Save to storage
+    if (tabId != null) {
+      try {
+        const res = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_MODE);
+        const map = res?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+        map[String(tabId)] = nextMode;
+        await chrome.storage.local.set({ [STORAGE_KEY_VISIBILITY_MODE]: map });
+      } catch (err) {
+        console.error('Failed to save visibility mode', err);
+      }
+    }
+
+    // Apply immediately
+    setVisibilityMode(nextMode);
+
+    // Update bar visibility immediately
+    const bar = document.getElementById(TZ_BAR_ID);
+    if (bar) {
+      if (nextMode === VISIBILITY_MODES.HIDDEN) {
+        bar.style.setProperty('display', 'none', 'important');
+        bar.classList.add('tz-minimized');
+      } else {
+        bar.style.display = '';
+        bar.classList.remove('tz-minimized');
+      }
+    }
+
+    // Re-render button to update icon
+    handleStateChange(); 
   };
+
   return btn;
 }
 
@@ -257,7 +325,7 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
   bar.appendChild(scrollContainer);
 
   updateDynamicLayout();
-  applyMinimizedState(currentTabId);
+  applyVisibilityState(currentTabId);
 }
 
 function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
@@ -369,5 +437,5 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
   bar.appendChild(container);
 
   updateDynamicLayout();
-  applyMinimizedState(window.__tzCurrentTabId);
+  applyVisibilityState(window.__tzCurrentTabId);
 }
