@@ -161,6 +161,44 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
     groupsContainer.appendChild(unItem);
   }
 
+  // --- START: Add Pinned Option ---
+  const pinItem = document.createElement('div');
+  pinItem.className = 'group-item';
+
+  const pinIcon = document.createElement('div');
+  pinIcon.className = 'swatch';
+  pinIcon.style.background = 'transparent';
+  pinIcon.style.display = 'flex';
+  pinIcon.style.alignItems = 'center';
+  pinIcon.style.justifyContent = 'center';
+  // Simple Pin Icon SVG
+  pinIcon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#666"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>`;
+
+  const pinLabel = document.createElement('div');
+  pinLabel.className = 'tz-popover-label';
+  pinLabel.textContent = 'Pinned';
+
+  pinItem.appendChild(pinIcon);
+  pinItem.appendChild(pinLabel);
+
+  pinItem.onclick = async (e) => {
+    e.stopPropagation(); e.preventDefault();
+    suppressClickUntil = Date.now() + 700;
+    await safeRuntimeSendMessageWithRetry({ action: 'PIN_TAB', tabId }, 3);
+    closeActivePopover();
+    handleStateChange();
+  };
+
+  groupsContainer.appendChild(pinItem);
+
+  // Add a separator below Pinned
+  const sep = document.createElement('div');
+  sep.style.height = '1px';
+  sep.style.background = 'rgba(0,0,0,0.1)';
+  sep.style.margin = '4px 8px';
+  groupsContainer.appendChild(sep);
+  // --- END: Add Pinned Option ---
+
   groups
     .filter(g => (excludeGroupId == null) || String(g.id) !== String(excludeGroupId))
     .forEach(g => {
