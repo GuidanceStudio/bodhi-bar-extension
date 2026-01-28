@@ -48,3 +48,12 @@ const TZ_MAX_SHIFT_TARGETS = 6;
 const TZ_CLIP_ATTR = 'data-tz-safe-bottom-clipper';
 
 const POPOVER_SECTION_GAP_PX = 6;
+
+// Visibility Modes
+const VISIBILITY_MODES = {
+  PUSH: 'push',       // Default: bar pushes content down
+  OVERLAY: 'overlay', // New: bar floats over content
+  HIDDEN: 'hidden'    // Bar is hidden
+};
+
+const STORAGE_KEY_VISIBILITY_MODE = 'tz_visibility_mode';
