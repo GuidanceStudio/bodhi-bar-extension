@@ -18,6 +18,7 @@
 const TZ_PORT_NAME = 'TZ_UI_PORT';
 const TZ_HANDSHAKE_MSG = { action: '__TZ_HANDSHAKE__' };
 const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
+const STORAGE_KEY_VISIBILITY_MODE = 'tz_visibility_mode';
 
 const DEBUG = true;
 const TAG = '[BodhiBar]';
@@ -92,15 +93,29 @@ async function injectOverrides(tabId, url) {
 chrome.tabs.onRemoved.addListener((tabId) => {
   overridesInjected.delete(tabId);
 
-  // Cleanup per-tab visibility state
+  // Cleanup per-tab visibility state (Combined for efficiency)
   try {
-    chrome.storage.local.get([STORAGE_KEY_HIDDEN_BY_TAB], (obj) => {
-      const map = obj?.[STORAGE_KEY_HIDDEN_BY_TAB];
-      if (!map || typeof map !== 'object') return;
-      if (!Object.prototype.hasOwnProperty.call(map, String(tabId))) return;
+    chrome.storage.local.get([STORAGE_KEY_HIDDEN_BY_TAB, STORAGE_KEY_VISIBILITY_MODE], (obj) => {
+      const hiddenMap = obj?.[STORAGE_KEY_HIDDEN_BY_TAB];
+      const modeMap = obj?.[STORAGE_KEY_VISIBILITY_MODE];
+      let changed = false;
 
-      delete map[String(tabId)];
-      chrome.storage.local.set({ [STORAGE_KEY_HIDDEN_BY_TAB]: map }, () => {});
+      if (hiddenMap && typeof hiddenMap === 'object' && Object.prototype.hasOwnProperty.call(hiddenMap, String(tabId))) {
+        delete hiddenMap[String(tabId)];
+        changed = true;
+      }
+
+      if (modeMap && typeof modeMap === 'object' && Object.prototype.hasOwnProperty.call(modeMap, String(tabId))) {
+        delete modeMap[String(tabId)];
+        changed = true;
+      }
+
+      if (changed) {
+        chrome.storage.local.set({ 
+          [STORAGE_KEY_HIDDEN_BY_TAB]: hiddenMap, 
+          [STORAGE_KEY_VISIBILITY_MODE]: modeMap 
+        }, () => {});
+      }
     });
   } catch {
     // ignore
