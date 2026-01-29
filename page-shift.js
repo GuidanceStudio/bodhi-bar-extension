@@ -250,43 +250,43 @@ function applyPageShift() {
   const isOverlayMode = window.currentVisibilityMode === VISIBILITY_MODES.OVERLAY;
 
 
-  // --- FIX: Explicitly manage the bar's display property ---
   if (isHiddenMode) {
-    // If hidden mode, force display to none
+    // HIDDEN mode: bar is completely hidden
     if (bar) bar.style.display = 'none';
-  } else {
-    // If Push or Overlay mode, ensure the bar is visible by clearing the inline style
-    if (bar) bar.style.display = '';
-  }
-  // -------------------------------------------------------
-
-  const isMinimized = bar && bar.classList.contains('tz-minimized');
-  const isHidden = !bar || bar.style.display === 'none' || getComputedStyle(bar).display === 'none' || isMinimized;
-
-  if (isHidden) {
-    // If bar is hidden, restore pages and remove added padding
-    try { restoreShiftedHeaders(); } catch {}
-    try {
-      body.style.removeProperty('padding-top');
-      body.style.removeProperty('padding-bottom');
-      const st = document.head?.querySelector(`style[${TZ_SAFE_STYLE_ATTR}]`);
-      if (st) st.remove();
-    } catch {}
-    return;
-  }
-
-  // --- OVERLAY MODE ---
-  if (isOverlayMode) {
-    // Bar is visible, but we do NOT want to shift content
     restoreShiftedHeaders();
-    // Explicitly remove padding to ensure content goes under the bar
     body.style.removeProperty('padding-top');
     body.style.removeProperty('padding-bottom');
+    const st = document.head?.querySelector(`style[${TZ_SAFE_STYLE_ATTR}]`);
+    if (st) st.remove();
     return;
   }
 
-  // --- PUSH MODE (Standard) ---
-  // Bar is visible, we want to shift content down
+  // PUSH or OVERLAY mode: bar is visible
+  if (bar) bar.style.display = '';
+
+  const isMinimized = bar && bar.classList.contains('tz-minimized');
+  const isHidden = !bar || getComputedStyle(bar).display === 'none';
+
+  if (isHidden) {
+    restoreShiftedHeaders();
+    body.style.removeProperty('padding-top');
+    body.style.removeProperty('padding-bottom');
+    const st = document.head?.querySelector(`style[${TZ_SAFE_STYLE_ATTR}]`);
+    if (st) st.remove();
+    return;
+  }
+
+  if (isOverlayMode && isMinimized) {
+    // OVERLAY minimized: bar is minimized, don't shift content
+    restoreShiftedHeaders();
+    body.style.removeProperty('padding-top');
+    body.style.removeProperty('padding-bottom');
+    const st = document.head?.querySelector(`style[${TZ_SAFE_STYLE_ATTR}]`);
+    if (st) st.remove();
+    return;
+  }
+
+  // PUSH mode or OVERLAY expanded: shift content down
   try { ensureSafeAreasStyle(); } catch {}
   try { setInlineSafeAreasFallback(); } catch {}
 
