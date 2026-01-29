@@ -7,7 +7,14 @@
 </head>
 <body>
   <div class="container">
-    <button id="toggleBar">Loading...</button>
+    <div class="control-group">
+      <label for="visibilityModeSelect">Bar Visibility</label>
+      <select id="visibilityModeSelect" disabled>
+        <option value="push">Push content (Default)</option>
+        <option value="overlay">Overlay content</option>
+        <option value="hidden">Hidden</option>
+      </select>
+    </div>
 
     <!-- Hidden Sites Section (Moved Up) -->
     <section id="hidden-sites-section" class="workspaces-section" style="margin-top: 16px; border-top: 1px solid #eee; padding-top: 12px;">
