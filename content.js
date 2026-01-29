@@ -12,6 +12,7 @@ let cachedAllTabs = [];
 let suppressClickUntil = 0;
 
 const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
+const STORAGE_KEY_VISIBILITY_RULES = 'tz_visibility_rules';
 window.__tzCurrentTabId = null;
 
 function getThisTabId() {
@@ -192,29 +193,44 @@ async function boot() {
   try {
     const tabId = await getThisTabId();
     let isHidden = false;
+    let initialMode = VISIBILITY_MODES.PUSH; // Default
 
     if (tabId != null) {
-      // 1. Check visibility mode first
+      // 1. Check explicit per-tab visibility (Highest Priority)
       const data = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_MODE);
       const map = data?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-      const mode = map[String(tabId)] || VISIBILITY_MODES.PUSH;
+      const mode = map[String(tabId)];
 
-      // Set the global mode in page-shift.js
-      setVisibilityMode(mode);
-
-      // Determine if we should hide the bar initially based on mode
-      isHidden = (mode === VISIBILITY_MODES.HIDDEN);
-
-      // 2. Check default hidden sites list (only if not explicitly set to Push/Overlay)
-      if (!isHidden && mode === VISIBILITY_MODES.PUSH) {
-        const defaultData = await chrome.storage.local.get('tz_default_hidden_sites');
-        const hiddenSites = defaultData?.['tz_default_hidden_sites'] || [];
+      if (mode) {
+        initialMode = mode;
+      } else {
+        // 2. Check Visibility Patterns (New Logic)
+        const rulesData = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_RULES);
+        const rules = rulesData?.[STORAGE_KEY_VISIBILITY_RULES] || [];
         const currentUrl = window.location.href;
 
-        if (hiddenSites.some(site => matchesPattern(currentUrl, site))) {
-          isHidden = true;
+        // Find the first matching rule
+        const matchingRule = rules.find(rule => {
+          if (!rule.pattern || !rule.mode) return false;
+          return matchesPattern(currentUrl, rule.pattern);
+        });
+
+        if (matchingRule) {
+          initialMode = matchingRule.mode;
+        } else {
+          // 3. Fallback to old "default hidden sites" list for backward compatibility
+          const defaultData = await chrome.storage.local.get('tz_default_hidden_sites');
+          const hiddenSites = defaultData?.['tz_default_hidden_sites'] || [];
+
+          if (hiddenSites.some(site => matchesPattern(currentUrl, site))) {
+            initialMode = VISIBILITY_MODES.HIDDEN;
+          }
         }
       }
+
+      // Set the global mode
+      setVisibilityMode(initialMode);
+      isHidden = (initialMode === VISIBILITY_MODES.HIDDEN);
     }
 
     captureBaseDPR();

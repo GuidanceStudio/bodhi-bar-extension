@@ -57,3 +57,4 @@ const VISIBILITY_MODES = {
 };
 
 const STORAGE_KEY_VISIBILITY_MODE = 'tz_visibility_mode';
+const STORAGE_KEY_VISIBILITY_RULES = 'tz_visibility_rules';
