@@ -277,4 +277,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     sendResponse({ success: true });
   }
+
+  // Add this new block
+  if (request.action === 'SET_VISIBILITY_MODE') {
+    if (typeof setVisibilityMode === 'function') {
+      setVisibilityMode(request.mode);
+      if (typeof applyPageShift === 'function') applyPageShift();
+    }
+    sendResponse({ success: true });
+  }
 });

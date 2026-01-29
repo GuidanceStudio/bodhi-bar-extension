@@ -31,20 +31,14 @@ const RESTRICTED_PREFIXES = [
 const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
 const STORAGE_KEY_WORKSPACES = 'tz_workspaces_v1';
 const STORAGE_KEY_HIDDEN_SITES = 'tz_default_hidden_sites';
+const STORAGE_KEY_VISIBILITY_MODE = 'tz_visibility_mode';
 const PRESET_NAME_MAX_LEN = 60;
 
-function getToggleButton() {
-  return document.getElementById('toggleBar');
-}
-
-function setButtonState({ text, disabled = false } = {}) {
-  const btn = getToggleButton();
-  if (!btn) return;
-  if (typeof text === 'string') btn.textContent = text;
-  btn.disabled = !!disabled;
-  btn.style.opacity = disabled ? '0.7' : '';
-  btn.style.cursor = disabled ? 'default' : '';
-}
+const VISIBILITY_MODES = {
+  PUSH: 'push',
+  OVERLAY: 'overlay',
+  HIDDEN: 'hidden'
+};
 
 function storageGet(key) {
   return new Promise((resolve) => {
@@ -332,10 +326,10 @@ function showToggleMessage(text) {
   msg.style.maxWidth = '320px';
   msg.style.wordBreak = 'break-word';
 
-  const btn = getToggleButton();
-  if (btn && btn.parentNode) {
-    if (btn.nextSibling) btn.parentNode.insertBefore(msg, btn.nextSibling);
-    else btn.parentNode.appendChild(msg);
+  const select = document.getElementById('visibilityModeSelect');
+  if (select && select.parentNode) {
+    if (select.nextSibling) select.parentNode.insertBefore(msg, select.nextSibling);
+    else select.parentNode.appendChild(msg);
   } else {
     document.body.appendChild(msg);
   }
@@ -640,7 +634,12 @@ function renderWorkspacesList(workspacesMap) {
 
 
 function initPopup() {
-  setButtonState({ text: 'Loading...', disabled: true });
+  const select = document.getElementById('visibilityModeSelect');
+  if (!select) return;
+
+  // Initial state
+  select.disabled = true;
+  select.value = 'push';
 
   try {
     if (!chrome.tabs?.query) {
@@ -695,41 +694,47 @@ function initPopup() {
       renderWorkspacesList(workspaces);
 
       if (!tab || isRestrictedUrl(String(url || ''))) {
-        // Restricted: keep a single disabled button + show message
-        setButtonState({ text: 'Bar not available on this page', disabled: true });
-        showToggleMessage('Bodhi Bar is not available on this type of page (browser internal/restricted pages). Open a regular website tab to use Show/Hide.');
-        return;
-      }
-
-      // Normal page: enable toggle behavior
-      const btn = getToggleButton();
-      if (!btn) {
+        // Restricted: hide selector and show message
+        select.style.display = 'none';
         showToggleMessage('Bodhi Bar is not available on this type of page (browser internal/restricted pages). Open a regular website tab to use Show/Hide.');
         return;
       }
 
       const tabId = tab.id;
 
-      const hiddenByTab = await storageGetHiddenByTab();
-      let hidden = !!hiddenByTab[String(tabId)];
-
-      const render = () => {
-        setButtonState({ text: hidden ? 'Show Bar' : 'Hide Bar', disabled: false });
+      // Helper to get mode for specific tab
+      const getModeForTab = async () => {
+        const data = await storageGet(STORAGE_KEY_VISIBILITY_MODE);
+        const map = data?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+        return map[String(tabId)] || VISIBILITY_MODES.PUSH;
       };
 
-      btn.onclick = null;
-      btn.addEventListener('click', async () => {
-        hidden = !hidden;
-        render();
+      // Helper to set mode for specific tab
+      const setModeForTab = async (mode) => {
+        const data = await storageGet(STORAGE_KEY_VISIBILITY_MODE);
+        const map = data?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+        map[String(tabId)] = mode;
+        await storageSet({ [STORAGE_KEY_VISIBILITY_MODE]: map });
+      };
 
-        const map = await storageGetHiddenByTab();
-        map[String(tabId)] = hidden;
-        await storageSetHiddenByTab(map);
+      // Initialize UI
+      const currentMode = await getModeForTab();
+      select.value = currentMode;
+      select.disabled = false;
 
-        await sendVisibilityToTab(tabId, hidden);
-      }, { once: false });
+      // Handle Change
+      select.onchange = async () => {
+        const newMode = select.value;
+        await setModeForTab(newMode);
 
-      render();
+        // Notify content script to update layout immediately
+        try {
+          await chrome.tabs.sendMessage(tabId, { action: 'SET_VISIBILITY_MODE', mode: newMode });
+        } catch (e) {
+          // Tab might be closed or not ready
+          console.warn('Failed to send visibility mode update', e);
+        }
+      };
 
       // --- START: Hidden Sites Logic ---
 
@@ -791,8 +796,8 @@ function initPopup() {
       // --- END: Hidden Sites Logic ---
     });
   } catch {
-    // Fail closed: don't leave "Loading..." forever
-    setButtonState({ text: 'Error', disabled: true });
+    // Fail closed
+    if (select) select.style.display = 'none';
     showToggleMessage('Bodhi Bar is not available on this type of page (browser internal/restricted pages). Open a regular website tab to use Show/Hide.');
   }
 }
