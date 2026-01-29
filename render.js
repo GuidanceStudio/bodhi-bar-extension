@@ -72,9 +72,26 @@ function syncMinimizeButtonUI() {
   const btn = bar.querySelector('.tz-minimize-btn');
   if (!btn) return;
 
+  // Get current mode and minimized state
+  const mode = window.currentVisibilityMode || VISIBILITY_MODES.PUSH;
   const minimized = bar.classList.contains('tz-minimized');
-  btn.textContent = minimized ? '›' : '‹';
-  btn.title = minimized ? 'Expand bar' : 'Minimize bar';
+
+  if (mode === VISIBILITY_MODES.HIDDEN) {
+    btn.textContent = '+';
+    btn.title = 'Show bar (currently hidden)';
+  } else if (mode === VISIBILITY_MODES.OVERLAY) {
+    if (minimized) {
+      btn.textContent = '›';
+      btn.title = 'Expand bar (Overlay mode)';
+    } else {
+      btn.textContent = '‹';
+      btn.title = 'Minimize bar (Overlay mode)';
+    }
+  } else {
+    // PUSH mode
+    btn.textContent = '◻';
+    btn.title = 'Switch to Overlay mode';
+  }
 }
 
 function applyMinimizedState(tabId) {
@@ -92,20 +109,31 @@ function applyVisibilityState(tabId) {
     const mode = map[String(tabId)] || VISIBILITY_MODES.PUSH;
     setVisibilityMode(mode);
 
-    // Sync the bar visibility
     const bar = document.getElementById(TZ_BAR_ID);
     if (bar) {
+      // Reset minimized state by default
+      bar.classList.remove('tz-minimized');
+
       if (mode === VISIBILITY_MODES.HIDDEN) {
+        // HIDDEN: Bar is completely hidden, not minimized
         bar.style.setProperty('display', 'none', 'important');
-        bar.classList.add('tz-minimized');
-      } else {
+      } else if (mode === VISIBILITY_MODES.OVERLAY) {
+        // OVERLAY: Bar is visible, check if minimized
         bar.style.display = '';
-        bar.classList.remove('tz-minimized');
+        chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (minObj) => {
+          const minMap = minObj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
+          if (minMap[String(tabId)]) {
+            bar.classList.add('tz-minimized');
+          }
+          if (typeof applyPageShift === 'function') applyPageShift();
+        });
+        return; // Return early to avoid double applyPageShift call
+      } else {
+        // PUSH: Bar is visible and never minimized
+        bar.style.display = '';
       }
     }
 
-    // FIX: Explicitly update page layout (push/overlay) after mode is loaded
-    // This ensures the "push" behavior applies immediately when switching modes
     if (typeof applyPageShift === 'function') applyPageShift();
   });
 }
@@ -114,6 +142,10 @@ function toggleMinimizedState(tabId) {
   if (tabId == null) return;
   const bar = document.getElementById(TZ_BAR_ID);
   if (!bar) return;
+
+  // Only allow minimizing in OVERLAY mode
+  const mode = window.currentVisibilityMode || VISIBILITY_MODES.PUSH;
+  if (mode !== VISIBILITY_MODES.OVERLAY) return;
 
   const next = !bar.classList.contains('tz-minimized');
   setBarMinimized(next);
@@ -130,59 +162,107 @@ function createMinimizeButton(tabId) {
   const btn = document.createElement('div');
   btn.className = 'tz-minimize-btn';
 
-  // Determine current mode (default to PUSH if not set)
-  const mode = window.currentVisibilityMode || VISIBILITY_MODES.PUSH;
+  // Get current mode from storage
+  chrome.storage.local.get([STORAGE_KEY_VISIBILITY_MODE], (obj) => {
+    const map = obj?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+    const mode = map[String(tabId)] || VISIBILITY_MODES.PUSH;
 
-  // Set icon and title based on mode
-  if (mode === VISIBILITY_MODES.HIDDEN) {
-    btn.textContent = '+'; // Show bar
-    btn.title = 'Show bar (currently hidden)';
-  } else if (mode === VISIBILITY_MODES.OVERLAY) {
-    btn.textContent = '◻'; // Square icon for Overlay
-    btn.title = 'Overlay mode - bar floats over content';
-  } else {
-    btn.textContent = '−'; // Minus to go to Overlay
-    btn.title = 'Push mode - bar pushes content down';
-  }
+    // Get minimized state for OVERLAY mode
+    chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (minObj) => {
+      const minMap = minObj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
+      const isMinimized = minMap[String(tabId)] || false;
+
+      // Set icon and title based on mode and minimized state
+      if (mode === VISIBILITY_MODES.HIDDEN) {
+        btn.textContent = '+';
+        btn.title = 'Show bar (currently hidden)';
+      } else if (mode === VISIBILITY_MODES.OVERLAY) {
+        if (isMinimized) {
+          btn.textContent = '›';
+          btn.title = 'Expand bar (Overlay mode)';
+        } else {
+          btn.textContent = '‹';
+          btn.title = 'Minimize bar (Overlay mode)';
+        }
+      } else {
+        // PUSH mode
+        btn.textContent = '◻';
+        btn.title = 'Switch to Overlay mode';
+      }
+    });
+  });
 
   btn.onclick = async (e) => {
     e.stopPropagation();
 
-    // Cycle logic: PUSH -> OVERLAY -> HIDDEN -> PUSH
+    // Get current mode
+    const data = await chrome.storage.local.get([STORAGE_KEY_VISIBILITY_MODE]);
+    const map = data?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+    const currentMode = map[String(tabId)] || VISIBILITY_MODES.PUSH;
+
     let nextMode;
-    if (mode === VISIBILITY_MODES.PUSH) nextMode = VISIBILITY_MODES.OVERLAY;
-    else if (mode === VISIBILITY_MODES.OVERLAY) nextMode = VISIBILITY_MODES.HIDDEN;
-    else nextMode = VISIBILITY_MODES.PUSH;
+    let shouldToggleMinimize = false;
+
+    if (currentMode === VISIBILITY_MODES.PUSH) {
+      // PUSH -> OVERLAY (not minimized)
+      nextMode = VISIBILITY_MODES.OVERLAY;
+      shouldToggleMinimize = false;
+    } else if (currentMode === VISIBILITY_MODES.OVERLAY) {
+      // Get current minimized state
+      const minData = await chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB]);
+      const minMap = minData?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
+      const isMinimized = minMap[String(tabId)] || false;
+
+      if (isMinimized) {
+        // OVERLAY minimized -> OVERLAY expanded
+        nextMode = VISIBILITY_MODES.OVERLAY;
+        shouldToggleMinimize = true;
+      } else {
+        // OVERLAY expanded -> HIDDEN
+        nextMode = VISIBILITY_MODES.HIDDEN;
+        shouldToggleMinimize = false;
+      }
+    } else {
+      // HIDDEN -> PUSH
+      nextMode = VISIBILITY_MODES.PUSH;
+      shouldToggleMinimize = false;
+    }
 
     // Save to storage
     if (tabId != null) {
-      try {
-        const res = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_MODE);
-        const map = res?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-        map[String(tabId)] = nextMode;
-        await chrome.storage.local.set({ [STORAGE_KEY_VISIBILITY_MODE]: map });
-      } catch (err) {
-        console.error('Failed to save visibility mode', err);
+      map[String(tabId)] = nextMode;
+      await chrome.storage.local.set({ [STORAGE_KEY_VISIBILITY_MODE]: map });
+
+      // Handle minimized state toggle for OVERLAY mode
+      if (shouldToggleMinimize) {
+        const minData = await chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB]);
+        const minMap = minData?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
+        minMap[String(tabId)] = !minMap[String(tabId)];
+        await chrome.storage.local.set({ [STORAGE_KEY_MINIMIZED_BY_TAB]: minMap });
       }
     }
 
     // Apply immediately
     setVisibilityMode(nextMode);
 
-    // Update bar visibility immediately
+    // Update bar state immediately
     const bar = document.getElementById(TZ_BAR_ID);
     if (bar) {
       if (nextMode === VISIBILITY_MODES.HIDDEN) {
         bar.style.setProperty('display', 'none', 'important');
-        bar.classList.add('tz-minimized');
+      } else if (nextMode === VISIBILITY_MODES.OVERLAY && shouldToggleMinimize) {
+        // Toggle minimized state
+        bar.classList.toggle('tz-minimized');
       } else {
         bar.style.display = '';
-        bar.classList.remove('tz-minimized');
       }
     }
 
-    // Re-render button to update icon
-    handleStateChange(); 
+    // Update page layout
+    if (typeof applyPageShift === 'function') applyPageShift();
+
+    // Re-render to update button icon
+    handleStateChange();
   };
 
   return btn;
