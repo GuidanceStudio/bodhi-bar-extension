@@ -727,12 +727,12 @@ function initPopup() {
         const newMode = select.value;
         await setModeForTab(newMode);
 
-        // Notify content script to update layout immediately
+        // Request background to force a refresh on this tab
+        // This ensures the UI updates immediately by triggering a state reload from storage
         try {
-          await chrome.tabs.sendMessage(tabId, { action: 'SET_VISIBILITY_MODE', mode: newMode });
+          await runtimeSendMessage({ action: 'REFRESH_TAB', tabId });
         } catch (e) {
-          // Tab might be closed or not ready
-          console.warn('Failed to send visibility mode update', e);
+          console.warn('Failed to request tab refresh', e);
         }
       };
 
