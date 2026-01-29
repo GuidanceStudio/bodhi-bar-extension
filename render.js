@@ -103,6 +103,10 @@ function applyVisibilityState(tabId) {
         bar.classList.remove('tz-minimized');
       }
     }
+
+    // FIX: Explicitly update page layout (push/overlay) after mode is loaded
+    // This ensures the "push" behavior applies immediately when switching modes
+    if (typeof applyPageShift === 'function') applyPageShift();
   });
 }
 
