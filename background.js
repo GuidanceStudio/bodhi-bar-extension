@@ -805,6 +805,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return;
       }
 
+      if (action === 'REFRESH_TAB') {
+        const tId = request.tabId;
+        if (tId != null) {
+          try {
+            await chrome.tabs.sendMessage(tId, { action: 'REFRESH_BAR' });
+          } catch (e) {
+            // Ignore if content script is not ready or tab is closed
+          }
+        }
+        sendResponse({ ok: true });
+        return;
+      }
+
       if (action === 'GET_GROUP_TABS') {
         const payload = await buildGroupTabsPayload(request.groupId);
         sendResponse(payload);
