@@ -20,6 +20,12 @@ const TZ_HANDSHAKE_MSG = { action: '__TZ_HANDSHAKE__' };
 const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
 const STORAGE_KEY_VISIBILITY_MODE = 'tz_visibility_mode';
 
+const VISIBILITY_MODES = {
+  PUSH: 'push',
+  OVERLAY: 'overlay',
+  HIDDEN: 'hidden'
+};
+
 const DEBUG = true;
 const TAG = '[BodhiBar]';
 const log = (...a) => DEBUG && console.log(TAG, ...a);
@@ -693,14 +699,27 @@ async function buildExportPayload() {
     getAllGroupsInWindow(windowId)
   ]);
 
+  // Fetch visibility modes for all tabs in this window
+  const data = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_MODE);
+  const modeMap = data?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+
   const pinnedTabs = [];
   const groupTabsMap = new Map(); // groupId -> tabItem[]
 
-  // minimal tab export helper
-  const tabToExport = (t) => ({
-    url: t.url || t.pendingUrl || '',
-    muted: !!(t.mutedInfo && t.mutedInfo.muted) // NEW: capture muted state
-  });
+  const tabToExport = (t) => {
+    const item = {
+      url: t.url || t.pendingUrl || '',
+      muted: !!(t.mutedInfo && t.mutedInfo.muted) // NEW: capture muted state
+    };
+
+    // Add visibility mode if it exists and is not the default PUSH
+    const mode = modeMap[String(t.id)];
+    if (mode && mode !== VISIBILITY_MODES.PUSH) {
+      item.visibilityMode = mode;
+    }
+
+    return item;
+  };
 
   for (const t of tabs) {
     if (t?.pinned) {
@@ -1171,6 +1190,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (created && muted) {
               try { await chrome.tabs.update(created.id, { muted: true }); } catch {}
             }
+
+            // Save visibility mode if present in export
+            if (created?.id != null && t.visibilityMode) {
+              try {
+                const res = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_MODE);
+                const map = res?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+                map[String(created.id)] = t.visibilityMode;
+                await chrome.storage.local.set({ [STORAGE_KEY_VISIBILITY_MODE]: map });
+              } catch (e) {
+                console.error('Failed to restore pinned visibility', e);
+              }
+            }
           }
 
           // Create groups and their tabs
@@ -1188,6 +1219,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 groupTabIds.push(created.id);
                 if (muted) {
                   try { await chrome.tabs.update(created.id, { muted: true }); } catch {}
+                }
+
+                // Save visibility mode if present in export
+                if (t.visibilityMode) {
+                  try {
+                    const res = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_MODE);
+                    const map = res?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+                    map[String(created.id)] = t.visibilityMode;
+                    await chrome.storage.local.set({ [STORAGE_KEY_VISIBILITY_MODE]: map });
+                  } catch (e) {
+                    console.error('Failed to restore group tab visibility', e);
+                  }
                 }
               }
             }
