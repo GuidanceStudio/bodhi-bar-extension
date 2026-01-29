@@ -249,11 +249,22 @@ function applyPageShift() {
   const isHiddenMode = window.currentVisibilityMode === VISIBILITY_MODES.HIDDEN;
   const isOverlayMode = window.currentVisibilityMode === VISIBILITY_MODES.OVERLAY;
 
-  const isHidden = !bar || bar.style.display === 'none' || getComputedStyle(bar).display === 'none' || isHiddenMode;
-  const isMinimized = bar && bar.classList.contains('tz-minimized');
 
-  if (isHidden || isMinimized) {
-    // If bar is hidden or minimized, restore pages and remove added padding
+  // --- FIX: Explicitly manage the bar's display property ---
+  if (isHiddenMode) {
+    // If hidden mode, force display to none
+    if (bar) bar.style.display = 'none';
+  } else {
+    // If Push or Overlay mode, ensure the bar is visible by clearing the inline style
+    if (bar) bar.style.display = '';
+  }
+  // -------------------------------------------------------
+
+  const isMinimized = bar && bar.classList.contains('tz-minimized');
+  const isHidden = !bar || bar.style.display === 'none' || getComputedStyle(bar).display === 'none' || isMinimized;
+
+  if (isHidden) {
+    // If bar is hidden, restore pages and remove added padding
     try { restoreShiftedHeaders(); } catch {}
     try {
       body.style.removeProperty('padding-top');
