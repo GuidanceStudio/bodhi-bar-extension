@@ -244,14 +244,11 @@ function scheduleHeaderShift() {
 function applyPageShift() {
   const body = document.body;
   if (!body) return;
-
   const bar = document.getElementById(TZ_BAR_ID);
-  const isHiddenMode = window.currentVisibilityMode === VISIBILITY_MODES.HIDDEN;
-  const isOverlayMode = window.currentVisibilityMode === VISIBILITY_MODES.OVERLAY;
+  const mode = window.currentVisibilityMode || VISIBILITY_MODES.PUSH;
 
-
-  if (isHiddenMode) {
-    // HIDDEN mode: bar is completely hidden
+  // 1. HIDDEN MODE: Bar is gone, no padding
+  if (mode === VISIBILITY_MODES.HIDDEN) {
     if (bar) bar.style.display = 'none';
     restoreShiftedHeaders();
     body.style.removeProperty('padding-top');
@@ -261,13 +258,9 @@ function applyPageShift() {
     return;
   }
 
-  // PUSH or OVERLAY mode: bar is visible
-  if (bar) bar.style.display = '';
-
-  const isMinimized = bar && bar.classList.contains('tz-minimized');
-  const isHidden = !bar || getComputedStyle(bar).display === 'none';
-
-  if (isHidden) {
+  // 2. OVERLAY MODE: Bar floats over content, no padding
+  if (mode === VISIBILITY_MODES.OVERLAY) {
+    if (bar) bar.style.display = '';
     restoreShiftedHeaders();
     body.style.removeProperty('padding-top');
     body.style.removeProperty('padding-bottom');
@@ -276,23 +269,20 @@ function applyPageShift() {
     return;
   }
 
-  if (isOverlayMode && isMinimized) {
-    // OVERLAY minimized: bar is minimized, don't shift content
-    restoreShiftedHeaders();
-    body.style.removeProperty('padding-top');
-    body.style.removeProperty('padding-bottom');
-    const st = document.head?.querySelector(`style[${TZ_SAFE_STYLE_ATTR}]`);
-    if (st) st.remove();
-    return;
+  // 3. PUSH MODE: Bar pushes content down, apply padding
+  if (mode === VISIBILITY_MODES.PUSH) {
+    if (bar) bar.style.display = '';
+    try {
+      ensureSafeAreasStyle();
+    } catch {}
+    try {
+      setInlineSafeAreasFallback();
+    } catch {}
+    scheduleHeaderShift();
+    isInternalResize = true;
+    window.dispatchEvent(new Event('resize'));
+    setTimeout(() => {
+      isInternalResize = false;
+    }, 80);
   }
-
-  // PUSH mode or OVERLAY expanded: shift content down
-  try { ensureSafeAreasStyle(); } catch {}
-  try { setInlineSafeAreasFallback(); } catch {}
-
-  scheduleHeaderShift();
-
-  isInternalResize = true;
-  window.dispatchEvent(new Event('resize'));
-  setTimeout(() => { isInternalResize = false; }, 80);
 }
