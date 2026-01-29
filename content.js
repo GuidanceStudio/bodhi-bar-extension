@@ -12,7 +12,6 @@ let cachedAllTabs = [];
 let suppressClickUntil = 0;
 
 const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
-const STORAGE_KEY_VISIBILITY_RULES = 'tz_visibility_rules';
 window.__tzCurrentTabId = null;
 
 function getThisTabId() {
