@@ -19,6 +19,7 @@ const TZ_PORT_NAME = 'TZ_UI_PORT';
 const TZ_HANDSHAKE_MSG = { action: '__TZ_HANDSHAKE__' };
 const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
 const STORAGE_KEY_VISIBILITY_MODE = 'tz_visibility_mode';
+const STORAGE_KEY_OVERRIDES = 'tz_site_overrides';
 
 const VISIBILITY_MODES = {
   PUSH: 'push',
@@ -691,7 +692,7 @@ async function buildUngroupedPayload() {
 
 async function buildExportPayload() {
   const active = await getActiveTab();
-  if (!active) return { pinnedTabs: [], allTabGroups: [] };
+  if (!active) return { pinnedTabs: [], allTabGroups: [], siteOverrides: {} };
 
   const windowId = active.windowId;
   const [tabs, groups] = await Promise.all([
@@ -700,8 +701,9 @@ async function buildExportPayload() {
   ]);
 
   // Fetch visibility modes for all tabs in this window
-  const data = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_MODE);
+  const data = await chrome.storage.local.get([STORAGE_KEY_VISIBILITY_MODE, STORAGE_KEY_OVERRIDES]);
   const modeMap = data?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+  const siteOverrides = data?.[STORAGE_KEY_OVERRIDES] || {};
 
   const pinnedTabs = [];
   const groupTabsMap = new Map(); // groupId -> tabItem[]
@@ -743,7 +745,7 @@ async function buildExportPayload() {
     tabs: (groupTabsMap.get(g.id) || []).slice()
   }));
 
-  return { pinnedTabs, allTabGroups };
+  return { pinnedTabs, allTabGroups, siteOverrides };
 }
 
 async function buildGroupTabsPayload(groupId) {
@@ -1172,6 +1174,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           const payload = request?.payload;
           const pinnedTabs = Array.isArray(payload?.pinnedTabs) ? payload.pinnedTabs : [];
           const allTabGroups = Array.isArray(payload?.allTabGroups) ? payload.allTabGroups : [];
+          const siteOverrides = payload?.siteOverrides || {};
 
           // Get current window
           const activeWindow = await chrome.windows.getLastFocused({});
@@ -1261,6 +1264,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 try { await chrome.tabGroups.update(groupId, { title }); } catch {}
               }
             }
+          }
+
+          // Restore site overrides
+          if (Object.keys(siteOverrides).length > 0) {
+            await chrome.storage.local.set({ [STORAGE_KEY_OVERRIDES]: siteOverrides });
           }
 
           // Minimize all groups (so they're collapsed)
