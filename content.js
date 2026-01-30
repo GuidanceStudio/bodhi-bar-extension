@@ -185,6 +185,10 @@ function matchesPattern(url, pattern) {
   }
 }
 
+function setVisibilityMode(mode) {
+  window.currentVisibilityMode = mode;
+}
+
 async function boot() {
   if (_tzDidBoot) return;
   _tzDidBoot = true;
