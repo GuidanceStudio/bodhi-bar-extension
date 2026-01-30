@@ -32,7 +32,8 @@
 - **Auto-ungrouping**: New tabs opened inside existing groups are automatically ungrouped to keep groups "clean".
 - **Group Collapsing**: Native tab groups are collapsed/expanded on tab activation for a cleaner UI.
 - **Zoom**: The bar uses zoom-compensated metrics; ensure `zoom.js` is called on resize/zoom events.
-- **Visibility**: Per-tab visibility is stored in `chrome.storage.local` (`tz_hidden_by_tab`). Hiding the bar restores page layout via `page-shift.js`.
+- **Visibility**: Per-tab visibility is stored in `chrome.storage.local` (`tz_visibility_mode`). Rules are in `tz_visibility_rules`.
+- **Overrides**: CSS overrides are stored in `tz_site_overrides` and applied dynamically by `site_overrides.js`.
 
 ## Docs
 - See `README.md` for user-facing features and setup instructions.
