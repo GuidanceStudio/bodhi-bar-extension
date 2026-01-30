@@ -764,16 +764,73 @@ function initPopup() {
       select.value = currentMode;
       select.disabled = false;
 
-      // 3. Setup Domain Rules List
+      // 3. Setup Domain Rules & CSS
       const rulesSection = document.getElementById('domain-rules-section');
       const rulesListEl = document.getElementById('activeRulesList');
       const btnAddRule = document.getElementById('btnAddRule');
+      const btnEditCss = document.getElementById('btnEditCss');
+      const cssEditorContainer = document.getElementById('cssEditorContainer');
+      const cssEditorInput = document.getElementById('cssEditorInput');
+      const btnSaveCss = document.getElementById('btnSaveCss');
       const domainBadge = document.getElementById('currentDomain');
 
       if (hostname && rulesSection) {
         rulesSection.style.display = 'block';
         if (domainBadge) domainBadge.textContent = hostname;
 
+        // --- CSS Override Logic ---
+        const loadCss = async () => {
+          const data = await storageGet(STORAGE_KEY_OVERRIDES);
+          const overrides = data?.[STORAGE_KEY_OVERRIDES] || {};
+          const css = overrides[hostname] || '';
+          cssEditorInput.value = css;
+          if (css) {
+            btnEditCss.classList.add('active'); // Visual cue if CSS exists
+            btnEditCss.style.color = 'var(--accent)';
+          } else {
+            btnEditCss.classList.remove('active');
+            btnEditCss.style.color = '';
+          }
+        };
+        await loadCss();
+
+        btnEditCss.onclick = () => {
+          const isHidden = cssEditorContainer.style.display === 'none';
+          cssEditorContainer.style.display = isHidden ? 'block' : 'none';
+          if (isHidden) cssEditorInput.focus();
+        };
+
+        btnSaveCss.onclick = async () => {
+          const css = cssEditorInput.value;
+          const data = await storageGet(STORAGE_KEY_OVERRIDES);
+          const overrides = data?.[STORAGE_KEY_OVERRIDES] || {};
+          
+          if (css.trim()) {
+            overrides[hostname] = css;
+          } else {
+            delete overrides[hostname];
+          }
+          
+          await storageSet({ [STORAGE_KEY_OVERRIDES]: overrides });
+          await loadCss();
+          
+          // Send refresh message to current tab to apply CSS changes
+          try {
+            await chrome.tabs.sendMessage(tabId, { action: 'REFRESH_BAR' });
+          } catch (e) {
+            // Content script might not be ready, ignore
+          }
+          
+          // Feedback
+          const originalText = btnSaveCss.textContent;
+          btnSaveCss.textContent = 'Saved!';
+          setTimeout(() => {
+            btnSaveCss.textContent = originalText;
+            cssEditorContainer.style.display = 'none';
+          }, 800);
+        };
+
+        // --- Rules Logic ---
         const createRowUI = (rule, isNew, onSave, onDelete, onCancel) => {
             const row = document.createElement('div');
             row.className = 'rule-row';
