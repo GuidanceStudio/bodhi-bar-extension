@@ -1,63 +1,107 @@
 /*
  site_overrides.js
- Per-site CSS patches only. Injected by background.js into all frames.
+ Per-site CSS patches.
+ Fetches overrides from storage and applies them ONLY if visibility mode is PUSH.
 */
 
-(() => {
-  function ensureStyleTag(key) {
-    const head = document.head || document.documentElement;
-    if (!head) return null;
+(async () => {
+  const STORAGE_KEY_OVERRIDES = 'tz_site_overrides';
+  const STORAGE_KEY_MODE = 'tz_visibility_mode';
+  const STORAGE_KEY_RULES = 'tz_visibility_rules';
+  const VISIBILITY_MODES = { PUSH: 'push', OVERLAY: 'overlay', HIDDEN: 'hidden' };
 
-    const attr = 'data-tz-site-overrides';
-    const existing = head.querySelector(`style[${attr}="${key}"]`);
-    if (existing) return existing;
+  // Helper: Get storage
+  const getStorage = (keys) => new Promise(r => chrome.storage.local.get(keys, r));
 
-    const st = document.createElement('style');
-    st.setAttribute(attr, key);
-    head.appendChild(st);
-    return st;
+  // Helper: Get Tab ID
+  const getTabId = () => new Promise(r => chrome.runtime.sendMessage({ action: 'GET_TAB_ID' }, res => r(res?.tabId)));
+
+  // Helper: Glob matcher
+  function globToRegex(glob) {
+    const escaped = glob.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = escaped.replace(/\*/g, '.*');
+    return new RegExp(`^${pattern}$`, 'i');
   }
 
-  function addCss(key, cssText) {
-    const css = String(cssText || '').trim();
-    if (!css) return;
-    const st = ensureStyleTag(key);
-    if (!st) return;
+  // Helper: Inject/Remove CSS
+  const updateStyle = (css) => {
+    const id = 'bodhi-site-override';
+    let st = document.getElementById(id);
+    if (!css) {
+      if (st) st.remove();
+      return;
+    }
+    if (!st) {
+      st = document.createElement('style');
+      st.id = id;
+      (document.head || document.documentElement).appendChild(st);
+    }
+    if (st.textContent !== css) st.textContent = css;
+  };
 
-    // Idempotent: if already applied, do nothing.
-    if (st.textContent && st.textContent.includes(css)) return;
+  const apply = async () => {
+    const data = await getStorage([STORAGE_KEY_OVERRIDES, STORAGE_KEY_MODE, STORAGE_KEY_RULES]);
+    
+    const hostname = location.hostname;
+    const overrides = data[STORAGE_KEY_OVERRIDES] || {};
+    const css = overrides[hostname];
 
-    st.textContent = (st.textContent ? (st.textContent + '\n') : '') + css + '\n';
-  }
+    if (!css) {
+      updateStyle(null);
+      return;
+    }
 
-  function hostIs(host, suffix) {
-    return host === suffix || host.endsWith(`.${suffix}`);
-  }
+    // Determine Mode
+    let mode = VISIBILITY_MODES.PUSH; // Default
 
-  const host = String(location.hostname || '');
-  const path = String(location.pathname || '');
-
-  // ---- YouTube: avoid masthead collision by forcing transform-based offset ----
-  if (hostIs(host, 'youtube.com')) {
-    addCss('youtube.com', `
-      /* Bodhi Bar site override: YouTube masthead */
-      #masthead-container{
-        transform: translateY(var(--tz-h, 0px)) !important;
-        will-change: transform !important;
+    try {
+      // 1. Try to get tab ID for tab-specific mode
+      const tabId = await getTabId();
+      if (tabId) {
+        const tabModes = data[STORAGE_KEY_MODE] || {};
+        if (tabModes[tabId]) {
+          mode = tabModes[tabId];
+        }
       }
-    `);
-  }
+    } catch (e) {
+      // If we can't get tab ID, continue with rules
+    }
 
-  // ---- Google Sheets: ensure bottom safe area doesn't get clipped by grid container ----
-  // Previously this was done by selecting a "safe bottom container" in JS.
-  // Now we apply a CSS padding-bottom patch to the known container.
-  if (host === 'docs.google.com' && path.includes('/spreadsheets/')) {
-    addCss('docs.google.com/spreadsheets', `
-      /* Bodhi Bar site override: Google Sheets bottom clipper */
-      #0-grid-container{
-        padding-bottom: min(var(--tz-h, 0px), 48px) !important;
-        box-sizing: border-box !important;
+    // 2. If still default PUSH, check rules
+    if (mode === VISIBILITY_MODES.PUSH) {
+      const rules = data[STORAGE_KEY_RULES] || [];
+      const url = location.href;
+      const matches = rules.filter(r => globToRegex(r.pattern).test(url));
+      matches.sort((a, b) => b.pattern.length - a.pattern.length);
+      if (matches.length > 0) {
+        mode = matches[0].mode;
       }
-    `);
-  }
+    }
+
+    // 3. Apply only if PUSH
+    if (mode === VISIBILITY_MODES.PUSH) {
+      updateStyle(css);
+    } else {
+      updateStyle(null);
+    }
+  };
+
+  // Initial run
+  apply();
+
+  // Listen for changes
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local') {
+      if (changes[STORAGE_KEY_OVERRIDES] || changes[STORAGE_KEY_MODE] || changes[STORAGE_KEY_RULES]) {
+        apply();
+      }
+    }
+  });
+  
+  // Listen for direct messages (e.g. from popup toggles)
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.action === 'REFRESH_BAR' || msg.action === 'SET_VISIBILITY_MODE') {
+      apply();
+    }
+  });
 })();

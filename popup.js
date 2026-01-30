@@ -113,6 +113,11 @@ function normalizeImportedWorkspaceJson(raw) {
   if (siteOverrides != null && !isPlainObject(siteOverrides)) {
     return { ok: false, error: 'Invalid payload: "siteOverrides" must be an object.' };
   }
+  
+  const visibilityRules = payload.visibilityRules; // Optional
+  if (visibilityRules != null && !Array.isArray(visibilityRules)) {
+    return { ok: false, error: 'Invalid payload: "visibilityRules" must be an array.' };
+  }
 
   const name = (typeof raw.name === 'string') ? sanitizeWorkspaceName(raw.name) : '';
   return { ok: true, name, payload };
@@ -608,10 +613,15 @@ function initPopup() {
              const workspaces = await storageGetWorkspaces();
              if (workspaces[workspaceName] && !confirm(`Overwrite "${workspaceName}"?`)) return;
              
-             // Capture current site overrides
-             const overridesData = await storageGet(STORAGE_KEY_OVERRIDES);
+             // Capture current site overrides and visibility rules
+             const [overridesData, rulesData] = await Promise.all([
+               storageGet(STORAGE_KEY_OVERRIDES),
+               storageGet(STORAGE_KEY_VISIBILITY_RULES)
+             ]);
              const currentOverrides = overridesData?.[STORAGE_KEY_OVERRIDES] || {};
+             const currentRules = rulesData?.[STORAGE_KEY_VISIBILITY_RULES] || [];
              exp.payload.siteOverrides = currentOverrides;
+             exp.payload.visibilityRules = currentRules;
 
              workspaces[workspaceName] = { name: workspaceName, createdAt: Date.now(), payload: exp.payload };
              await storageSetWorkspaces(workspaces);
