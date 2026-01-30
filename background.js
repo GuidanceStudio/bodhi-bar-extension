@@ -4,7 +4,9 @@
  *
  * + Injects site_overrides.js into all frames on completed navigations
  *   so overrides are always available even when content_scripts ordering
- *   / injection is flaky in Brave.
+ *   / injection is flaky in Brave. The new site_overrides.js dynamically
+ *   loads CSS from user-editable storage (tz_site_overrides) and applies
+ *   it only when visibility mode is PUSH.
  *
  * + CLOSE_TAB action for UI "X" button.
  *
@@ -52,6 +54,8 @@ const UI_REFRESH_RETRY_MS = 450;
 const STARTUP_GRACE_MS = 20000;
 
 // ---- Overrides injection (site_overrides.js) ----
+// Injects the dynamic CSS override system that loads user-defined CSS
+// from storage (tz_site_overrides) and applies it only in PUSH mode.
 const OVERRIDES_FILE = 'site_overrides.js';
 const overridesInjected = new Map(); // tabId -> lastInjectedUrl
 
