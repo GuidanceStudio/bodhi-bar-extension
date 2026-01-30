@@ -311,30 +311,41 @@ function getHostname(url) {
 
 // --- UPDATED VISIBILITY LOGIC ---
 
-async function updateDomainRule(hostname, mode, shouldExist) {
-  if (!hostname) return;
-  const pattern = hostname + '/*'; // Simple domain wildcard
+function globToRegex(glob) {
+  // Escape regex chars except *
+  const escaped = glob.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+  // Convert * to .*
+  const pattern = escaped.replace(/\*/g, '.*');
+  return new RegExp(`^${pattern}$`, 'i');
+}
+
+async function getMatchingRule(url) {
+  if (!url) return null;
+  const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
+  const rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
   
+  // Find first matching rule
+  return rules.find(r => globToRegex(r.pattern).test(url)) || null;
+}
+
+async function saveRule(oldPattern, newPattern, mode) {
   const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
   let rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
 
-  // Remove existing rule for this specific pattern to avoid duplicates
-  rules = rules.filter(r => r.pattern !== pattern);
+  // Remove old pattern if it exists
+  if (oldPattern) {
+    rules = rules.filter(r => r.pattern !== oldPattern);
+  }
 
-  if (shouldExist) {
-    rules.push({ pattern, mode });
+  // Add new pattern if provided
+  if (newPattern) {
+    // Remove any existing rule with the exact same new pattern to avoid dupes
+    rules = rules.filter(r => r.pattern !== newPattern);
+    rules.push({ pattern: newPattern, mode });
   }
 
   await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
   renderVisibilityRulesList();
-}
-
-async function getRuleForHostname(hostname) {
-  if (!hostname) return null;
-  const pattern = hostname + '/*';
-  const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
-  const rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-  return rules.find(r => r.pattern === pattern) || null;
 }
 
 function showToggleMessage(text) {
@@ -747,21 +758,76 @@ function initPopup() {
       select.value = currentMode;
       select.disabled = false;
 
-      // 3. Setup Domain Toggle
+      // 3. Setup Domain/Pattern Toggle
+      let activeRule = null;
       if (hostname && domainRow) {
         domainRow.style.display = 'flex';
-        domainLabel.textContent = hostname;
+        const labelEl = document.getElementById('domainLabel');
+        const inputEl = document.getElementById('domainPatternInput');
+        const domainBadge = document.getElementById('currentDomain');
+        
+        if (domainBadge) domainBadge.textContent = hostname;
 
-        // Check if a rule already exists for this exact domain
-        const existingRule = await getRuleForHostname(hostname);
-        domainToggle.checked = !!existingRule;
+        // Check if ANY rule matches this URL
+        activeRule = await getMatchingRule(url);
+        
+        const updateUI = () => {
+          if (activeRule) {
+            domainToggle.checked = true;
+            labelEl.style.display = 'none';
+            inputEl.style.display = 'block';
+            inputEl.value = activeRule.pattern;
+          } else {
+            domainToggle.checked = false;
+            labelEl.style.display = 'block';
+            inputEl.style.display = 'none';
+            inputEl.value = hostname + '/*'; // Default suggestion
+          }
+        };
+
+        updateUI();
 
         // Toggle Event
         domainToggle.onchange = async () => {
           const isChecked = domainToggle.checked;
-          const modeToSave = select.value; // Save whatever is currently selected
-          await updateDomainRule(hostname, modeToSave, isChecked);
+          const mode = select.value;
+
+          if (isChecked) {
+            // Create new rule
+            const pattern = hostname + '/*';
+            await saveRule(null, pattern, mode);
+            activeRule = { pattern, mode };
+          } else {
+            // Delete active rule
+            if (activeRule) {
+              await saveRule(activeRule.pattern, null, null);
+              activeRule = null;
+            }
+          }
+          updateUI();
         };
+
+        // Input Edit Event (Enter or Blur)
+        const commitChange = async () => {
+          if (!activeRule) return;
+          const newPattern = inputEl.value.trim();
+          if (!newPattern) return; // Don't allow empty
+
+          if (newPattern !== activeRule.pattern) {
+            const mode = select.value;
+            await saveRule(activeRule.pattern, newPattern, mode);
+            activeRule = { pattern: newPattern, mode };
+          }
+        };
+
+        inputEl.addEventListener('change', commitChange);
+        inputEl.addEventListener('blur', commitChange);
+        inputEl.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            commitChange();
+            inputEl.blur();
+          }
+        });
       }
 
       // 4. Dropdown Change Event
@@ -780,9 +846,10 @@ function initPopup() {
           await runtimeSendMessage({ action: 'REFRESH_TAB', tabId });
         } catch (e) {}
 
-        // Update Rule if checkbox is checked
-        if (hostname && domainToggle.checked) {
-          await updateDomainRule(hostname, newMode, true);
+        // Update Rule if active
+        if (activeRule) {
+          await saveRule(activeRule.pattern, activeRule.pattern, newMode);
+          activeRule.mode = newMode;
         }
       };
 

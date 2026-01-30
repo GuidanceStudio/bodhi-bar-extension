@@ -22,9 +22,14 @@
       <!-- New: Simple Domain Toggle -->
       <div id="domain-setting-row" class="checkbox-row" style="display:none;">
         <input type="checkbox" id="domainToggle">
-        <label for="domainToggle">
+        
+        <!-- State A: Label (Clean) -->
+        <label for="domainToggle" id="domainLabel">
           Always apply to <span id="currentDomain" class="domain-badge">this site</span>
         </label>
+
+        <!-- State B: Editable Pattern (Powerful) -->
+        <input type="text" id="domainPatternInput" class="pattern-input" style="display:none;" spellcheck="false">
       </div>
     </div>
 
