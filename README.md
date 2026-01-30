@@ -40,7 +40,7 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
   - This affects the browser's native tab strip (not just the in-page bar) and is skipped during the startup/session-restore grace period.
 - **Horizontal tab bar UI (in-page)**:
   - The UI is injected at the top of normal web pages and provides quick access to your tabs without relying on the browser tab strip.
-  - **Minimize/Expand**: click the small icon button at the far left of the bar to collapse it to a tiny control; click again to restore. This state is saved **per tab**.
+  - **Minimize/Expand**: In **Overlay** mode, click the small arrow icon at the far left to collapse the bar to a tiny control. This state is saved **per tab**. (Note: The minimize button is hidden in Push mode).
   - Level 1: pinned favicons + ungrouped tabs (web + system separated by a divider)
   - “Groups” trigger to navigate into groups
 - **Group navigation (multi-level)**:
@@ -74,28 +74,29 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
   - Automatic page “safe area” padding + header collision shifting for fixed/sticky headers
   - Per-site overrides for known tricky layouts (e.g., YouTube header, Google Sheets bottom container)
 
-## Visibility Control (Hide/Show)
+## Visibility Control (Push / Overlay / Hidden)
 
-The Bodhi Bar can be toggled on or off **per tab** via the extension's action menu. This allows you to reclaim full screen space on specific sites or during focused work without disabling the extension.
+The Bodhi Bar supports three visibility modes, togglable **per tab** via the extension's popup:
 
-Additionally, you can configure a **Default Hidden Sites** list in the popup. If the current URL matches an entry in this list, the bar will be hidden automatically.
+1. **Push (Default)**: The bar is fixed at the top and pushes the website content down so nothing is obscured. The minimize button is disabled in this mode to ensure layout stability.
+2. **Overlay**: The bar floats over the website content. In this mode, a **minimize button** (arrow icon) appears on the left, allowing you to collapse the bar into a small floating trigger.
+3. **Hidden**: The bar is completely removed from the DOM for that tab.
+
+You can also configure a **Default Hidden Sites** list in the popup. If the current URL matches an entry in this list, the bar will be hidden automatically unless an explicit toggle is set.
 
 ### Priority Logic:
 1.  **Explicit Toggle**: If you manually click "Show/Hide" in the popup, that setting is respected.
 2.  **Default List**: If no manual toggle exists, the extension checks the "Hidden Sites" list. If the current site is listed, the bar is hidden.
 3.  **Default**: If neither applies, the bar is shown.
 
-Note: **Hide** is different from **Minimize**. Hiding fully removes the bar from the page. Minimizing keeps a small control visible so you can quickly restore the bar.
-
 ### How it works:
 1.  **Extension Icon**: Click the Bodhi Bar icon in the Chrome toolbar.
-2.  **Dynamic Toggle**:
-    *   If the bar is currently visible, the popup will show a **"Hide Bar"** button.
-    *   If the bar is hidden, the popup will show a **"Show Bar"** button.
-3.  **Default Sites**: Use the "Hidden Sites" section in the popup to add domains (e.g., `google.com`) or specific paths. The bar will be hidden on these pages automatically.
-4.  **Instant Layout Adjustment**: When hidden, the extension automatically removes the `padding-top` and `margin` adjustments from the current webpage, allowing the site's original headers and content to return to their default positions.
-5.  **Persistence**: Your visibility preference is saved in `chrome.storage.local` per tab. If you hide the bar on a tab, it will remain hidden for that tab across reloads/restarts (until you show it again).
-6.  **Context Awareness**: The toggle sends a real-time message to the active tab to hide/show the bar instantly without requiring a page refresh.
+2.  **Mode Selection**: Choose between Push, Overlay, or Hidden.
+3.  **Minimize (Overlay only)**: When in Overlay mode, use the `‹` icon to collapse the bar. The bar will remember its minimized/expanded state for that specific tab.
+4.  **Default Sites**: Use the "Hidden Sites" section in the popup to add domains (e.g., `google.com`) or specific paths. The bar will be hidden on these pages automatically.
+5.  **Instant Layout Adjustment**: When hidden, the extension automatically removes the `padding-top` and `margin` adjustments from the current webpage, allowing the site's original headers and content to return to their default positions.
+6.  **Persistence**: Your visibility preference is saved in `chrome.storage.local` per tab. If you hide the bar on a tab, it will remain hidden for that tab across reloads/restarts (until you show it again).
+7.  **Context Awareness**: The toggle sends a real-time message to the active tab to hide/show the bar instantly without requiring a page refresh.
 
 ---
 
