@@ -364,3 +364,102 @@ select#visibilityModeSelect:disabled {
 #tz-rule-mode-select:focus {
   border-color: var(--accent);
 }
+
+/* Panel styling for grouping */
+.panel {
+  background: #252525;
+  border: 1px solid rgba(255,255,255,0.04);
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+/* Checkbox Row */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.checkbox-row input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.checkbox-row label {
+  font-size: 12px;
+  color: var(--white);
+  cursor: pointer;
+  user-select: none;
+}
+
+.domain-badge {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Advanced Details Section */
+details.advanced-section {
+  margin-top: 8px;
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 6px;
+  background: #252525;
+}
+
+details.advanced-section summary {
+  padding: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  list-style: none; /* Hide default triangle in some browsers */
+}
+
+details.advanced-section summary::-webkit-details-marker {
+  display: none;
+}
+
+details.advanced-section summary::after {
+  content: '+'; 
+  float: right;
+  font-weight: bold;
+}
+
+details.advanced-section[open] summary::after {
+  content: '-';
+}
+
+details.advanced-section[open] summary {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: var(--white);
+}
+
+.advanced-content {
+  padding: 10px;
+}
+
+/* Input Row in Advanced */
+.input-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.input-row input {
+  flex: 1;
+  background: #333;
+  border: 1px solid #444;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.input-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
