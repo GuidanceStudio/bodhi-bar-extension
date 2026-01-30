@@ -70,10 +70,18 @@ function syncMinimizeButtonUI() {
   const bar = document.getElementById(TZ_BAR_ID);
   if (!bar) return;
   const btn = bar.querySelector('.tz-minimize-btn');
-  if (!btn) return;
-
-  // Get current mode and minimized state
+  
+  // If we are in PUSH mode but the button exists, we should probably refresh the bar
+  // or just hide it. For consistency with the render functions:
   const mode = window.currentVisibilityMode || VISIBILITY_MODES.PUSH;
+  if (mode === VISIBILITY_MODES.PUSH && btn) {
+    btn.style.display = 'none';
+    return;
+  }
+  
+  if (!btn) return;
+  btn.style.display = '';
+
   const minimized = bar.classList.contains('tz-minimized');
 
   if (mode === VISIBILITY_MODES.HIDDEN) {
@@ -88,7 +96,7 @@ function syncMinimizeButtonUI() {
       btn.title = 'Minimize bar (Overlay mode)';
     }
   } else {
-    // PUSH mode
+    // PUSH mode (button should be hidden already)
     btn.textContent = '◻';
     btn.title = 'Switch to Overlay mode';
   }
@@ -113,6 +121,8 @@ function applyVisibilityState(tabId) {
     if (bar) {
       // Reset minimized state by default
       bar.classList.remove('tz-minimized');
+      // Add a class to indicate the current mode for CSS
+      bar.classList.toggle('tz-mode-overlay', mode === VISIBILITY_MODES.OVERLAY);
 
       if (mode === VISIBILITY_MODES.HIDDEN) {
         // HIDDEN: Bar is completely hidden, not minimized
@@ -125,12 +135,18 @@ function applyVisibilityState(tabId) {
           if (minMap[String(tabId)]) {
             bar.classList.add('tz-minimized');
           }
+          // Ensure the minimize button is present/hidden according to mode
+          const btn = bar.querySelector('.tz-minimize-btn');
+          if (btn) btn.style.display = '';
           if (typeof applyPageShift === 'function') applyPageShift();
         });
         return; // Return early to avoid double applyPageShift call
       } else {
         // PUSH: Bar is visible and never minimized
         bar.style.display = '';
+        // Ensure the minimize button is hidden
+        const btn = bar.querySelector('.tz-minimize-btn');
+        if (btn) btn.style.display = 'none';
       }
     }
 

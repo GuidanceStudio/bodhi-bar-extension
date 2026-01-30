@@ -867,6 +867,11 @@
   display:none !important;
 }
 
+/* Hide the minimize button when not in OVERLAY mode */
+#ungroup-automatic-tab-bar:not(.tz-mode-overlay) .tz-minimize-btn {
+  display: none !important;
+}
+
 /* Global icon hover: lighten icons across the bar (all levels) */
 #ungroup-automatic-tab-bar .tab-favicon,
 #ungroup-automatic-tab-bar .tz-search .icon,
