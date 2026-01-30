@@ -15,17 +15,8 @@ const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
 window.__tzCurrentTabId = null;
 
 function getThisTabId() {
-  return new Promise((resolve) => {
-    try {
-      chrome.runtime.sendMessage({ action: 'GET_TAB_ID' }, (resp) => {
-        const err = chrome.runtime?.lastError;
-        if (err) return resolve(null);
-        resolve(resp?.tabId ?? null);
-      });
-    } catch {
-      resolve(null);
-    }
-  });
+  return safeRuntimeSendMessageWithRetry({ action: 'GET_TAB_ID' }, 3)
+    .then(resp => resp?.tabId ?? null);
 }
 
 // Tab action handlers
@@ -192,47 +183,61 @@ async function boot() {
   _tzDidBoot = true;
 
   try {
-    const tabId = await getThisTabId();
-    let isHidden = false;
-    let initialMode = VISIBILITY_MODES.PUSH; // Default
+    // Fetch Tab ID and Storage Data in parallel for speed
+    const [tabId, storageData] = await Promise.all([
+      getThisTabId(),
+      chrome.storage.local.get([
+        STORAGE_KEY_VISIBILITY_MODE, 
+        STORAGE_KEY_VISIBILITY_RULES, 
+        'tz_default_hidden_sites'
+      ])
+    ]);
 
+    let initialMode = null;
+
+    // 1. Check explicit per-tab visibility (Highest Priority)
     if (tabId != null) {
-      // 1. Check explicit per-tab visibility (Highest Priority)
-      const data = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_MODE);
-      const map = data?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-      const mode = map[String(tabId)];
-
-      if (mode) {
-        initialMode = mode;
-      } else {
-        // 2. Check Visibility Patterns (New Logic)
-        const rulesData = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_RULES);
-        const rules = rulesData?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-        const currentUrl = window.location.href;
-
-        // Find the first matching rule
-        const matchingRule = rules.find(rule => {
-          if (!rule.pattern || !rule.mode) return false;
-          return matchesPattern(currentUrl, rule.pattern);
-        });
-
-        if (matchingRule) {
-          initialMode = matchingRule.mode;
-        } else {
-          // 3. Fallback to old "default hidden sites" list for backward compatibility
-          const defaultData = await chrome.storage.local.get('tz_default_hidden_sites');
-          const hiddenSites = defaultData?.['tz_default_hidden_sites'] || [];
-
-          if (hiddenSites.some(site => matchesPattern(currentUrl, site))) {
-            initialMode = VISIBILITY_MODES.HIDDEN;
-          }
-        }
+      const map = storageData?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+      if (map[String(tabId)]) {
+        initialMode = map[String(tabId)];
       }
-
-      // Set the global mode
-      setVisibilityMode(initialMode);
-      isHidden = (initialMode === VISIBILITY_MODES.HIDDEN);
     }
+
+    // 2. Check Visibility Patterns (if no explicit override)
+    if (!initialMode) {
+      const rules = storageData?.[STORAGE_KEY_VISIBILITY_RULES] || [];
+      const currentUrl = window.location.href;
+
+      // Find matching rules and sort by specificity (length)
+      const matches = rules.filter(rule => {
+        if (!rule.pattern || !rule.mode) return false;
+        return matchesPattern(currentUrl, rule.pattern);
+      });
+      
+      matches.sort((a, b) => b.pattern.length - a.pattern.length);
+
+      if (matches.length > 0) {
+        initialMode = matches[0].mode;
+      }
+    }
+
+    // 3. Fallback to old "default hidden sites" (Legacy)
+    if (!initialMode) {
+      const hiddenSites = storageData?.['tz_default_hidden_sites'] || [];
+      const currentUrl = window.location.href;
+      if (hiddenSites.some(site => matchesPattern(currentUrl, site))) {
+        initialMode = VISIBILITY_MODES.HIDDEN;
+      }
+    }
+
+    // 4. Default
+    if (!initialMode) {
+      initialMode = VISIBILITY_MODES.PUSH;
+    }
+
+    // Set the global mode
+    setVisibilityMode(initialMode);
+    const isHidden = (initialMode === VISIBILITY_MODES.HIDDEN);
 
     captureBaseDPR();
     safeConnectPort();
