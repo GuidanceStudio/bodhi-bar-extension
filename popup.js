@@ -642,8 +642,26 @@ function initPopup() {
       }
 
       const getModeForTab = async () => {
-        const data = await storageGet(STORAGE_KEY_VISIBILITY_MODE);
-        return (data?.[STORAGE_KEY_VISIBILITY_MODE] || {})[String(tabId)] || VISIBILITY_MODES.PUSH;
+        // 1. Check Explicit Tab Override
+        const modeData = await storageGet(STORAGE_KEY_VISIBILITY_MODE);
+        const tabModes = modeData?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+        if (tabId && tabModes[String(tabId)]) {
+          return tabModes[String(tabId)];
+        }
+
+        // 2. Check Rules
+        const ruleData = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
+        const rules = ruleData?.[STORAGE_KEY_VISIBILITY_RULES] || [];
+        const matches = rules.filter(r => globToRegex(r.pattern).test(url));
+        // Sort by length (longest = most specific wins)
+        matches.sort((a, b) => b.pattern.length - a.pattern.length);
+        
+        if (matches.length > 0) {
+          return matches[0].mode;
+        }
+
+        // 3. Default
+        return VISIBILITY_MODES.PUSH;
       };
 
       const currentMode = await getModeForTab();

@@ -52,10 +52,10 @@
     }
 
     // Determine Mode
-    let mode = VISIBILITY_MODES.PUSH; // Default
+    let mode = null;
 
+    // 1. Explicit Tab Override
     try {
-      // 1. Try to get tab ID for tab-specific mode
       const tabId = await getTabId();
       if (tabId) {
         const tabModes = data[STORAGE_KEY_MODE] || {};
@@ -63,12 +63,10 @@
           mode = tabModes[tabId];
         }
       }
-    } catch (e) {
-      // If we can't get tab ID, continue with rules
-    }
+    } catch (e) { /* ignore */ }
 
-    // 2. If still default PUSH, check rules
-    if (mode === VISIBILITY_MODES.PUSH) {
+    // 2. Rules (only if no explicit override)
+    if (!mode) {
       const rules = data[STORAGE_KEY_RULES] || [];
       const url = location.href;
       const matches = rules.filter(r => globToRegex(r.pattern).test(url));
@@ -76,6 +74,11 @@
       if (matches.length > 0) {
         mode = matches[0].mode;
       }
+    }
+
+    // 3. Default
+    if (!mode) {
+      mode = VISIBILITY_MODES.PUSH;
     }
 
     // 3. Apply only if PUSH
