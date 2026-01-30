@@ -277,19 +277,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ success: true });
   }
 
-  // Add this new block
   if (request.action === 'SET_VISIBILITY_MODE') {
-    if (typeof setVisibilityMode === 'function') {
-      setVisibilityMode(request.mode);
-      
-      // Call the render function that handles the DOM visibility and minimize button
+    setVisibilityMode(request.mode);
+    
+    // Get the current tab ID and apply the visibility state
+    getThisTabId().then(tabId => {
+      // Re-render the bar to update the minimize button visibility
       if (typeof applyVisibilityState === 'function') {
-        // We use the cached tab ID or request it
-        getThisTabId().then(id => applyVisibilityState(id));
-      } else if (typeof applyPageShift === 'function') {
-        applyPageShift();
+        applyVisibilityState(tabId);
       }
-    }
+      // Also update the bar display
+      const bar = document.getElementById(TZ_BAR_ID);
+      if (bar) {
+        if (request.mode === VISIBILITY_MODES.HIDDEN) {
+          bar.style.setProperty('display', 'none', 'important');
+        } else {
+          bar.style.display = '';
+          // Request tab list to refresh the bar
+          requestTabList();
+        }
+        // Update CSS class for mode
+        bar.classList.toggle('tz-mode-overlay', request.mode === VISIBILITY_MODES.OVERLAY);
+        bar.classList.toggle('tz-mode-push', request.mode === VISIBILITY_MODES.PUSH);
+      }
+      if (typeof applyPageShift === 'function') applyPageShift();
+    });
+    
     sendResponse({ success: true });
   }
 });

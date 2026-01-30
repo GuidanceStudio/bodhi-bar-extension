@@ -115,45 +115,48 @@ function applyVisibilityState(tabId) {
   chrome.storage.local.get([STORAGE_KEY_VISIBILITY_MODE], (obj) => {
     const map = obj?.[STORAGE_KEY_VISIBILITY_MODE] || {};
     const mode = map[String(tabId)] || VISIBILITY_MODES.PUSH;
-    setVisibilityMode(mode);
+    // Update the global mode variable
+    if (typeof setVisibilityMode === 'function') {
+      setVisibilityMode(mode);
+    } else {
+      window.currentVisibilityMode = mode;
+    }
 
     const bar = document.getElementById(TZ_BAR_ID);
     if (bar) {
-      // Reset minimized state by default
-      bar.classList.remove('tz-minimized');
-      // Add a class to indicate the current mode for CSS
+      // Update mode classes
       bar.classList.toggle('tz-mode-overlay', mode === VISIBILITY_MODES.OVERLAY);
-
+      bar.classList.toggle('tz-mode-push', mode === VISIBILITY_MODES.PUSH);
+      
       if (mode === VISIBILITY_MODES.HIDDEN) {
-        // HIDDEN: Bar is completely hidden, not minimized
         bar.style.setProperty('display', 'none', 'important');
+        // Reset minimized state when hidden
+        bar.classList.remove('tz-minimized');
       } else {
-        // Ensure bar is visible if moving away from HIDDEN
-        bar.style.display = ''; 
+        bar.style.display = '';
         bar.style.removeProperty('display');
         
         if (mode === VISIBILITY_MODES.OVERLAY) {
-          // OVERLAY: Bar is visible, check if minimized
+          // Check minimized state for OVERLAY mode
           chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (minObj) => {
             const minMap = minObj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
             if (minMap[String(tabId)]) {
               bar.classList.add('tz-minimized');
+            } else {
+              bar.classList.remove('tz-minimized');
             }
-            // Ensure the minimize button is present/hidden according to mode
-            const btn = bar.querySelector('.tz-minimize-btn');
-            if (btn) btn.style.display = '';
+            // Update minimize button visibility
+            syncMinimizeButtonUI();
             if (typeof applyPageShift === 'function') applyPageShift();
           });
-          return; // Return early to avoid double applyPageShift call
+          return;
         } else {
-          // PUSH: Bar is visible and never minimized
-          // Ensure the minimize button is hidden
-          const btn = bar.querySelector('.tz-minimize-btn');
-          if (btn) btn.style.display = 'none';
+          // PUSH mode: never minimized
+          bar.classList.remove('tz-minimized');
+          syncMinimizeButtonUI();
         }
       }
     }
-
     if (typeof applyPageShift === 'function') applyPageShift();
   });
 }

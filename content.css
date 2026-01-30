@@ -872,6 +872,11 @@
   display: none !important;
 }
 
+/* Add class for PUSH mode */
+#ungroup-automatic-tab-bar.tz-mode-push {
+  /* Ensure bar is always visible in PUSH mode */
+}
+
 /* Global icon hover: lighten icons across the bar (all levels) */
 #ungroup-automatic-tab-bar .tab-favicon,
 #ungroup-automatic-tab-bar .tz-search .icon,
