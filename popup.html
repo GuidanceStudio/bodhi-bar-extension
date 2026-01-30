@@ -7,49 +7,28 @@
 </head>
 <body>
   <div class="container">
-    <div class="control-group">
-      <label for="visibilityModeSelect">Bar Visibility</label>
-      <select id="visibilityModeSelect" disabled>
-        <option value="push">Push content (Default)</option>
-        <option value="overlay">Overlay content</option>
-        <option value="hidden">Hidden</option>
-      </select>
+    
+    <!-- 1. Main Visibility Control -->
+    <div class="panel">
+      <div class="control-group">
+        <label for="visibilityModeSelect">Bar Visibility</label>
+        <select id="visibilityModeSelect" disabled>
+          <option value="push">Push content (Default)</option>
+          <option value="overlay">Overlay content</option>
+          <option value="hidden">Hidden</option>
+        </select>
+      </div>
+
+      <!-- New: Simple Domain Toggle -->
+      <div id="domain-setting-row" class="checkbox-row" style="display:none;">
+        <input type="checkbox" id="domainToggle">
+        <label for="domainToggle">
+          Always apply to <span id="currentDomain" class="domain-badge">this site</span>
+        </label>
+      </div>
     </div>
 
-    <!-- Visibility Rules Section (Updated) -->
-    <section id="hidden-sites-section" class="workspaces-section" style="margin-top: 16px; border-top: 1px solid #eee; padding-top: 12px;">
-      <div class="workspaces-header">
-        <div class="workspaces-title-row">
-          <h3 id="hidden-sites-heading">Visibility Rules</h3>
-          <button id="hideCurrentSiteBtn" class="btn small" title="Add current site pattern as 'hidden'">
-            Hide current site
-          </button>
-        </div>
-      </div>
-
-      <div id="hidden-sites-input-row" style="margin-bottom: 8px; display: flex; gap: 4px; align-items: center;">
-        <input type="text" id="newHiddenSiteInput" placeholder="Pattern (e.g. docs.google.com/*)" style="flex: 1; padding: 4px; box-sizing: border-box;">
-        
-        <!-- Mode Selector (Added here for better layout control) -->
-        <select id="tz-rule-mode-select" title="Select visibility mode for this rule">
-          <option value="hidden">Hidden</option>
-          <option value="overlay">Overlay</option>
-          <option value="push">Push</option>
-        </select>
-        
-        <button id="addHiddenSiteBtn" class="btn small">Add</button>
-      </div>
-
-      <ul id="hiddenSitesList" class="workspaces-list" aria-live="polite">
-        <!-- Visibility rule items inserted here by popup.js -->
-      </ul>
-
-      <div id="hidden-sites-note" class="note" style="font-size: 11px; color: #666;">
-        Use * as a wildcard (e.g. *example.com/*). Explicit per-tab toggles override this list.
-      </div>
-    </section>
-
-    <!-- Workspaces Section (Moved Down) -->
+    <!-- 2. Workspaces Section -->
     <section id="workspaces-section" aria-labelledby="workspaces-heading" class="workspaces-section">
       <div class="workspaces-header">
         <div class="workspaces-title-row">
@@ -65,9 +44,32 @@
       </ul>
 
       <div id="workspaces-note" class="note">
-        Workspaces are snapshots of your current window (pinned tabs + tab groups). Save one with "Save current". You can restore, rename, export, or delete them.
+        Snapshots of your current window (pinned tabs + groups).
       </div>
     </section>
+
+    <!-- 3. Advanced Rules (Collapsible) -->
+    <details class="advanced-section">
+      <summary>Manage Visibility Rules</summary>
+      
+      <div class="advanced-content">
+        <div id="hidden-sites-input-row" class="input-row">
+          <input type="text" id="newHiddenSiteInput" placeholder="Pattern (e.g. *.google.com/*)">
+          <select id="tz-rule-mode-select">
+            <option value="hidden">Hidden</option>
+            <option value="overlay">Overlay</option>
+            <option value="push">Push</option>
+          </select>
+          <button id="addHiddenSiteBtn" class="btn small">Add</button>
+        </div>
+
+        <ul id="hiddenSitesList" class="workspaces-list">
+          <!-- Rules inserted here -->
+        </ul>
+        <div class="note">Explicit per-tab toggles override these rules.</div>
+      </div>
+    </details>
+
   </div>
 
   <script src="popup.js"></script>

@@ -247,6 +247,12 @@ function renderVisibilityRulesList() {
         rules.splice(index, 1);
         await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
         renderVisibilityRulesList();
+        // If the deleted rule matches current hostname, uncheck the domain toggle
+        const hostname = document.getElementById('currentDomain')?.textContent;
+        if (hostname && rule.pattern === hostname + '/*') {
+          const domainToggle = document.getElementById('domainToggle');
+          if (domainToggle) domainToggle.checked = false;
+        }
       };
 
       actions.appendChild(editIcon);
@@ -292,6 +298,43 @@ function isRestrictedUrl(url = '') {
   if (!url || typeof url !== 'string') return true; // defensive: if unknown, treat as restricted
   const u = url.trim().toLowerCase();
   return RESTRICTED_PREFIXES.some(p => u.startsWith(p));
+}
+
+// Helper to extract hostname for the UI
+function getHostname(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+// --- UPDATED VISIBILITY LOGIC ---
+
+async function updateDomainRule(hostname, mode, shouldExist) {
+  if (!hostname) return;
+  const pattern = hostname + '/*'; // Simple domain wildcard
+  
+  const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
+  let rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
+
+  // Remove existing rule for this specific pattern to avoid duplicates
+  rules = rules.filter(r => r.pattern !== pattern);
+
+  if (shouldExist) {
+    rules.push({ pattern, mode });
+  }
+
+  await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
+  renderVisibilityRulesList();
+}
+
+async function getRuleForHostname(hostname) {
+  if (!hostname) return null;
+  const pattern = hostname + '/*';
+  const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
+  const rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
+  return rules.find(r => r.pattern === pattern) || null;
 }
 
 function showToggleMessage(text) {
@@ -630,6 +673,10 @@ function renderWorkspacesList(workspacesMap) {
 
 function initPopup() {
   const select = document.getElementById('visibilityModeSelect');
+  const domainRow = document.getElementById('domain-setting-row');
+  const domainLabel = document.getElementById('currentDomain');
+  const domainToggle = document.getElementById('domainToggle');
+
   if (!select) return;
 
   // Initial state
@@ -638,184 +685,144 @@ function initPopup() {
 
   try {
     if (!chrome.tabs?.query) {
-      showToggleMessage('Bodhi Bar is not available on this type of page (browser internal/restricted pages). Open a regular website tab to use Show/Hide.');
+      showToggleMessage('Bodhi Bar is not available on this page.');
       return;
     }
 
     chrome.tabs.query({ active: true, lastFocusedWindow: true }, async (tabs) => {
       const tab = (tabs && tabs[0]) ? tabs[0] : null;
       const url = tab?.url || tab?.pendingUrl || '';
+      const hostname = getHostname(url);
+      const tabId = tab?.id;
 
-      // Workspaces UI (available even on restricted pages)
+      // --- Workspaces Init ---
       const createBtn = document.getElementById('createWorkspace');
       if (createBtn) {
         createBtn.onclick = null;
         createBtn.addEventListener('click', async () => {
-          const raw = prompt('Workspace name:');
-          const workspaceName = sanitizeWorkspaceName(raw);
-          if (!workspaceName) return;
-
-          createBtn.disabled = true;
-          try {
-            // Request the export payload (no download)
-            const exp = await runtimeSendMessage({ action: 'GET_EXPORT_PAYLOAD' });
-            if (!exp?.ok || !exp?.payload) {
-              showWorkspacesMessage(exp?.error || 'Could not get export payload.');
-              return;
-            }
-
-            const workspaces = await storageGetWorkspaces();
-            if (workspaces[workspaceName]) {
-              const overwrite = confirm(`Workspace "${workspaceName}" already exists. Overwrite?`);
-              if (!overwrite) return;
-            }
-
-            workspaces[workspaceName] = {
-              name: workspaceName,
-              createdAt: Date.now(),
-              payload: exp.payload
-            };
-
-            await storageSetWorkspaces(workspaces);
-            renderWorkspacesList(workspaces);
-          } finally {
-            createBtn.disabled = false;
-          }
-        }, { once: false });
+           const raw = prompt('Workspace name:');
+           const workspaceName = sanitizeWorkspaceName(raw);
+           if (!workspaceName) return;
+           createBtn.disabled = true;
+           try {
+             const exp = await runtimeSendMessage({ action: 'GET_EXPORT_PAYLOAD' });
+             if (!exp?.ok || !exp?.payload) {
+               showWorkspacesMessage(exp?.error || 'Error getting payload.');
+               return;
+             }
+             const workspaces = await storageGetWorkspaces();
+             if (workspaces[workspaceName] && !confirm(`Overwrite "${workspaceName}"?`)) return;
+             
+             workspaces[workspaceName] = { name: workspaceName, createdAt: Date.now(), payload: exp.payload };
+             await storageSetWorkspaces(workspaces);
+             renderWorkspacesList(workspaces);
+           } finally {
+             createBtn.disabled = false;
+           }
+        });
       }
-
-      // Initial workspaces list render
       const workspaces = await storageGetWorkspaces();
       renderWorkspacesList(workspaces);
 
+      // --- Visibility Init ---
+      
+      // 1. Check restrictions
       if (!tab || isRestrictedUrl(String(url || ''))) {
-        // Restricted: hide selector and show message
         select.style.display = 'none';
-        showToggleMessage('Bodhi Bar is not available on this type of page (browser internal/restricted pages). Open a regular website tab to use Show/Hide.');
+        if (domainRow) domainRow.style.display = 'none';
+        showToggleMessage('Bodhi Bar is not available on system pages.');
+        // Still render rules list in case user wants to manage them
+        await migrateHiddenSitesToRules();
+        renderVisibilityRulesList();
         return;
       }
 
-      const tabId = tab.id;
-
-      // Helper to get mode for specific tab
+      // 2. Setup Main Dropdown
       const getModeForTab = async () => {
         const data = await storageGet(STORAGE_KEY_VISIBILITY_MODE);
-        const map = data?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-        return map[String(tabId)] || VISIBILITY_MODES.PUSH;
+        return (data?.[STORAGE_KEY_VISIBILITY_MODE] || {})[String(tabId)] || VISIBILITY_MODES.PUSH;
       };
 
-      // Helper to set mode for specific tab
-      const setModeForTab = async (mode) => {
-        const data = await storageGet(STORAGE_KEY_VISIBILITY_MODE);
-        const map = data?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-        map[String(tabId)] = mode;
-        await storageSet({ [STORAGE_KEY_VISIBILITY_MODE]: map });
-      };
-
-      // Initialize UI
       const currentMode = await getModeForTab();
       select.value = currentMode;
       select.disabled = false;
 
-      // Handle Change
-      select.onchange = async () => {
-        const newMode = select.value;
-        await setModeForTab(newMode);
+      // 3. Setup Domain Toggle
+      if (hostname && domainRow) {
+        domainRow.style.display = 'flex';
+        domainLabel.textContent = hostname;
 
-        // 1. Notify the content script immediately to change mode
-        try {
-          await chrome.tabs.sendMessage(tabId, { 
-            action: 'SET_VISIBILITY_MODE', 
-            mode: newMode 
-          });
-        } catch (e) {
-          console.warn('Failed to send SET_VISIBILITY_MODE', e);
-        }
+        // Check if a rule already exists for this exact domain
+        const existingRule = await getRuleForHostname(hostname);
+        domainToggle.checked = !!existingRule;
 
-        // 2. Also request a refresh to ensure tab list is up to date if switching to visible
-        try {
-          await runtimeSendMessage({ action: 'REFRESH_TAB', tabId });
-        } catch (e) {
-          console.warn('Failed to request tab refresh', e);
-        }
-      };
-
-      // --- START: Visibility Rules Logic ---
-
-      // Esegui la migrazione all'avvio
-      await migrateHiddenSitesToRules();
-
-      // Recupera gli elementi DOM (ora presenti nell'HTML)
-      const modeSelect = document.getElementById('tz-rule-mode-select');
-      const hideCurrentBtn = document.getElementById('hideCurrentSiteBtn');
-      const addHiddenBtn = document.getElementById('addHiddenSiteBtn');
-      const newHiddenInput = document.getElementById('newHiddenSiteInput');
-
-      if (hideCurrentBtn) {
-        hideCurrentBtn.onclick = async () => {
-          if (!tab || !tab.url) return;
-          let patternToAdd = '';
-          try {
-            const u = new URL(tab.url);
-            const path = u.pathname;
-            if (path && path !== '/') {
-               patternToAdd = u.hostname + path + '*';
-            } else {
-               patternToAdd = u.hostname;
-            }
-          } catch { 
-            patternToAdd = tab.url; 
-          }
-
-          if (!patternToAdd) return;
-
-          const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
-          const rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-          
-          if (rules.some(r => r.pattern === patternToAdd)) {
-            alert('This pattern is already in the list.');
-            return;
-          }
-
-          // "Hide Current" aggiunge sempre come 'hidden' (azione rapida)
-          rules.push({ pattern: patternToAdd, mode: VISIBILITY_MODES.HIDDEN });
-          await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
-          renderVisibilityRulesList();
+        // Toggle Event
+        domainToggle.onchange = async () => {
+          const isChecked = domainToggle.checked;
+          const modeToSave = select.value; // Save whatever is currently selected
+          await updateDomainRule(hostname, modeToSave, isChecked);
         };
       }
 
-      if (addHiddenBtn && newHiddenInput) {
-        addHiddenBtn.onclick = async () => {
-          const val = newHiddenInput.value.trim();
+      // 4. Dropdown Change Event
+      select.onchange = async () => {
+        const newMode = select.value;
+        
+        // Update Tab State
+        const data = await storageGet(STORAGE_KEY_VISIBILITY_MODE);
+        const map = data?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+        map[String(tabId)] = newMode;
+        await storageSet({ [STORAGE_KEY_VISIBILITY_MODE]: map });
+
+        // Notify Content Script
+        try {
+          await chrome.tabs.sendMessage(tabId, { action: 'SET_VISIBILITY_MODE', mode: newMode });
+          await runtimeSendMessage({ action: 'REFRESH_TAB', tabId });
+        } catch (e) {}
+
+        // Update Rule if checkbox is checked
+        if (hostname && domainToggle.checked) {
+          await updateDomainRule(hostname, newMode, true);
+        }
+      };
+
+      // --- Advanced Rules Init ---
+      await migrateHiddenSitesToRules();
+      renderVisibilityRulesList();
+
+      // Add Rule Button Logic
+      const addBtn = document.getElementById('addHiddenSiteBtn');
+      const input = document.getElementById('newHiddenSiteInput');
+      const ruleModeSelect = document.getElementById('tz-rule-mode-select');
+
+      if (addBtn && input && ruleModeSelect) {
+        addBtn.onclick = async () => {
+          const val = input.value.trim();
           if (!val) return;
-
-          // Leggi la modalità selezionata dal dropdown
-          const selectedMode = modeSelect ? modeSelect.value : VISIBILITY_MODES.HIDDEN;
-
+          
           const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
           const rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
           
           if (rules.some(r => r.pattern === val)) {
-            alert('This pattern is already in the list.');
+            alert('Pattern already exists.');
             return;
           }
 
-          rules.push({ pattern: val, mode: selectedMode });
+          rules.push({ pattern: val, mode: ruleModeSelect.value });
           await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
-          newHiddenInput.value = '';
+          
+          input.value = '';
           renderVisibilityRulesList();
+          
+          // If the user manually added a rule that matches current hostname, update checkbox
+          if (val === hostname + '/*') {
+             domainToggle.checked = true;
+          }
         };
       }
-
-      // Render iniziale
-      renderVisibilityRulesList();
-
-      // --- END: Visibility Rules Logic ---
     });
   } catch {
-    // Fail closed
     if (select) select.style.display = 'none';
-    showToggleMessage('Bodhi Bar is not available on this type of page (browser internal/restricted pages). Open a regular website tab to use Show/Hide.');
   }
 }
 
