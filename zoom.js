@@ -9,6 +9,26 @@ let _baseDPR = null;
 function round3(n) { return Math.round(n * 1000) / 1000; }
 function captureBaseDPR() { _baseDPR = window.devicePixelRatio || 1; }
 
+function setInitialZoom(z) {
+  if (z && z > 0) {
+    const dpr = window.devicePixelRatio || 1;
+    // Calculate what the DPR would be at 100% zoom (Monitor DPR)
+    _baseDPR = dpr / z;
+    if (typeof applyZoomCompensatedMetrics === 'function') {
+      applyZoomCompensatedMetrics(true);
+    }
+  }
+}
+
+if (chrome?.runtime?.sendMessage) {
+  chrome.runtime.sendMessage({ action: 'GET_ZOOM' }, (res) => {
+    if (chrome.runtime.lastError) return;
+    if (res && res.ok && res.zoom) {
+      setInitialZoom(res.zoom);
+    }
+  });
+}
+
 function getZoomScale() {
   const dpr = window.devicePixelRatio || 1;
   const base = _baseDPR || dpr || 1;

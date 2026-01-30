@@ -1328,6 +1328,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
       }
 
+      if (action === 'GET_ZOOM') {
+        const tabId = sender?.tab?.id;
+        if (tabId != null) {
+          try {
+            const zoom = await chrome.tabs.getZoom(tabId);
+            sendResponse({ ok: true, zoom });
+          } catch (e) {
+            sendResponse({ ok: false, zoom: 1 });
+          }
+        } else {
+          sendResponse({ ok: false, zoom: 1 });
+        }
+        return;
+      }
+
       if (action === 'GET_UNGROUPED_TABS') {
         const payload = await buildUngroupedPayload();
         sendResponse(payload);
