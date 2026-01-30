@@ -243,10 +243,12 @@ async function boot() {
       bar.style.setProperty('display', 'none', 'important');
     }
 
-    // Ensure page shift state matches initial visibility
+    // Apply metrics (which calls applyPageShift internally) now that mode is set
+    applyZoomCompensatedMetrics(true);
+    
+    // Explicitly call applyPageShift once more to be safe
     if (typeof applyPageShift === 'function') applyPageShift();
 
-    applyZoomCompensatedMetrics(true);
     requestTabList();
   } catch {
     renderDisconnectedBar('boot failed');
@@ -257,7 +259,7 @@ hookViewportEvents();
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    applyZoomCompensatedMetrics(true);
+    // Don't apply metrics yet, wait for boot to determine mode
     boot();
   }, { once: true });
 } else {
