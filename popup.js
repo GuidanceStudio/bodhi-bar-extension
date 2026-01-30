@@ -1,18 +1,4 @@
- // popup.js - Bodhi Bar popup behavior (restrict Show/Hide on browser-internal pages)
-
-/*
- Minimal, defensive script to:
- - Detect when the active tab is a browser-internal / restricted page
- - If restricted: hide Show/Hide toggle(s) in the popup and display an instructional message (in English)
- - If not restricted: leave existing popup behavior unchanged
-
- Notes:
- - The popup HTML may use different IDs/classes for the show/hide buttons across versions.
-   To avoid editing popup.html, this script attempts a few common selectors and also
- hides buttons by inspecting their visible text.
- - This file was added standalone as requested; it intentionally performs a minimal DOM
- touch to add a single message node when needed.
-*/
+ // popup.js - Bodhi Bar popup behavior
 
 const RESTRICTED_PREFIXES = [
   'chrome://',
@@ -23,7 +9,7 @@ const RESTRICTED_PREFIXES = [
   'view-source:',
   'chrome-extension://',
   'brave-extension://',
-  'extension://', // generic extension page prefix
+  'extension://',
   'vivaldi://',
   'opera://'
 ];
@@ -33,6 +19,7 @@ const STORAGE_KEY_WORKSPACES = 'tz_workspaces_v1';
 const STORAGE_KEY_HIDDEN_SITES = 'tz_default_hidden_sites';
 const STORAGE_KEY_VISIBILITY_MODE = 'tz_visibility_mode';
 const STORAGE_KEY_VISIBILITY_RULES = 'tz_visibility_rules';
+const STORAGE_KEY_OVERRIDES = 'tz_site_overrides';
 const PRESET_NAME_MAX_LEN = 60;
 
 const VISIBILITY_MODES = {
@@ -87,7 +74,6 @@ function promptForUniqueWorkspaceName(initialName, workspaces, promptText) {
 }
 
 function escapeFilenamePart(name) {
-  // Keep it simple and cross-platform safe
   return String(name || '')
     .trim()
     .replace(/\s+/g, ' ')
@@ -101,12 +87,9 @@ function isPlainObject(v) {
 }
 
 function normalizeImportedWorkspaceJson(raw) {
-  // Expected export format:
-  // { name: string, payload: { pinnedTabs: [{url}], allTabGroups: [{title,color,tabs:[{url}]}] } }
   if (!isPlainObject(raw)) return { ok: false, error: 'Invalid JSON: expected an object.' };
 
   const version = raw.wv || '1.0';
-  // Supported versions
   const SUPPORTED_VERSIONS = ['1.0'];
   if (!SUPPORTED_VERSIONS.includes(version)) {
     return { 
@@ -119,12 +102,16 @@ function normalizeImportedWorkspaceJson(raw) {
 
   const pinnedTabs = payload.pinnedTabs;
   const allTabGroups = payload.allTabGroups;
+  const siteOverrides = payload.siteOverrides; // Optional
 
   if (pinnedTabs != null && !Array.isArray(pinnedTabs)) {
     return { ok: false, error: 'Invalid payload: "pinnedTabs" must be an array.' };
   }
   if (allTabGroups != null && !Array.isArray(allTabGroups)) {
     return { ok: false, error: 'Invalid payload: "allTabGroups" must be an array.' };
+  }
+  if (siteOverrides != null && !isPlainObject(siteOverrides)) {
+    return { ok: false, error: 'Invalid payload: "siteOverrides" must be an object.' };
   }
 
   const name = (typeof raw.name === 'string') ? sanitizeWorkspaceName(raw.name) : '';
@@ -171,97 +158,11 @@ async function migrateHiddenSitesToRules() {
   const oldSites = oldData?.['tz_default_hidden_sites'] || [];
   
   if (oldSites.length > 0) {
-    // Converti la vecchia lista di stringhe in una lista di oggetti
-    // I vecchi siti nascosti diventano regole con mode 'hidden'
     const rules = oldSites.map(site => ({ pattern: site, mode: VISIBILITY_MODES.HIDDEN }));
-    
-    // Salva nella nuova chiave
     await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
-    
-    // Rimuovi la vecchia chiave
     await chrome.storage.local.remove('tz_default_hidden_sites');
     console.log('Bodhi Bar: Migrated hidden sites to visibility rules.');
   }
-}
-
-function renderVisibilityRulesList() {
-  const ul = document.getElementById('hiddenSitesList');
-  if (!ul) return;
-
-  storageGet(STORAGE_KEY_VISIBILITY_RULES).then(data => {
-    const rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-    ul.innerHTML = '';
-
-    if (!rules.length) {
-      const li = document.createElement('li');
-      li.className = 'workspace-item empty';
-      li.textContent = 'No visibility rules configured.';
-      ul.appendChild(li);
-      return;
-    }
-
-    rules.forEach((rule, index) => {
-      const li = document.createElement('li');
-      li.className = 'workspace-item';
-
-      const contentContainer = document.createElement('div');
-      contentContainer.className = 'workspace-title';
-      contentContainer.style.flex = '1';
-      contentContainer.style.wordBreak = 'break-all';
-      contentContainer.style.display = 'flex';
-      contentContainer.style.alignItems = 'center';
-
-      // Mostra pattern e modalità
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = `${rule.pattern} (${rule.mode})`;
-      nameSpan.style.flex = '1';
-      contentContainer.appendChild(nameSpan);
-
-      const actions = document.createElement('div');
-      actions.className = 'workspace-actions';
-
-      // Edit icon
-      const editIcon = document.createElement('span');
-      editIcon.className = 'workspace-action-icon edit';
-      editIcon.innerHTML = '&#9997;';
-      editIcon.title = 'Edit pattern';
-      editIcon.style.cursor = 'pointer';
-      editIcon.style.marginRight = '4px';
-
-      editIcon.onclick = () => {
-        const newPattern = prompt('Edit pattern:', rule.pattern);
-        if (newPattern && newPattern !== rule.pattern) {
-          rules[index].pattern = newPattern.trim();
-          storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
-          renderVisibilityRulesList();
-        }
-      };
-
-      // Delete icon
-      const delIcon = document.createElement('span');
-      delIcon.className = 'workspace-action-icon delete';
-      delIcon.innerHTML = '&#128465;';
-      delIcon.title = 'Remove';
-      delIcon.style.cursor = 'pointer';
-      delIcon.onclick = async () => {
-        rules.splice(index, 1);
-        await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
-        renderVisibilityRulesList();
-        // If the deleted rule matches current hostname, uncheck the domain toggle
-        const hostname = document.getElementById('currentDomain')?.textContent;
-        if (hostname && rule.pattern === hostname + '/*') {
-          const domainToggle = document.getElementById('domainToggle');
-          if (domainToggle) domainToggle.checked = false;
-        }
-      };
-
-      actions.appendChild(editIcon);
-      actions.appendChild(delIcon);
-      li.appendChild(contentContainer);
-      li.appendChild(actions);
-      ul.appendChild(li);
-    });
-  });
 }
 
 function sendVisibilityToTab(tabId, hidden) {
@@ -295,12 +196,11 @@ function runtimeSendMessage(msg) {
 }
 
 function isRestrictedUrl(url = '') {
-  if (!url || typeof url !== 'string') return true; // defensive: if unknown, treat as restricted
+  if (!url || typeof url !== 'string') return true;
   const u = url.trim().toLowerCase();
   return RESTRICTED_PREFIXES.some(p => u.startsWith(p));
 }
 
-// Helper to extract hostname for the UI
 function getHostname(url) {
   try {
     return new URL(url).hostname;
@@ -309,12 +209,8 @@ function getHostname(url) {
   }
 }
 
-// --- UPDATED VISIBILITY LOGIC ---
-
 function globToRegex(glob) {
-  // Escape regex chars except *
   const escaped = glob.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-  // Convert * to .*
   const pattern = escaped.replace(/\*/g, '.*');
   return new RegExp(`^${pattern}$`, 'i');
 }
@@ -323,35 +219,22 @@ async function getMatchingRule(url) {
   if (!url) return null;
   const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
   const rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-  
-  // Find all matching rules
   const matches = rules.filter(r => globToRegex(r.pattern).test(url));
-  
-  // Return the most specific one (longest pattern length)
-  // This ensures we edit the rule that is likely taking precedence
   matches.sort((a, b) => b.pattern.length - a.pattern.length);
-  
   return matches[0] || null;
 }
 
 async function saveRule(oldPattern, newPattern, mode) {
   const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
   let rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-
-  // Remove old pattern if it exists
   if (oldPattern) {
     rules = rules.filter(r => r.pattern !== oldPattern);
   }
-
-  // Add new pattern if provided
   if (newPattern) {
-    // Remove any existing rule with the exact same new pattern to avoid dupes
     rules = rules.filter(r => r.pattern !== newPattern);
     rules.push({ pattern: newPattern, mode });
   }
-
   await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
-  renderVisibilityRulesList();
 }
 
 function showToggleMessage(text) {
@@ -489,7 +372,6 @@ function appendImportRow(ul) {
           return;
         }
 
-        // Determine name: JSON name > filename-derived > prompt
         let name = norm.name;
         if (!name) name = deriveWorkspaceNameFromFilename(file.name);
         if (!name) {
@@ -502,14 +384,11 @@ function appendImportRow(ul) {
         let finalName = name;
 
         if (workspaces[finalName]) {
-          // Ask for a new name
           const newName = sanitizeWorkspaceName(prompt(`A workspace named "${finalName}" already exists. Enter a different name to import:`));
           if (!newName) {
             showWorkspacesMessage('Import cancelled.');
             return;
           }
-
-          // Check if the new name also exists
           while (workspaces[newName]) {
             alert(`A workspace named "${newName}" already exists. Please choose a different name.`);
             const again = sanitizeWorkspaceName(prompt(`Enter a different name to import:`));
@@ -572,13 +451,11 @@ function renderWorkspacesList(workspacesMap) {
     const li = document.createElement('li');
     li.className = 'workspace-item';
 
-    // Workspace name
     const nameSpan = document.createElement('span');
     nameSpan.className = 'workspace-title';
     nameSpan.textContent = name;
     nameSpan.title = name;
 
-    // Actions container
     const actions = document.createElement('div');
     actions.className = 'workspace-actions';
     actions.style.display = 'flex';
@@ -587,7 +464,7 @@ function renderWorkspacesList(workspacesMap) {
 
     const restoreIcon = document.createElement('span');
     restoreIcon.className = 'workspace-action-icon restore';
-    restoreIcon.innerHTML = '&#128260;'; // 🔄
+    restoreIcon.innerHTML = '&#128260;';
     restoreIcon.title = 'Restore';
     restoreIcon.addEventListener('click', async () => {
       const payload = workspacesMap[name]?.payload;
@@ -598,6 +475,13 @@ function renderWorkspacesList(workspacesMap) {
 
       restoreIcon.style.opacity = '0.5';
       try {
+        // Restore Site Overrides if present
+        if (payload.siteOverrides) {
+          const currentOverrides = await storageGet(STORAGE_KEY_OVERRIDES);
+          const merged = { ...(currentOverrides?.[STORAGE_KEY_OVERRIDES] || {}), ...payload.siteOverrides };
+          await storageSet({ [STORAGE_KEY_OVERRIDES]: merged });
+        }
+
         const res = await runtimeSendMessage({ action: 'APPLY_WORKSPACE', payload });
         if (!res?.ok) {
           showWorkspacesMessage(res?.error || 'Restore failed.');
@@ -611,7 +495,7 @@ function renderWorkspacesList(workspacesMap) {
 
     const renameIcon = document.createElement('span');
     renameIcon.className = 'workspace-action-icon rename';
-    renameIcon.innerHTML = '&#9997;'; // ✏️
+    renameIcon.innerHTML = '&#9997;';
     renameIcon.title = 'Rename';
     renameIcon.addEventListener('click', async () => {
       const oldName = name;
@@ -643,7 +527,7 @@ function renderWorkspacesList(workspacesMap) {
 
     const exportIcon = document.createElement('span');
     exportIcon.className = 'workspace-action-icon export';
-    exportIcon.innerHTML = '&#128228;'; // 📤
+    exportIcon.innerHTML = '&#128228;';
     exportIcon.title = 'Export';
     exportIcon.addEventListener('click', async () => {
       exportIcon.style.opacity = '0.5';
@@ -664,7 +548,7 @@ function renderWorkspacesList(workspacesMap) {
 
     const delIcon = document.createElement('span');
     delIcon.className = 'workspace-action-icon delete';
-    delIcon.innerHTML = '&#128465;'; // 🗑️
+    delIcon.innerHTML = '&#128465;';
     delIcon.title = 'Delete';
     delIcon.addEventListener('click', async () => {
       if (!confirm(`Delete workspace "${name}"?`)) return;
@@ -687,16 +571,10 @@ function renderWorkspacesList(workspacesMap) {
   appendImportRow(ul);
 }
 
-
 function initPopup() {
   const select = document.getElementById('visibilityModeSelect');
-  const domainRow = document.getElementById('domain-setting-row');
-  const domainLabel = document.getElementById('currentDomain');
-  const domainToggle = document.getElementById('domainToggle');
-
   if (!select) return;
 
-  // Initial state
   select.disabled = true;
   select.value = 'push';
 
@@ -730,6 +608,11 @@ function initPopup() {
              const workspaces = await storageGetWorkspaces();
              if (workspaces[workspaceName] && !confirm(`Overwrite "${workspaceName}"?`)) return;
              
+             // Capture current site overrides
+             const overridesData = await storageGet(STORAGE_KEY_OVERRIDES);
+             const currentOverrides = overridesData?.[STORAGE_KEY_OVERRIDES] || {};
+             exp.payload.siteOverrides = currentOverrides;
+
              workspaces[workspaceName] = { name: workspaceName, createdAt: Date.now(), payload: exp.payload };
              await storageSetWorkspaces(workspaces);
              renderWorkspacesList(workspaces);
@@ -742,19 +625,12 @@ function initPopup() {
       renderWorkspacesList(workspaces);
 
       // --- Visibility Init ---
-      
-      // 1. Check restrictions
       if (!tab || isRestrictedUrl(String(url || ''))) {
         select.style.display = 'none';
-        if (domainRow) domainRow.style.display = 'none';
         showToggleMessage('Bodhi Bar is not available on system pages.');
-        // Still render rules list in case user wants to manage them
-        await migrateHiddenSitesToRules();
-        renderVisibilityRulesList();
         return;
       }
 
-      // 2. Setup Main Dropdown
       const getModeForTab = async () => {
         const data = await storageGet(STORAGE_KEY_VISIBILITY_MODE);
         return (data?.[STORAGE_KEY_VISIBILITY_MODE] || {})[String(tabId)] || VISIBILITY_MODES.PUSH;
@@ -764,7 +640,7 @@ function initPopup() {
       select.value = currentMode;
       select.disabled = false;
 
-      // 3. Setup Domain Rules & CSS
+      // Setup Domain Rules & CSS
       const rulesSection = document.getElementById('domain-rules-section');
       const rulesListEl = document.getElementById('activeRulesList');
       const btnAddRule = document.getElementById('btnAddRule');
@@ -778,14 +654,14 @@ function initPopup() {
         rulesSection.style.display = 'block';
         if (domainBadge) domainBadge.textContent = hostname;
 
-        // --- CSS Override Logic ---
+        // CSS Override Logic
         const loadCss = async () => {
           const data = await storageGet(STORAGE_KEY_OVERRIDES);
           const overrides = data?.[STORAGE_KEY_OVERRIDES] || {};
           const css = overrides[hostname] || '';
           cssEditorInput.value = css;
           if (css) {
-            btnEditCss.classList.add('active'); // Visual cue if CSS exists
+            btnEditCss.classList.add('active');
             btnEditCss.style.color = 'var(--accent)';
           } else {
             btnEditCss.classList.remove('active');
@@ -814,14 +690,10 @@ function initPopup() {
           await storageSet({ [STORAGE_KEY_OVERRIDES]: overrides });
           await loadCss();
           
-          // Send refresh message to current tab to apply CSS changes
           try {
             await chrome.tabs.sendMessage(tabId, { action: 'REFRESH_BAR' });
-          } catch (e) {
-            // Content script might not be ready, ignore
-          }
+          } catch (e) {}
           
-          // Feedback
           const originalText = btnSaveCss.textContent;
           btnSaveCss.textContent = 'Saved!';
           setTimeout(() => {
@@ -830,25 +702,22 @@ function initPopup() {
           }, 800);
         };
 
-        // --- Rules Logic ---
+        // Rules Logic
         const createRowUI = (rule, isNew, onSave, onDelete, onCancel) => {
             const row = document.createElement('div');
             row.className = 'rule-row';
             
             const currentMode = rule.mode || 'push';
 
-            // View Mode
             const viewDiv = document.createElement('div');
             viewDiv.style.display = isNew ? 'none' : 'flex';
             viewDiv.style.flex = '1';
             viewDiv.style.alignItems = 'center';
             viewDiv.style.gap = '6px';
-            viewDiv.style.minWidth = '0'; // flex fix
+            viewDiv.style.minWidth = '0';
 
-            // Badge
             const badge = document.createElement('span');
             badge.className = `mode-badge mode-${currentMode}`;
-            // Map mode to short text
             const modeLabels = { push: 'PUSH', overlay: 'OVER', hidden: 'HIDE' };
             badge.textContent = modeLabels[currentMode] || 'PUSH';
             
@@ -872,15 +741,13 @@ function initPopup() {
             viewDiv.appendChild(patternSpan);
             viewDiv.appendChild(viewActions);
 
-            // Edit Mode
             const editDiv = document.createElement('div');
             editDiv.style.display = isNew ? 'flex' : 'none';
             editDiv.style.flex = '1';
             editDiv.style.alignItems = 'center';
             editDiv.style.gap = '2px';
-            editDiv.style.minWidth = '0'; // Prevent overflow
+            editDiv.style.minWidth = '0';
 
-            // Mode Select
             const modeSelect = document.createElement('select');
             modeSelect.className = 'edit-mode-select';
             ['push', 'overlay', 'hidden'].forEach(m => {
@@ -912,7 +779,6 @@ function initPopup() {
             editDiv.appendChild(input);
             editDiv.appendChild(editActions);
 
-            // Events
             const toggle = (e) => {
                 viewDiv.style.display = e ? 'none' : 'flex';
                 editDiv.style.display = e ? 'flex' : 'none';
@@ -928,7 +794,6 @@ function initPopup() {
                   toggle(false); 
                 }
             };
-            // Save using the local select value
             btnSave.onclick = () => onSave(rule.pattern, input.value.trim(), modeSelect.value);
             btnDel.onclick = () => onDelete(rule.pattern);
             
@@ -953,7 +818,7 @@ function initPopup() {
                  const row = createRowUI(r, false, 
                     async (oldP, newP, m) => { 
                         if (oldP !== newP) await saveRule(oldP, newP, m);
-                        else await saveRule(oldP, newP, m); // update mode
+                        else await saveRule(oldP, newP, m);
                         refreshList();
                     },
                     async (p) => {
@@ -972,84 +837,39 @@ function initPopup() {
 
         btnAddRule.onclick = () => {
             const tempPattern = '*' + hostname + '/*';
-            // Initialize new rule with current global mode
             const row = createRowUI({ pattern: tempPattern, mode: select.value }, true,
                 async (oldP, newP, m) => {
                     await saveRule(null, newP, m);
                     refreshList();
                 },
-                () => {}, // delete not needed for new
-                (r) => r.remove() // cancel
+                () => {},
+                (r) => r.remove()
             );
             rulesListEl.appendChild(row);
             row.querySelector('input').focus();
         };
       }
 
-      // 4. Dropdown Change Event
       select.onchange = async () => {
         const newMode = select.value;
-        
-        // Update Tab State
         const data = await storageGet(STORAGE_KEY_VISIBILITY_MODE);
         const map = data?.[STORAGE_KEY_VISIBILITY_MODE] || {};
         map[String(tabId)] = newMode;
         await storageSet({ [STORAGE_KEY_VISIBILITY_MODE]: map });
 
-        // Notify Content Script
         try {
           await chrome.tabs.sendMessage(tabId, { action: 'SET_VISIBILITY_MODE', mode: newMode });
           await runtimeSendMessage({ action: 'REFRESH_TAB', tabId });
         } catch (e) {}
-
-        // Update Rule if active
-        if (activeRule) {
-          await saveRule(activeRule.pattern, activeRule.pattern, newMode);
-          activeRule.mode = newMode;
-        }
       };
 
-      // --- Advanced Rules Init ---
       await migrateHiddenSitesToRules();
-      renderVisibilityRulesList();
-
-      // Add Rule Button Logic
-      const addBtn = document.getElementById('addHiddenSiteBtn');
-      const input = document.getElementById('newHiddenSiteInput');
-      const ruleModeSelect = document.getElementById('tz-rule-mode-select');
-
-      if (addBtn && input && ruleModeSelect) {
-        addBtn.onclick = async () => {
-          const val = input.value.trim();
-          if (!val) return;
-          
-          const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
-          const rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-          
-          if (rules.some(r => r.pattern === val)) {
-            alert('Pattern already exists.');
-            return;
-          }
-
-          rules.push({ pattern: val, mode: ruleModeSelect.value });
-          await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
-          
-          input.value = '';
-          renderVisibilityRulesList();
-          
-          // If the user manually added a rule that matches current hostname, update checkbox
-          if (val === hostname + '/*') {
-             domainToggle.checked = true;
-          }
-        };
-      }
     });
   } catch {
     if (select) select.style.display = 'none';
   }
 }
 
-// Run on DOM ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initPopup);
 } else {
