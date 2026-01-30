@@ -324,8 +324,14 @@ async function getMatchingRule(url) {
   const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
   const rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
   
-  // Find first matching rule
-  return rules.find(r => globToRegex(r.pattern).test(url)) || null;
+  // Find all matching rules
+  const matches = rules.filter(r => globToRegex(r.pattern).test(url));
+  
+  // Return the most specific one (longest pattern length)
+  // This ensures we edit the rule that is likely taking precedence
+  matches.sort((a, b) => b.pattern.length - a.pattern.length);
+  
+  return matches[0] || null;
 }
 
 async function saveRule(oldPattern, newPattern, mode) {
@@ -763,7 +769,9 @@ function initPopup() {
       if (hostname && domainRow) {
         domainRow.style.display = 'flex';
         const labelEl = document.getElementById('domainLabel');
+        const inputContainer = document.getElementById('domainPatternContainer');
         const inputEl = document.getElementById('domainPatternInput');
+        const saveBtn = document.getElementById('savePatternBtn');
         const domainBadge = document.getElementById('currentDomain');
         
         if (domainBadge) domainBadge.textContent = hostname;
@@ -775,13 +783,16 @@ function initPopup() {
           if (activeRule) {
             domainToggle.checked = true;
             labelEl.style.display = 'none';
+            inputContainer.style.display = 'flex'; // Show container
             inputEl.style.display = 'block';
             inputEl.value = activeRule.pattern;
           } else {
             domainToggle.checked = false;
             labelEl.style.display = 'block';
+            inputContainer.style.display = 'none';
             inputEl.style.display = 'none';
-            inputEl.value = hostname + '/*'; // Default suggestion
+            // Default suggestion: *hostname/* (covers subdomains)
+            inputEl.value = '*' + hostname + '/*'; 
           }
         };
 
@@ -794,7 +805,7 @@ function initPopup() {
 
           if (isChecked) {
             // Create new rule
-            const pattern = hostname + '/*';
+            const pattern = '*' + hostname + '/*';
             await saveRule(null, pattern, mode);
             activeRule = { pattern, mode };
           } else {
@@ -807,21 +818,28 @@ function initPopup() {
           updateUI();
         };
 
-        // Input Edit Event (Enter or Blur)
+        // Save Logic
         const commitChange = async () => {
           if (!activeRule) return;
           const newPattern = inputEl.value.trim();
-          if (!newPattern) return; // Don't allow empty
+          if (!newPattern) return; 
 
-          if (newPattern !== activeRule.pattern) {
-            const mode = select.value;
-            await saveRule(activeRule.pattern, newPattern, mode);
-            activeRule = { pattern: newPattern, mode };
-          }
+          // Always save if clicked, even if same (for feedback)
+          const mode = select.value;
+          await saveRule(activeRule.pattern, newPattern, mode);
+          activeRule = { pattern: newPattern, mode };
+          
+          // Visual Feedback
+          const originalText = saveBtn.innerHTML;
+          saveBtn.innerHTML = '&#10003;'; // Checkmark
+          saveBtn.classList.add('saved');
+          setTimeout(() => {
+            saveBtn.innerHTML = originalText;
+            saveBtn.classList.remove('saved');
+          }, 1000);
         };
 
-        inputEl.addEventListener('change', commitChange);
-        inputEl.addEventListener('blur', commitChange);
+        saveBtn.onclick = commitChange;
         inputEl.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') {
             commitChange();

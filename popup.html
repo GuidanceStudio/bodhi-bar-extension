@@ -29,7 +29,10 @@
         </label>
 
         <!-- State B: Editable Pattern (Powerful) -->
-        <input type="text" id="domainPatternInput" class="pattern-input" style="display:none;" spellcheck="false">
+        <div id="domainPatternContainer" style="display:none; flex: 1; display: flex; align-items: center;">
+          <input type="text" id="domainPatternInput" class="pattern-input" spellcheck="false">
+          <button id="savePatternBtn" class="btn-icon" title="Save rule">&#10003;</button>
+        </div>
       </div>
     </div>
 
