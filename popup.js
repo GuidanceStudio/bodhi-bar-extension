@@ -777,10 +777,8 @@ function initPopup() {
         const createRowUI = (rule, isNew, onSave, onDelete, onCancel) => {
             const row = document.createElement('div');
             row.className = 'rule-row';
-            if (!isNew) {
-               // Check if winning (needs context of all rules, pass in?)
-               // For now, skip visual "winning" style on the new row
-            }
+            
+            const currentMode = rule.mode || 'push';
 
             // View Mode
             const viewDiv = document.createElement('div');
@@ -788,7 +786,15 @@ function initPopup() {
             viewDiv.style.flex = '1';
             viewDiv.style.alignItems = 'center';
             viewDiv.style.gap = '6px';
+            viewDiv.style.minWidth = '0'; // flex fix
 
+            // Badge
+            const badge = document.createElement('span');
+            badge.className = `mode-badge mode-${currentMode}`;
+            // Map mode to short text
+            const modeLabels = { push: 'PUSH', overlay: 'OVER', hidden: 'HIDE' };
+            badge.textContent = modeLabels[currentMode] || 'PUSH';
+            
             const patternSpan = document.createElement('span');
             patternSpan.className = 'pattern-display';
             patternSpan.textContent = rule.pattern;
@@ -805,6 +811,7 @@ function initPopup() {
             
             viewActions.appendChild(btnEdit);
             viewActions.appendChild(btnDel);
+            viewDiv.appendChild(badge);
             viewDiv.appendChild(patternSpan);
             viewDiv.appendChild(viewActions);
 
@@ -814,6 +821,17 @@ function initPopup() {
             editDiv.style.flex = '1';
             editDiv.style.alignItems = 'center';
             editDiv.style.gap = '4px';
+
+            // Mode Select
+            const modeSelect = document.createElement('select');
+            modeSelect.className = 'edit-mode-select';
+            ['push', 'overlay', 'hidden'].forEach(m => {
+              const opt = document.createElement('option');
+              opt.value = m;
+              opt.textContent = modeLabels[m];
+              if (m === currentMode) opt.selected = true;
+              modeSelect.appendChild(opt);
+            });
 
             const input = document.createElement('input');
             input.type = 'text';
@@ -832,6 +850,7 @@ function initPopup() {
 
             editActions.appendChild(btnSave);
             editActions.appendChild(btnCancel);
+            editDiv.appendChild(modeSelect);
             editDiv.appendChild(input);
             editDiv.appendChild(editActions);
 
@@ -845,9 +864,14 @@ function initPopup() {
             btnEdit.onclick = () => toggle(true);
             btnCancel.onclick = () => {
                 if (isNew) onCancel(row);
-                else { input.value = rule.pattern; toggle(false); }
+                else { 
+                  input.value = rule.pattern; 
+                  modeSelect.value = rule.mode || 'push';
+                  toggle(false); 
+                }
             };
-            btnSave.onclick = () => onSave(rule.pattern, input.value.trim(), select.value);
+            // Save using the local select value
+            btnSave.onclick = () => onSave(rule.pattern, input.value.trim(), modeSelect.value);
             btnDel.onclick = () => onDelete(rule.pattern);
             
             input.addEventListener('keydown', (e) => {
@@ -890,7 +914,8 @@ function initPopup() {
 
         btnAddRule.onclick = () => {
             const tempPattern = '*' + hostname + '/*';
-            const row = createRowUI({ pattern: tempPattern }, true,
+            // Initialize new rule with current global mode
+            const row = createRowUI({ pattern: tempPattern, mode: select.value }, true,
                 async (oldP, newP, m) => {
                     await saveRule(null, newP, m);
                     refreshList();

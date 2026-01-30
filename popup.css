@@ -448,6 +448,22 @@ select#visibilityModeSelect:disabled {
   padding-left: 4px;
 }
 
+.mode-badge {
+  font-size: 9px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  font-weight: 700;
+  min-width: 38px;
+  text-align: center;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+}
+
+.mode-push { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border-color: rgba(59, 130, 246, 0.3); }
+.mode-overlay { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3); }
+.mode-hidden { background: rgba(239, 68, 68, 0.15); color: #f87171; border-color: rgba(239, 68, 68, 0.3); }
+
 .pattern-display {
   flex: 1;
   font-family: monospace;
@@ -456,6 +472,23 @@ select#visibilityModeSelect:disabled {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.edit-mode-select {
+  background: #1e1e1e;
+  border: 1px solid #444;
+  color: var(--white);
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 3px 2px;
+  width: 55px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.edit-mode-select:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .pattern-input {
