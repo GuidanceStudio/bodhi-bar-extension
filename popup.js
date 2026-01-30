@@ -820,7 +820,8 @@ function initPopup() {
             editDiv.style.display = isNew ? 'flex' : 'none';
             editDiv.style.flex = '1';
             editDiv.style.alignItems = 'center';
-            editDiv.style.gap = '4px';
+            editDiv.style.gap = '2px';
+            editDiv.style.minWidth = '0'; // Prevent overflow
 
             // Mode Select
             const modeSelect = document.createElement('select');
