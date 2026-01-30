@@ -666,51 +666,58 @@ function initPopup() {
 
         // CSS Override Logic
         const loadCss = async () => {
+          if (!cssEditorInput) return;
           const data = await storageGet(STORAGE_KEY_OVERRIDES);
           const overrides = data?.[STORAGE_KEY_OVERRIDES] || {};
           const css = overrides[hostname] || '';
           cssEditorInput.value = css;
-          if (css) {
-            btnEditCss.classList.add('active');
-            btnEditCss.style.color = 'var(--accent)';
-          } else {
-            btnEditCss.classList.remove('active');
-            btnEditCss.style.color = '';
+          if (btnEditCss) {
+            if (css) {
+              btnEditCss.classList.add('active');
+              btnEditCss.style.color = 'var(--accent)';
+            } else {
+              btnEditCss.classList.remove('active');
+              btnEditCss.style.color = '';
+            }
           }
         };
         await loadCss();
 
-        btnEditCss.onclick = () => {
-          const isHidden = cssEditorContainer.style.display === 'none';
-          cssEditorContainer.style.display = isHidden ? 'block' : 'none';
-          if (isHidden) cssEditorInput.focus();
-        };
+        if (btnEditCss) {
+          btnEditCss.onclick = () => {
+            const isHidden = cssEditorContainer.style.display === 'none';
+            cssEditorContainer.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) cssEditorInput.focus();
+          };
+        }
 
-        btnSaveCss.onclick = async () => {
-          const css = cssEditorInput.value;
-          const data = await storageGet(STORAGE_KEY_OVERRIDES);
-          const overrides = data?.[STORAGE_KEY_OVERRIDES] || {};
-          
-          if (css.trim()) {
-            overrides[hostname] = css;
-          } else {
-            delete overrides[hostname];
-          }
-          
-          await storageSet({ [STORAGE_KEY_OVERRIDES]: overrides });
-          await loadCss();
-          
-          try {
-            await chrome.tabs.sendMessage(tabId, { action: 'REFRESH_BAR' });
-          } catch (e) {}
-          
-          const originalText = btnSaveCss.textContent;
-          btnSaveCss.textContent = 'Saved!';
-          setTimeout(() => {
-            btnSaveCss.textContent = originalText;
-            cssEditorContainer.style.display = 'none';
-          }, 800);
-        };
+        if (btnSaveCss) {
+          btnSaveCss.onclick = async () => {
+            const css = cssEditorInput.value;
+            const data = await storageGet(STORAGE_KEY_OVERRIDES);
+            const overrides = data?.[STORAGE_KEY_OVERRIDES] || {};
+            
+            if (css.trim()) {
+              overrides[hostname] = css;
+            } else {
+              delete overrides[hostname];
+            }
+            
+            await storageSet({ [STORAGE_KEY_OVERRIDES]: overrides });
+            await loadCss();
+            
+            try {
+              await chrome.tabs.sendMessage(tabId, { action: 'REFRESH_BAR' });
+            } catch (e) {}
+            
+            const originalText = btnSaveCss.textContent;
+            btnSaveCss.textContent = 'Saved!';
+            setTimeout(() => {
+              btnSaveCss.textContent = originalText;
+              cssEditorContainer.style.display = 'none';
+            }, 800);
+          };
+        }
 
         // Rules Logic
         const createRowUI = (rule, isNew, onSave, onDelete, onCancel) => {

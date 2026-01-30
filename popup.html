@@ -23,8 +23,20 @@
       <div id="domain-rules-section" class="domain-rules-section" style="display:none;">
         <div class="section-header">
           <span>Rules for <span id="currentDomain" class="domain-badge">site</span></span>
-          <button id="btnAddRule" class="btn-icon add" title="Add rule">+</button>
+          <div style="display:flex; gap:4px;">
+            <button id="btnEditCss" class="btn-icon" title="Edit CSS Override">{}</button>
+            <button id="btnAddRule" class="btn-icon add" title="Add rule">+</button>
+          </div>
         </div>
+        
+        <!-- CSS Editor (Hidden by default) -->
+        <div id="cssEditorContainer" style="display:none; margin-bottom: 8px;">
+          <textarea id="cssEditorInput" class="css-editor" placeholder="/* CSS for this domain (PUSH mode only) */&#10;#masthead { transform: translateY(var(--tz-h)); }"></textarea>
+          <div class="rule-actions" style="justify-content: flex-end; margin-top: 4px;">
+            <button id="btnSaveCss" class="btn small">Save CSS</button>
+          </div>
+        </div>
+
         <div id="activeRulesList" class="active-rules-list">
           <!-- Rows injected by JS -->
         </div>
@@ -50,28 +62,6 @@
         Snapshots of your current window (pinned tabs + groups).
       </div>
     </section>
-
-    <!-- 3. Advanced Rules (Collapsible) -->
-    <details class="advanced-section">
-      <summary>Manage Visibility Rules</summary>
-      
-      <div class="advanced-content">
-        <div id="hidden-sites-input-row" class="input-row">
-          <input type="text" id="newHiddenSiteInput" placeholder="Pattern (e.g. *.google.com/*)">
-          <select id="tz-rule-mode-select">
-            <option value="hidden">Hidden</option>
-            <option value="overlay">Overlay</option>
-            <option value="push">Push</option>
-          </select>
-          <button id="addHiddenSiteBtn" class="btn small">Add</button>
-        </div>
-
-        <ul id="hiddenSitesList" class="workspaces-list">
-          <!-- Rules inserted here -->
-        </ul>
-        <div class="note">Explicit per-tab toggles override these rules.</div>
-      </div>
-    </details>
 
   </div>
 
