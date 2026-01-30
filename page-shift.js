@@ -13,7 +13,7 @@ let _tzShiftRAF = 0;
 let _tzClipperEl = null;
 let _tzClipperPrev = null;
 
-window.currentVisibilityMode = VISIBILITY_MODES.PUSH;
+window.currentVisibilityMode = null; // Uninitialized
 
 function setVisibilityMode(mode) {
   if (Object.values(VISIBILITY_MODES).includes(mode)) {
@@ -244,8 +244,12 @@ function scheduleHeaderShift() {
 function applyPageShift() {
   const body = document.body;
   if (!body) return;
+  
+  // If mode hasn't been determined yet, do nothing to avoid layout thrashing
+  if (window.currentVisibilityMode === null) return;
+
   const bar = document.getElementById(TZ_BAR_ID);
-  const mode = window.currentVisibilityMode || VISIBILITY_MODES.PUSH;
+  const mode = window.currentVisibilityMode;
 
   // 1. HIDDEN MODE: Bar is gone, no padding
   if (mode === VISIBILITY_MODES.HIDDEN) {
