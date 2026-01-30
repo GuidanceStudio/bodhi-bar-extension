@@ -745,32 +745,8 @@ function initPopup() {
       // Esegui la migrazione all'avvio
       await migrateHiddenSitesToRules();
 
-      // Inietta il selettore di modalità se non esiste
-      let modeSelect = document.getElementById('tz-rule-mode-select');
-      if (!modeSelect) {
-        modeSelect = document.createElement('select');
-        modeSelect.id = 'tz-rule-mode-select';
-        modeSelect.style.marginLeft = '4px';
-        modeSelect.style.padding = '2px';
-        modeSelect.style.borderRadius = '4px';
-        modeSelect.style.border = '1px solid #444';
-        modeSelect.style.background = '#2a2a2a';
-        modeSelect.style.color = '#fff';
-        
-        Object.values(VISIBILITY_MODES).forEach(m => {
-          const opt = document.createElement('option');
-          opt.value = m;
-          opt.textContent = m.charAt(0).toUpperCase() + m.slice(1);
-          modeSelect.appendChild(opt);
-        });
-
-        // Inserisci accanto all'input
-        const inputContainer = newHiddenInput?.parentNode;
-        if (inputContainer) {
-          inputContainer.appendChild(modeSelect);
-        }
-      }
-
+      // Recupera gli elementi DOM (ora presenti nell'HTML)
+      const modeSelect = document.getElementById('tz-rule-mode-select');
       const hideCurrentBtn = document.getElementById('hideCurrentSiteBtn');
       const addHiddenBtn = document.getElementById('addHiddenSiteBtn');
       const newHiddenInput = document.getElementById('newHiddenSiteInput');
@@ -801,7 +777,7 @@ function initPopup() {
             return;
           }
 
-          // "Hide Current" aggiunge sempre come 'hidden'
+          // "Hide Current" aggiunge sempre come 'hidden' (azione rapida)
           rules.push({ pattern: patternToAdd, mode: VISIBILITY_MODES.HIDDEN });
           await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
           renderVisibilityRulesList();
