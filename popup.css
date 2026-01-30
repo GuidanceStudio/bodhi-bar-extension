@@ -438,7 +438,7 @@ select#visibilityModeSelect:disabled {
   align-items: center;
   gap: 6px;
   background: rgba(0,0,0,0.2);
-  padding: 4px 6px;
+  padding: 4px 4px;
   border-radius: 4px;
   min-height: 32px;
 }
