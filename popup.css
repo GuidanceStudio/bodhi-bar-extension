@@ -407,7 +407,7 @@ select#visibilityModeSelect:disabled {
   background: #1e1e1e;
   border: 1px solid #444;
   color: var(--accent);
-  padding: 2px 6px;
+  padding: 4px 6px;
   border-radius: 4px;
   font-size: 12px;
   font-family: monospace;
@@ -418,6 +418,29 @@ select#visibilityModeSelect:disabled {
   outline: none;
   border-color: var(--accent);
   background: #252525;
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 14px;
+  margin-left: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--white);
+}
+
+.btn-icon.saved {
+  color: #4ade80; /* Green */
 }
 
 /* Advanced Details Section */
