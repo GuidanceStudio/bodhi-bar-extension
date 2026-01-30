@@ -764,117 +764,143 @@ function initPopup() {
       select.value = currentMode;
       select.disabled = false;
 
-      // 3. Setup Domain/Pattern Toggle
-      let activeRule = null;
-      if (hostname && domainRow) {
-        domainRow.style.display = 'flex';
-        const labelEl = document.getElementById('domainLabel');
-        const domainBadge = document.getElementById('currentDomain');
-        
-        // New Elements
-        const viewContainer = document.getElementById('domainViewContainer');
-        const editContainer = document.getElementById('domainEditContainer');
-        const patternDisplay = document.getElementById('domainPatternDisplay');
-        const patternInput = document.getElementById('domainPatternInput');
-        const btnEdit = document.getElementById('btnEditRule');
-        const btnDelete = document.getElementById('btnDeleteRule');
-        const btnSave = document.getElementById('btnSaveRule');
-        const btnCancel = document.getElementById('btnCancelRule');
-        
+      // 3. Setup Domain Rules List
+      const rulesSection = document.getElementById('domain-rules-section');
+      const rulesListEl = document.getElementById('activeRulesList');
+      const btnAddRule = document.getElementById('btnAddRule');
+      const domainBadge = document.getElementById('currentDomain');
+
+      if (hostname && rulesSection) {
+        rulesSection.style.display = 'block';
         if (domainBadge) domainBadge.textContent = hostname;
 
-        // Check if ANY rule matches this URL
-        activeRule = await getMatchingRule(url);
-        
-        const updateUI = () => {
-          if (activeRule) {
-            domainToggle.checked = true;
-            labelEl.style.display = 'none';
+        const createRowUI = (rule, isNew, onSave, onDelete, onCancel) => {
+            const row = document.createElement('div');
+            row.className = 'rule-row';
+            if (!isNew) {
+               // Check if winning (needs context of all rules, pass in?)
+               // For now, skip visual "winning" style on the new row
+            }
+
+            // View Mode
+            const viewDiv = document.createElement('div');
+            viewDiv.style.display = isNew ? 'none' : 'flex';
+            viewDiv.style.flex = '1';
+            viewDiv.style.alignItems = 'center';
+            viewDiv.style.gap = '6px';
+
+            const patternSpan = document.createElement('span');
+            patternSpan.className = 'pattern-display';
+            patternSpan.textContent = rule.pattern;
+            patternSpan.title = rule.pattern;
+
+            const viewActions = document.createElement('div');
+            viewActions.className = 'rule-actions';
+            const btnEdit = document.createElement('button');
+            btnEdit.className = 'btn-icon';
+            btnEdit.innerHTML = '&#9997;';
+            const btnDel = document.createElement('button');
+            btnDel.className = 'btn-icon delete';
+            btnDel.innerHTML = '&#128465;';
             
-            // If we are currently editing, don't switch back to view automatically
-            if (editContainer.style.display === 'flex') {
-              viewContainer.style.display = 'none';
-            } else {
-              editContainer.style.display = 'none';
-              viewContainer.style.display = 'flex';
-              patternDisplay.textContent = activeRule.pattern;
-              patternDisplay.title = activeRule.pattern;
-            }
-          } else {
-            domainToggle.checked = false;
-            labelEl.style.display = 'block';
-            viewContainer.style.display = 'none';
-            editContainer.style.display = 'none';
-          }
+            viewActions.appendChild(btnEdit);
+            viewActions.appendChild(btnDel);
+            viewDiv.appendChild(patternSpan);
+            viewDiv.appendChild(viewActions);
+
+            // Edit Mode
+            const editDiv = document.createElement('div');
+            editDiv.style.display = isNew ? 'flex' : 'none';
+            editDiv.style.flex = '1';
+            editDiv.style.alignItems = 'center';
+            editDiv.style.gap = '4px';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'pattern-input';
+            input.value = rule.pattern;
+            input.spellcheck = false;
+
+            const editActions = document.createElement('div');
+            editActions.className = 'rule-actions';
+            const btnSave = document.createElement('button');
+            btnSave.className = 'btn-icon success';
+            btnSave.innerHTML = '&#10003;';
+            const btnCancel = document.createElement('button');
+            btnCancel.className = 'btn-icon';
+            btnCancel.innerHTML = '&#10005;';
+
+            editActions.appendChild(btnSave);
+            editActions.appendChild(btnCancel);
+            editDiv.appendChild(input);
+            editDiv.appendChild(editActions);
+
+            // Events
+            const toggle = (e) => {
+                viewDiv.style.display = e ? 'none' : 'flex';
+                editDiv.style.display = e ? 'flex' : 'none';
+                if (e) input.focus();
+            };
+
+            btnEdit.onclick = () => toggle(true);
+            btnCancel.onclick = () => {
+                if (isNew) onCancel(row);
+                else { input.value = rule.pattern; toggle(false); }
+            };
+            btnSave.onclick = () => onSave(rule.pattern, input.value.trim(), select.value);
+            btnDel.onclick = () => onDelete(rule.pattern);
+            
+            input.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') btnSave.click();
+              if (e.key === 'Escape') btnCancel.click();
+            });
+
+            row.appendChild(viewDiv);
+            row.appendChild(editDiv);
+            return row;
         };
 
-        updateUI();
-
-        // Toggle Event (Checkbox)
-        domainToggle.onchange = async () => {
-          const isChecked = domainToggle.checked;
-          const mode = select.value;
-
-          if (isChecked) {
-            // Create new default rule
-            const pattern = '*' + hostname + '/*';
-            await saveRule(null, pattern, mode);
-            activeRule = { pattern, mode };
-          } else {
-            // Delete active rule
-            if (activeRule) {
-              await saveRule(activeRule.pattern, null, null);
-              activeRule = null;
-            }
-          }
-          // Reset edit state on toggle
-          editContainer.style.display = 'none';
-          updateUI();
+        const refreshList = async () => {
+             const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
+             const allRules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
+             const matching = allRules.filter(r => globToRegex(r.pattern).test(url));
+             matching.sort((a, b) => b.pattern.length - a.pattern.length);
+             
+             rulesListEl.innerHTML = '';
+             matching.forEach((r, idx) => {
+                 const row = createRowUI(r, false, 
+                    async (oldP, newP, m) => { 
+                        if (oldP !== newP) await saveRule(oldP, newP, m);
+                        else await saveRule(oldP, newP, m); // update mode
+                        refreshList();
+                    },
+                    async (p) => {
+                        if (confirm('Delete rule?')) {
+                            await saveRule(p, null, null);
+                            refreshList();
+                        }
+                    }
+                 );
+                 if (idx === 0) row.classList.add('winning');
+                 rulesListEl.appendChild(row);
+             });
         };
 
-        // Edit Button
-        btnEdit.onclick = () => {
-          if (!activeRule) return;
-          viewContainer.style.display = 'none';
-          editContainer.style.display = 'flex';
-          patternInput.value = activeRule.pattern;
-          patternInput.focus();
-        };
+        await refreshList();
 
-        // Cancel Button
-        btnCancel.onclick = () => {
-          editContainer.style.display = 'none';
-          updateUI();
+        btnAddRule.onclick = () => {
+            const tempPattern = '*' + hostname + '/*';
+            const row = createRowUI({ pattern: tempPattern }, true,
+                async (oldP, newP, m) => {
+                    await saveRule(null, newP, m);
+                    refreshList();
+                },
+                () => {}, // delete not needed for new
+                (r) => r.remove() // cancel
+            );
+            rulesListEl.appendChild(row);
+            row.querySelector('input').focus();
         };
-
-        // Save Button
-        btnSave.onclick = async () => {
-          const newPattern = patternInput.value.trim();
-          if (!newPattern || !activeRule) return;
-          
-          const mode = select.value;
-          await saveRule(activeRule.pattern, newPattern, mode);
-          activeRule = { pattern: newPattern, mode };
-          
-          editContainer.style.display = 'none';
-          updateUI();
-        };
-
-        // Delete Button
-        btnDelete.onclick = async () => {
-          if (!activeRule) return;
-          if (!confirm('Remove this rule?')) return;
-          
-          await saveRule(activeRule.pattern, null, null);
-          activeRule = null;
-          updateUI();
-        };
-
-        // Input Keys
-        patternInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') btnSave.click();
-          if (e.key === 'Escape') btnCancel.click();
-        });
       }
 
       // 4. Dropdown Change Event
