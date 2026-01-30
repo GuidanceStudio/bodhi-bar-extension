@@ -32,6 +32,7 @@ const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
 const STORAGE_KEY_WORKSPACES = 'tz_workspaces_v1';
 const STORAGE_KEY_HIDDEN_SITES = 'tz_default_hidden_sites';
 const STORAGE_KEY_VISIBILITY_MODE = 'tz_visibility_mode';
+const STORAGE_KEY_VISIBILITY_RULES = 'tz_visibility_rules';
 const PRESET_NAME_MAX_LEN = 60;
 
 const VISIBILITY_MODES = {
@@ -165,26 +166,44 @@ function storageSetHiddenSites(list) {
   return storageSet({ [STORAGE_KEY_HIDDEN_SITES]: list || [] });
 }
 
-function renderHiddenSitesList() {
+async function migrateHiddenSitesToRules() {
+  const oldData = await storageGet('tz_default_hidden_sites');
+  const oldSites = oldData?.['tz_default_hidden_sites'] || [];
+  
+  if (oldSites.length > 0) {
+    // Converti la vecchia lista di stringhe in una lista di oggetti
+    // I vecchi siti nascosti diventano regole con mode 'hidden'
+    const rules = oldSites.map(site => ({ pattern: site, mode: VISIBILITY_MODES.HIDDEN }));
+    
+    // Salva nella nuova chiave
+    await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
+    
+    // Rimuovi la vecchia chiave
+    await chrome.storage.local.remove('tz_default_hidden_sites');
+    console.log('Bodhi Bar: Migrated hidden sites to visibility rules.');
+  }
+}
+
+function renderVisibilityRulesList() {
   const ul = document.getElementById('hiddenSitesList');
   if (!ul) return;
 
-  storageGetHiddenSites().then(sites => {
+  storageGet(STORAGE_KEY_VISIBILITY_RULES).then(data => {
+    const rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
     ul.innerHTML = '';
 
-    if (!sites.length) {
+    if (!rules.length) {
       const li = document.createElement('li');
       li.className = 'workspace-item empty';
-      li.textContent = 'No hidden sites configured.';
+      li.textContent = 'No visibility rules configured.';
       ul.appendChild(li);
       return;
     }
 
-    sites.forEach(site => {
+    rules.forEach((rule, index) => {
       const li = document.createElement('li');
       li.className = 'workspace-item';
 
-      // Container for text or edit input
       const contentContainer = document.createElement('div');
       contentContainer.className = 'workspace-title';
       contentContainer.style.flex = '1';
@@ -192,9 +211,9 @@ function renderHiddenSitesList() {
       contentContainer.style.display = 'flex';
       contentContainer.style.alignItems = 'center';
 
-      // Text element
+      // Mostra pattern e modalità
       const nameSpan = document.createElement('span');
-      nameSpan.textContent = site;
+      nameSpan.textContent = `${rule.pattern} (${rule.mode})`;
       nameSpan.style.flex = '1';
       contentContainer.appendChild(nameSpan);
 
@@ -204,54 +223,30 @@ function renderHiddenSitesList() {
       // Edit icon
       const editIcon = document.createElement('span');
       editIcon.className = 'workspace-action-icon edit';
-      editIcon.innerHTML = '&#9997;'; // ✏️
+      editIcon.innerHTML = '&#9997;';
       editIcon.title = 'Edit pattern';
       editIcon.style.cursor = 'pointer';
       editIcon.style.marginRight = '4px';
 
-      // Inline edit logic
       editIcon.onclick = () => {
-        // Hide span, show input
-        nameSpan.style.display = 'none';
-        editIcon.style.display = 'none';
-
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.value = site;
-        input.style.flex = '1';
-        input.style.marginRight = '4px';
-
-        const saveEdit = async () => {
-          const newVal = input.value.trim();
-          if (newVal && newVal !== site) {
-            const updated = sites.map(s => s === site ? newVal : s);
-            await storageSetHiddenSites(updated);
-            renderHiddenSitesList();
-          } else {
-            // Restore view if empty or unchanged
-            nameSpan.style.display = '';
-            editIcon.style.display = '';
-            input.remove();
-          }
-        };
-
-        input.onblur = saveEdit;
-        input.onkeydown = (e) => { if (e.key === 'Enter') { input.blur(); } };
-
-        contentContainer.insertBefore(input, nameSpan);
-        input.focus();
+        const newPattern = prompt('Edit pattern:', rule.pattern);
+        if (newPattern && newPattern !== rule.pattern) {
+          rules[index].pattern = newPattern.trim();
+          storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
+          renderVisibilityRulesList();
+        }
       };
 
       // Delete icon
       const delIcon = document.createElement('span');
       delIcon.className = 'workspace-action-icon delete';
-      delIcon.innerHTML = '&#128465;'; // 🗑️
+      delIcon.innerHTML = '&#128465;';
       delIcon.title = 'Remove';
       delIcon.style.cursor = 'pointer';
       delIcon.onclick = async () => {
-        const updated = sites.filter(s => s !== site);
-        await storageSetHiddenSites(updated);
-        renderHiddenSitesList();
+        rules.splice(index, 1);
+        await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
+        renderVisibilityRulesList();
       };
 
       actions.appendChild(editIcon);
@@ -745,7 +740,36 @@ function initPopup() {
         }
       };
 
-      // --- START: Hidden Sites Logic ---
+      // --- START: Visibility Rules Logic ---
+
+      // Esegui la migrazione all'avvio
+      await migrateHiddenSitesToRules();
+
+      // Inietta il selettore di modalità se non esiste
+      let modeSelect = document.getElementById('tz-rule-mode-select');
+      if (!modeSelect) {
+        modeSelect = document.createElement('select');
+        modeSelect.id = 'tz-rule-mode-select';
+        modeSelect.style.marginLeft = '4px';
+        modeSelect.style.padding = '2px';
+        modeSelect.style.borderRadius = '4px';
+        modeSelect.style.border = '1px solid #444';
+        modeSelect.style.background = '#2a2a2a';
+        modeSelect.style.color = '#fff';
+        
+        Object.values(VISIBILITY_MODES).forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m.charAt(0).toUpperCase() + m.slice(1);
+          modeSelect.appendChild(opt);
+        });
+
+        // Inserisci accanto all'input
+        const inputContainer = newHiddenInput?.parentNode;
+        if (inputContainer) {
+          inputContainer.appendChild(modeSelect);
+        }
+      }
 
       const hideCurrentBtn = document.getElementById('hideCurrentSiteBtn');
       const addHiddenBtn = document.getElementById('addHiddenSiteBtn');
@@ -754,31 +778,33 @@ function initPopup() {
       if (hideCurrentBtn) {
         hideCurrentBtn.onclick = async () => {
           if (!tab || !tab.url) return;
-          let siteToAdd = '';
+          let patternToAdd = '';
           try {
             const u = new URL(tab.url);
-            // Intelligent logic: if there is a path, suggest hostname/path/*
-            // Eg: docs.google.com/spreadsheets -> docs.google.com/spreadsheets/*
             const path = u.pathname;
             if (path && path !== '/') {
-               siteToAdd = u.hostname + path + '*';
+               patternToAdd = u.hostname + path + '*';
             } else {
-               siteToAdd = u.hostname;
+               patternToAdd = u.hostname;
             }
           } catch { 
-            siteToAdd = tab.url; 
+            patternToAdd = tab.url; 
           }
 
-          if (!siteToAdd) return;
+          if (!patternToAdd) return;
 
-          const sites = await storageGetHiddenSites();
-          if (!sites.includes(siteToAdd)) {
-            sites.push(siteToAdd);
-            await storageSetHiddenSites(sites);
-            renderHiddenSitesList();
-          } else {
-            alert('This pattern is already in the hidden list.');
+          const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
+          const rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
+          
+          if (rules.some(r => r.pattern === patternToAdd)) {
+            alert('This pattern is already in the list.');
+            return;
           }
+
+          // "Hide Current" aggiunge sempre come 'hidden'
+          rules.push({ pattern: patternToAdd, mode: VISIBILITY_MODES.HIDDEN });
+          await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
+          renderVisibilityRulesList();
         };
       }
 
@@ -787,22 +813,28 @@ function initPopup() {
           const val = newHiddenInput.value.trim();
           if (!val) return;
 
-          const sites = await storageGetHiddenSites();
-          if (!sites.includes(val)) {
-            sites.push(val);
-            await storageSetHiddenSites(sites);
-            newHiddenInput.value = '';
-            renderHiddenSitesList();
-          } else {
-            alert('This site is already in the hidden list.');
+          // Leggi la modalità selezionata dal dropdown
+          const selectedMode = modeSelect ? modeSelect.value : VISIBILITY_MODES.HIDDEN;
+
+          const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
+          const rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
+          
+          if (rules.some(r => r.pattern === val)) {
+            alert('This pattern is already in the list.');
+            return;
           }
+
+          rules.push({ pattern: val, mode: selectedMode });
+          await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
+          newHiddenInput.value = '';
+          renderVisibilityRulesList();
         };
       }
 
-      // Initial render of the hidden sites list
-      renderHiddenSitesList();
+      // Render iniziale
+      renderVisibilityRulesList();
 
-      // --- END: Hidden Sites Logic ---
+      // --- END: Visibility Rules Logic ---
     });
   } catch {
     // Fail closed
