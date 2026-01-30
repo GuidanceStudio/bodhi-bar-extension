@@ -827,7 +827,14 @@ function initPopup() {
         const refreshList = async () => {
              const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
              const allRules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-             const matching = allRules.filter(r => globToRegex(r.pattern).test(url));
+             
+             // Show rules that match the current URL OR belong to this hostname (approx)
+             // This ensures that if you add a rule for a specific path that isn't current, it still shows up.
+             const coreHost = hostname.replace(/^www\./, '');
+             const matching = allRules.filter(r => {
+               return globToRegex(r.pattern).test(url) || r.pattern.includes(hostname) || r.pattern.includes(coreHost);
+             });
+
              matching.sort((a, b) => b.pattern.length - a.pattern.length);
              
              rulesListEl.innerHTML = '';
