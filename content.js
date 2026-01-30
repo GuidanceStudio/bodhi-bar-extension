@@ -185,9 +185,7 @@ function matchesPattern(url, pattern) {
   }
 }
 
-function setVisibilityMode(mode) {
-  window.currentVisibilityMode = mode;
-}
+// setVisibilityMode is defined in page-shift.js
 
 async function boot() {
   if (_tzDidBoot) return;
