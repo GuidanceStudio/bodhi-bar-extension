@@ -281,7 +281,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'SET_VISIBILITY_MODE') {
     if (typeof setVisibilityMode === 'function') {
       setVisibilityMode(request.mode);
-      if (typeof applyPageShift === 'function') applyPageShift();
+      
+      // Call the render function that handles the DOM visibility and minimize button
+      if (typeof applyVisibilityState === 'function') {
+        // We use the cached tab ID or request it
+        getThisTabId().then(id => applyVisibilityState(id));
+      } else if (typeof applyPageShift === 'function') {
+        applyPageShift();
+      }
     }
     sendResponse({ success: true });
   }
