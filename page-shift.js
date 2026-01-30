@@ -249,7 +249,7 @@ function applyPageShift() {
 
   // 1. HIDDEN MODE: Bar is gone, no padding
   if (mode === VISIBILITY_MODES.HIDDEN) {
-    if (bar) bar.style.display = 'none';
+    if (bar) bar.style.setProperty('display', 'none', 'important');
     restoreShiftedHeaders();
     body.style.removeProperty('padding-top');
     body.style.removeProperty('padding-bottom');
@@ -260,7 +260,7 @@ function applyPageShift() {
 
   // 2. OVERLAY MODE: Bar floats over content, no padding
   if (mode === VISIBILITY_MODES.OVERLAY) {
-    if (bar) bar.style.display = '';
+    if (bar) bar.style.setProperty('display', '', 'important');
     restoreShiftedHeaders();
     body.style.removeProperty('padding-top');
     body.style.removeProperty('padding-bottom');
@@ -271,7 +271,7 @@ function applyPageShift() {
 
   // 3. PUSH MODE: Bar pushes content down, apply padding
   if (mode === VISIBILITY_MODES.PUSH) {
-    if (bar) bar.style.display = '';
+    if (bar) bar.style.setProperty('display', '', 'important');
     try {
       ensureSafeAreasStyle();
     } catch {}
