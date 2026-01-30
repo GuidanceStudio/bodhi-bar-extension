@@ -63,7 +63,8 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
     - **Delete**: Remove the workspace from storage.
   - **Import**: Restore workspaces from JSON files. If the imported workspace name already exists, Bodhi asks you to choose a different name.
   - **Versioning**: Exported files include a workspace version field (`wv`, currently `1.0`). Import validates the version to ensure compatibility.
-- **Default Hidden Sites**: Configure a list of URLs or domains (e.g., `youtube.com`) where the bar is automatically hidden. This allows for a clean view on specific sites without manually hiding the bar every time. Explicit per-tab toggles override this default.
+- **Smart Visibility Rules**: Create powerful rules to automatically set the bar mode (Push, Overlay, Hidden) based on URL patterns (e.g., `*google.com/*` or `*docs.google.com/spreadsheets/*`). Specific rules override generic ones.
+- **Custom CSS Overrides**: Add per-site CSS patches directly from the popup to fix layout issues on tricky sites (e.g., shifting fixed headers). These overrides are applied only in **Push** mode.
 - **Drag & drop reordering**:
   - Reorder pinned tabs among pinned tabs
   - Reorder ungrouped web tabs among web tabs, and system tabs among system tabs
@@ -82,30 +83,32 @@ The Bodhi Bar supports three visibility modes, togglable **per tab** via the ext
 2. **Overlay**: The bar floats over the website content. In this mode, a **minimize button** (arrow icon) appears on the left, allowing you to collapse the bar into a small floating trigger.
 3. **Hidden**: The bar is completely removed from the DOM for that tab.
 
-You can also configure a **Default Hidden Sites** list in the popup. If the current URL matches an entry in this list, the bar will be hidden automatically unless an explicit toggle is set.
+You can also configure **Smart Rules** in the popup to automate this behavior based on URL patterns.
 
 ### Priority Logic:
-1.  **Explicit Toggle**: If you manually click "Show/Hide" in the popup, that setting is respected.
-2.  **Default List**: If no manual toggle exists, the extension checks the "Hidden Sites" list. If the current site is listed, the bar is hidden.
-3.  **Default**: If neither applies, the bar is shown.
+1.  **Explicit Toggle**: If you manually select a mode for a specific tab in the popup, that setting always wins for that tab session.
+2.  **Smart Rules**: If no manual toggle exists, the extension checks your saved rules. The most specific matching rule (longest pattern) determines the mode.
+3.  **Default**: If neither applies, the bar defaults to **Push** mode.
 
 ### How it works:
 1.  **Extension Icon**: Click the Bodhi Bar icon in the Chrome toolbar.
-2.  **Mode Selection**: Choose between Push, Overlay, or Hidden.
-3.  **Minimize (Overlay only)**: When in Overlay mode, use the `‹` icon to collapse the bar. The bar will remember its minimized/expanded state for that specific tab.
-4.  **Default Sites**: Use the "Hidden Sites" section in the popup to add domains (e.g., `google.com`) or specific paths. The bar will be hidden on these pages automatically.
-5.  **Instant Layout Adjustment**: When hidden, the extension automatically removes the `padding-top` and `margin` adjustments from the current webpage, allowing the site's original headers and content to return to their default positions.
-6.  **Persistence**: Your visibility preference is saved in `chrome.storage.local` per tab. If you hide the bar on a tab, it will remain hidden for that tab across reloads/restarts (until you show it again).
-7.  **Context Awareness**: The toggle sends a real-time message to the active tab to hide/show the bar instantly without requiring a page refresh.
+2.  **Mode Selection**: Choose between Push, Overlay, or Hidden for the current tab.
+3.  **Rules Management**:
+    - **Add Rule**: Click `+` to add a rule for the current site.
+    - **Edit Rule**: You can edit the pattern (e.g., change `*example.com/*` to `*example.com/app/*`) and the target mode (Push/Overlay/Hidden) for that rule.
+    - **CSS Overrides**: Click `{}` to write custom CSS for the current site (applied only in Push mode).
+4.  **Minimize (Overlay only)**: When in Overlay mode, use the `‹` icon to collapse the bar.
+5.  **Instant Layout Adjustment**: When hidden, the extension automatically removes the `padding-top` and `margin` adjustments from the current webpage.
+6.  **Persistence**: Your visibility preference is saved in `chrome.storage.local`.
 
 ---
 
 ## Technical Implementation Details (for Developers)
 *   **State Management**:
-    *   `tz_hidden_by_tab` tracks full hide/show per tabId.
-    *   `tz_minimized_by_tab` tracks minimized/expanded state per tabId.
-    *   `tz_default_hidden_sites` stores an array of strings (URLs/domains) for default hiding behavior.
-*   **Messaging**: `popup.js` communicates with `content.js` via `chrome.tabs.sendMessage` using the `SET_VISIBILITY` action.
+    *   `tz_visibility_mode` tracks explicit mode per tabId.
+    *   `tz_visibility_rules` stores the array of user-defined pattern rules.
+    *   `tz_site_overrides` stores user-defined CSS patches per hostname.
+*   **Messaging**: `popup.js` communicates with `content.js` via `chrome.tabs.sendMessage` using the `SET_VISIBILITY_MODE` action.
 *   **CSS Injection**: The bar is hidden using `display: none !important` to ensure it overrides site-specific styles.
 *   **Reflow**: `page-shift.js` checks bar visibility and restores shifted headers / safe-area padding when the bar is hidden, then triggers a resize to let the page reflow.
 *   **Layout behavior**: when minimized, the bar collapses to the minimize button and `page-shift.js` removes the safe-area padding / header shifting (treats minimized like hidden for page layout).
@@ -130,7 +133,7 @@ Our codebase is organized into specialized components:
 - **messaging.js**: port handshake + robust message retry.
 - **constants.js**: shared UI constants and IDs.
 - **content.css**: all UI styling (bar, tiles, popovers).
-- **site_overrides.js**: per-site exceptions (injected into all frames by the service worker).
+- **site_overrides.js**: dynamic CSS patch injector (reads from storage).
 - **manifest.json**: MV3 manifest and permissions.
 
 ## Development Installation
