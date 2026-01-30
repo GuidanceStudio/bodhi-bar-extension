@@ -23,15 +23,25 @@
       <div id="domain-setting-row" class="checkbox-row" style="display:none;">
         <input type="checkbox" id="domainToggle">
         
-        <!-- State A: Label (Clean) -->
+        <!-- State A: Label (No Rule) -->
         <label for="domainToggle" id="domainLabel">
           Always apply to <span id="currentDomain" class="domain-badge">this site</span>
         </label>
 
-        <!-- State B: Editable Pattern (Powerful) -->
-        <div id="domainPatternContainer" style="display:none; flex: 1; display: flex; align-items: center;">
+        <!-- State B: View Rule (Read Only) -->
+        <div id="domainViewContainer" style="display:none; flex: 1; align-items: center; gap: 6px;">
+          <span id="domainPatternDisplay" class="pattern-display"></span>
+          <div class="rule-actions">
+            <button id="btnEditRule" class="btn-icon" title="Edit">&#9997;</button>
+            <button id="btnDeleteRule" class="btn-icon delete" title="Delete">&#128465;</button>
+          </div>
+        </div>
+
+        <!-- State C: Edit Rule (Input) -->
+        <div id="domainEditContainer" style="display:none; flex: 1; align-items: center; gap: 4px;">
           <input type="text" id="domainPatternInput" class="pattern-input" spellcheck="false">
-          <button id="savePatternBtn" class="btn-icon" title="Save rule">&#10003;</button>
+          <button id="btnSaveRule" class="btn-icon success" title="Save">&#10003;</button>
+          <button id="btnCancelRule" class="btn-icon" title="Cancel">&#10005;</button>
         </div>
       </div>
     </div>

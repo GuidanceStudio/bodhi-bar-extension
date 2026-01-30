@@ -769,10 +769,17 @@ function initPopup() {
       if (hostname && domainRow) {
         domainRow.style.display = 'flex';
         const labelEl = document.getElementById('domainLabel');
-        const inputContainer = document.getElementById('domainPatternContainer');
-        const inputEl = document.getElementById('domainPatternInput');
-        const saveBtn = document.getElementById('savePatternBtn');
         const domainBadge = document.getElementById('currentDomain');
+        
+        // New Elements
+        const viewContainer = document.getElementById('domainViewContainer');
+        const editContainer = document.getElementById('domainEditContainer');
+        const patternDisplay = document.getElementById('domainPatternDisplay');
+        const patternInput = document.getElementById('domainPatternInput');
+        const btnEdit = document.getElementById('btnEditRule');
+        const btnDelete = document.getElementById('btnDeleteRule');
+        const btnSave = document.getElementById('btnSaveRule');
+        const btnCancel = document.getElementById('btnCancelRule');
         
         if (domainBadge) domainBadge.textContent = hostname;
 
@@ -783,28 +790,33 @@ function initPopup() {
           if (activeRule) {
             domainToggle.checked = true;
             labelEl.style.display = 'none';
-            inputContainer.style.display = 'flex'; // Show container
-            inputEl.style.display = 'block';
-            inputEl.value = activeRule.pattern;
+            
+            // If we are currently editing, don't switch back to view automatically
+            if (editContainer.style.display === 'flex') {
+              viewContainer.style.display = 'none';
+            } else {
+              editContainer.style.display = 'none';
+              viewContainer.style.display = 'flex';
+              patternDisplay.textContent = activeRule.pattern;
+              patternDisplay.title = activeRule.pattern;
+            }
           } else {
             domainToggle.checked = false;
             labelEl.style.display = 'block';
-            inputContainer.style.display = 'none';
-            inputEl.style.display = 'none';
-            // Default suggestion: *hostname/* (covers subdomains)
-            inputEl.value = '*' + hostname + '/*'; 
+            viewContainer.style.display = 'none';
+            editContainer.style.display = 'none';
           }
         };
 
         updateUI();
 
-        // Toggle Event
+        // Toggle Event (Checkbox)
         domainToggle.onchange = async () => {
           const isChecked = domainToggle.checked;
           const mode = select.value;
 
           if (isChecked) {
-            // Create new rule
+            // Create new default rule
             const pattern = '*' + hostname + '/*';
             await saveRule(null, pattern, mode);
             activeRule = { pattern, mode };
@@ -815,36 +827,53 @@ function initPopup() {
               activeRule = null;
             }
           }
+          // Reset edit state on toggle
+          editContainer.style.display = 'none';
           updateUI();
         };
 
-        // Save Logic
-        const commitChange = async () => {
+        // Edit Button
+        btnEdit.onclick = () => {
           if (!activeRule) return;
-          const newPattern = inputEl.value.trim();
-          if (!newPattern) return; 
+          viewContainer.style.display = 'none';
+          editContainer.style.display = 'flex';
+          patternInput.value = activeRule.pattern;
+          patternInput.focus();
+        };
 
-          // Always save if clicked, even if same (for feedback)
+        // Cancel Button
+        btnCancel.onclick = () => {
+          editContainer.style.display = 'none';
+          updateUI();
+        };
+
+        // Save Button
+        btnSave.onclick = async () => {
+          const newPattern = patternInput.value.trim();
+          if (!newPattern || !activeRule) return;
+          
           const mode = select.value;
           await saveRule(activeRule.pattern, newPattern, mode);
           activeRule = { pattern: newPattern, mode };
           
-          // Visual Feedback
-          const originalText = saveBtn.innerHTML;
-          saveBtn.innerHTML = '&#10003;'; // Checkmark
-          saveBtn.classList.add('saved');
-          setTimeout(() => {
-            saveBtn.innerHTML = originalText;
-            saveBtn.classList.remove('saved');
-          }, 1000);
+          editContainer.style.display = 'none';
+          updateUI();
         };
 
-        saveBtn.onclick = commitChange;
-        inputEl.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            commitChange();
-            inputEl.blur();
-          }
+        // Delete Button
+        btnDelete.onclick = async () => {
+          if (!activeRule) return;
+          if (!confirm('Remove this rule?')) return;
+          
+          await saveRule(activeRule.pattern, null, null);
+          activeRule = null;
+          updateUI();
+        };
+
+        // Input Keys
+        patternInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') btnSave.click();
+          if (e.key === 'Escape') btnCancel.click();
         });
       }
 
