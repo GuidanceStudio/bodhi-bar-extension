@@ -112,3 +112,9 @@ function scheduleMetricsUpdate(force = false) {
     applyZoomCompensatedMetrics(force);
   });
 }
+
+window.addEventListener('resize', () => scheduleMetricsUpdate());
+
+// Initial setup
+captureBaseDPR();
+scheduleMetricsUpdate();
