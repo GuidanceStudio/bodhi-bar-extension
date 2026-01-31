@@ -1,197 +1,201 @@
-/**
- * ZOOM.JS - Zoom scale detection and metrics application
- */
+(function() {
+  /**
+   * ZOOM.JS - Zoom scale detection and metrics application
+   */
+  if (window.__tzZoomInited) return;
+  window.__tzZoomInited = true;
 
-if (typeof window.__tzBase === 'undefined') {
-  window.__tzBase = {
-    TAB_W: 148,
-    BAR_H: 38,
-    FONT_PX: 14,
-    FAV_PX: 16,
-    PAD_X: 10,
-    GAP_X: 2,
-    PLUS_W: 26,
-    SEP_W: 1,
-    SEP_MX: 10,
-    ICON_GAP: 8,
-    INDICATOR_H: 2,
-    GROUP_MIN_PAD_X: 12,
-    LVL2_FAV_PX: 14,
-    LVL2_FAV_ML: 6,
-    GAP_MD: 4,
-    GAP_LG: 8,
-    SEARCH_PAD_Y: 0,
-    SEARCH_MB: 0,
-    SEARCH_ICN_Y: 2  // Reduced from 4 to better center icon
-  };
-}
-const BASE = window.__tzBase;
+  if (typeof window.__tzBase === 'undefined') {
+    window.__tzBase = {
+      TAB_W: 148,
+      BAR_H: 38,
+      FONT_PX: 14,
+      FAV_PX: 16,
+      PAD_X: 10,
+      GAP_X: 2,
+      PLUS_W: 26,
+      SEP_W: 1,
+      SEP_MX: 10,
+      ICON_GAP: 8,
+      INDICATOR_H: 2,
+      GROUP_MIN_PAD_X: 12,
+      LVL2_FAV_PX: 14,
+      LVL2_FAV_ML: 6,
+      GAP_MD: 4,
+      GAP_LG: 8,
+      SEARCH_PAD_Y: 0,
+      SEARCH_MB: 0,
+      SEARCH_ICN_Y: 2  // Reduced from 4 to better center icon
+    };
+  }
+  const BASE = window.__tzBase;
 
-let _lastScale = null;
-let _metricsRAF = 0;
-let _baseDPR = null;
+  let _lastScale = null;
+  let _metricsRAF = 0;
+  let _baseDPR = null;
 
-function round3(n) { return Math.round(n * 1000) / 1000; }
-function captureBaseDPR() { _baseDPR = window.devicePixelRatio || 1; }
+  function round3(n) { return Math.round(n * 1000) / 1000; }
+  function captureBaseDPR() { _baseDPR = window.devicePixelRatio || 1; }
 
-function setInitialZoom(z) {
-  if (z && z > 0) {
-    const dpr = window.devicePixelRatio || 1;
-    // Calculate what the DPR would be at 100% zoom (Monitor DPR)
-    _baseDPR = dpr / z;
-    if (typeof applyZoomCompensatedMetrics === 'function') {
-      applyZoomCompensatedMetrics(true);
+  function setInitialZoom(z) {
+    if (z && z > 0) {
+      const dpr = window.devicePixelRatio || 1;
+      // Calculate what the DPR would be at 100% zoom (Monitor DPR)
+      _baseDPR = dpr / z;
+      if (typeof applyZoomCompensatedMetrics === 'function') {
+        applyZoomCompensatedMetrics(true);
+      }
     }
   }
-}
 
-if (chrome?.runtime?.sendMessage) {
-  chrome.runtime.sendMessage({ action: 'GET_ZOOM' }, (res) => {
-    if (chrome.runtime.lastError) return;
-    if (res && res.ok && res.zoom) {
-      setInitialZoom(res.zoom);
-    }
-  });
-}
+  if (chrome?.runtime?.sendMessage) {
+    chrome.runtime.sendMessage({ action: 'GET_ZOOM' }, (res) => {
+      if (chrome.runtime.lastError) return;
+      if (res && res.ok && res.zoom) {
+        setInitialZoom(res.zoom);
+      }
+    });
+  }
 
-function getZoomScale() {
-  const dpr = window.devicePixelRatio || 1;
-  const base = _baseDPR || dpr || 1;
-  let s = dpr / base;
-  if (!isFinite(s) || s <= 0) s = 1;
-  return round3(s);
-}
+  function getZoomScale() {
+    const dpr = window.devicePixelRatio || 1;
+    const base = _baseDPR || dpr || 1;
+    let s = dpr / base;
+    if (!isFinite(s) || s <= 0) s = 1;
+    return round3(s);
+  }
 
-function maybeRecaptureBaseDPR() {
-  if (_baseDPR == null) return captureBaseDPR();
-  const dpr = window.devicePixelRatio || 1;
-  const s = dpr / _baseDPR;
-  if (!isFinite(s) || s <= 0.1 || s >= 10) captureBaseDPR();
-}
+  function maybeRecaptureBaseDPR() {
+    if (_baseDPR == null) return captureBaseDPR();
+    const dpr = window.devicePixelRatio || 1;
+    const s = dpr / _baseDPR;
+    if (!isFinite(s) || s <= 0.1 || s >= 10) captureBaseDPR();
+  }
 
-function px(base, scale) {
-  const v = base / (scale || 1);
-  return `${Math.round(v * 1000) / 1000}px`;
-}
+  function px(base, scale) {
+    const v = base / (scale || 1);
+    return `${Math.round(v * 1000) / 1000}px`;
+  }
 
-function ensureSizingStyle() {
-  if (document.head?.querySelector('style[data-tz-px-zoom]')) return;
+  function ensureSizingStyle() {
+    if (document.head?.querySelector('style[data-tz-px-zoom]')) return;
 
-  const style = document.createElement('style');
-  style.setAttribute('data-tz-px-zoom', 'true');
-  style.textContent = `
-    :root{
-      --tz-tab-w: ${BASE.TAB_W}px;
-      --tz-h: ${BASE.BAR_H}px;
-      --tz-font: ${BASE.FONT_PX}px;
-      --tz-fav: ${BASE.FAV_PX}px;
-      --tz-pad-x: ${BASE.PAD_X}px;
-      --tz-gap-x: ${BASE.GAP_X}px;
-      --tz-plus-w: ${BASE.PLUS_W}px;
-      --tz-sep-w: ${BASE.SEP_W}px;
-      --tz-sep-mx: ${BASE.SEP_MX}px;
-      --tz-icon-gap: ${BASE.ICON_GAP}px;
-      --tz-ind-h: ${BASE.INDICATOR_H}px;
-      --tz-group-min-pad-x: ${BASE.GROUP_MIN_PAD_X}px;
-      --tz-lvl2-fav: ${BASE.LVL2_FAV_PX}px;
-      --tz-lvl2-fav-ml: ${BASE.LVL2_FAV_ML}px;
-      --tz-search-icon: 32px;
-      --tz-search-w: 38px;
-      --tz-search-exp-w: 260px;
-      --tz-search-mt: -4px;
-      --tz-act-h: 18px;
-      --tz-btn-sm: 18px;
-      --tz-btn-sm-font: 16px;
-      --tz-min-w: 28px;
-      --tz-min-font: 18px;
-      --tz-search-diff: 10px;
-      --tz-gap-sm: 6px;
-      --tz-gap-xs: 2px;
-      --tz-gap-md: ${BASE.GAP_MD}px;
-      --tz-gap-lg: ${BASE.GAP_LG}px;
-      --tz-popover-pad: 6px;
-      --tz-popover-swatch: 10px;
-      --tz-popover-preview: 12px;
-      --tz-favicon-sm: 16px;
-      --tz-search-icn-y: 4px;
-      --tz-search-pad-y: ${BASE.SEARCH_PAD_Y}px;
-      --tz-search-mb: ${BASE.SEARCH_MB}px;
-    }
-  `;
-  document.head?.appendChild(style);
-}
+    const style = document.createElement('style');
+    style.setAttribute('data-tz-px-zoom', 'true');
+    style.textContent = `
+      :root{
+        --tz-tab-w: ${BASE.TAB_W}px;
+        --tz-h: ${BASE.BAR_H}px;
+        --tz-font: ${BASE.FONT_PX}px;
+        --tz-fav: ${BASE.FAV_PX}px;
+        --tz-pad-x: ${BASE.PAD_X}px;
+        --tz-gap-x: ${BASE.GAP_X}px;
+        --tz-plus-w: ${BASE.PLUS_W}px;
+        --tz-sep-w: ${BASE.SEP_W}px;
+        --tz-sep-mx: ${BASE.SEP_MX}px;
+        --tz-icon-gap: ${BASE.ICON_GAP}px;
+        --tz-ind-h: ${BASE.INDICATOR_H}px;
+        --tz-group-min-pad-x: ${BASE.GROUP_MIN_PAD_X}px;
+        --tz-lvl2-fav: ${BASE.LVL2_FAV_PX}px;
+        --tz-lvl2-fav-ml: ${BASE.LVL2_FAV_ML}px;
+        --tz-search-icon: 32px;
+        --tz-search-w: 38px;
+        --tz-search-exp-w: 260px;
+        --tz-search-mt: -4px;
+        --tz-act-h: 18px;
+        --tz-btn-sm: 18px;
+        --tz-btn-sm-font: 16px;
+        --tz-min-w: 28px;
+        --tz-min-font: 18px;
+        --tz-search-diff: 10px;
+        --tz-gap-sm: 6px;
+        --tz-gap-xs: 2px;
+        --tz-gap-md: ${BASE.GAP_MD}px;
+        --tz-gap-lg: ${BASE.GAP_LG}px;
+        --tz-popover-pad: 6px;
+        --tz-popover-swatch: 10px;
+        --tz-popover-preview: 12px;
+        --tz-favicon-sm: 16px;
+        --tz-search-icn-y: 4px;
+        --tz-search-pad-y: ${BASE.SEARCH_PAD_Y}px;
+        --tz-search-mb: ${BASE.SEARCH_MB}px;
+      }
+    `;
+    document.head?.appendChild(style);
+  }
 
-function applyZoomCompensatedMetrics(force = false) {
-  ensureSizingStyle();
-  maybeRecaptureBaseDPR();
+  function applyZoomCompensatedMetrics(force = false) {
+    ensureSizingStyle();
+    maybeRecaptureBaseDPR();
 
-  const scale = getZoomScale();
-  if (!force && _lastScale === scale) return;
-  _lastScale = scale;
+    const scale = getZoomScale();
+    if (!force && _lastScale === scale) return;
+    _lastScale = scale;
 
-  const root = document.documentElement;
-  if (!root) return;
+    const root = document.documentElement;
+    if (!root) return;
 
-  root.style.setProperty('--tz-tab-w', px(BASE.TAB_W, scale));
-  root.style.setProperty('--tz-h', px(BASE.BAR_H, scale));
-  root.style.setProperty('--tz-font', px(BASE.FONT_PX, scale));
-  root.style.setProperty('--tz-fav', px(BASE.FAV_PX, scale));
-  root.style.setProperty('--tz-pad-x', px(BASE.PAD_X, scale));
-  root.style.setProperty('--tz-gap-x', px(BASE.GAP_X, scale));
-  root.style.setProperty('--tz-plus-w', px(BASE.PLUS_W, scale));
-  root.style.setProperty('--tz-sep-w', px(BASE.SEP_W, scale));
-  root.style.setProperty('--tz-sep-mx', px(BASE.SEP_MX, scale));
-  root.style.setProperty('--tz-icon-gap', px(BASE.ICON_GAP, scale));
-  root.style.setProperty('--tz-ind-h', px(BASE.INDICATOR_H, scale));
-  root.style.setProperty('--tz-group-min-pad-x', px(BASE.GROUP_MIN_PAD_X, scale));
-  root.style.setProperty('--tz-lvl2-fav', px(BASE.LVL2_FAV_PX, scale));
-  root.style.setProperty('--tz-lvl2-fav-ml', px(BASE.LVL2_FAV_ML, scale));
+    root.style.setProperty('--tz-tab-w', px(BASE.TAB_W, scale));
+    root.style.setProperty('--tz-h', px(BASE.BAR_H, scale));
+    root.style.setProperty('--tz-font', px(BASE.FONT_PX, scale));
+    root.style.setProperty('--tz-fav', px(BASE.FAV_PX, scale));
+    root.style.setProperty('--tz-pad-x', px(BASE.PAD_X, scale));
+    root.style.setProperty('--tz-gap-x', px(BASE.GAP_X, scale));
+    root.style.setProperty('--tz-plus-w', px(BASE.PLUS_W, scale));
+    root.style.setProperty('--tz-sep-w', px(BASE.SEP_W, scale));
+    root.style.setProperty('--tz-sep-mx', px(BASE.SEP_MX, scale));
+    root.style.setProperty('--tz-icon-gap', px(BASE.ICON_GAP, scale));
+    root.style.setProperty('--tz-ind-h', px(BASE.INDICATOR_H, scale));
+    root.style.setProperty('--tz-group-min-pad-x', px(BASE.GROUP_MIN_PAD_X, scale));
+    root.style.setProperty('--tz-lvl2-fav', px(BASE.LVL2_FAV_PX, scale));
+    root.style.setProperty('--tz-lvl2-fav-ml', px(BASE.LVL2_FAV_ML, scale));
 
-  root.style.setProperty('--tz-search-icon', px(32, scale));
-  root.style.setProperty('--tz-search-w', px(38, scale));
-  root.style.setProperty('--tz-search-exp-w', px(260, scale));
-  root.style.setProperty('--tz-search-mt', px(-4, scale));
-  root.style.setProperty('--tz-act-h', px(18, scale));
-  root.style.setProperty('--tz-btn-sm', px(18, scale));
-  root.style.setProperty('--tz-btn-sm-font', px(16, scale));
-  root.style.setProperty('--tz-min-w', px(28, scale));
-  root.style.setProperty('--tz-min-font', px(18, scale));
-  root.style.setProperty('--tz-search-diff', px(10, scale));
-  root.style.setProperty('--tz-gap-sm', px(6, scale));
-  root.style.setProperty('--tz-gap-xs', px(2, scale));
-  root.style.setProperty('--tz-gap-md', px(BASE.GAP_MD, scale));
-  root.style.setProperty('--tz-gap-lg', px(BASE.GAP_LG, scale));
-  root.style.setProperty('--tz-popover-pad', px(6, scale));
-  root.style.setProperty('--tz-popover-swatch', px(10, scale));
-  root.style.setProperty('--tz-popover-preview', px(12, scale));
-  root.style.setProperty('--tz-favicon-sm', px(16, scale));
-  root.style.setProperty('--tz-search-icn-y', px(4, scale));
-  root.style.setProperty('--tz-search-pad-y', px(BASE.SEARCH_PAD_Y, scale));
-  root.style.setProperty('--tz-search-mb', px(BASE.SEARCH_MB, scale));
+    root.style.setProperty('--tz-search-icon', px(32, scale));
+    root.style.setProperty('--tz-search-w', px(38, scale));
+    root.style.setProperty('--tz-search-exp-w', px(260, scale));
+    root.style.setProperty('--tz-search-mt', px(-4, scale));
+    root.style.setProperty('--tz-act-h', px(18, scale));
+    root.style.setProperty('--tz-btn-sm', px(18, scale));
+    root.style.setProperty('--tz-btn-sm-font', px(16, scale));
+    root.style.setProperty('--tz-min-w', px(28, scale));
+    root.style.setProperty('--tz-min-font', px(18, scale));
+    root.style.setProperty('--tz-search-diff', px(10, scale));
+    root.style.setProperty('--tz-gap-sm', px(6, scale));
+    root.style.setProperty('--tz-gap-xs', px(2, scale));
+    root.style.setProperty('--tz-gap-md', px(BASE.GAP_MD, scale));
+    root.style.setProperty('--tz-gap-lg', px(BASE.GAP_LG, scale));
+    root.style.setProperty('--tz-popover-pad', px(6, scale));
+    root.style.setProperty('--tz-popover-swatch', px(10, scale));
+    root.style.setProperty('--tz-popover-preview', px(12, scale));
+    root.style.setProperty('--tz-favicon-sm', px(16, scale));
+    root.style.setProperty('--tz-search-icn-y', px(4, scale));
+    root.style.setProperty('--tz-search-pad-y', px(BASE.SEARCH_PAD_Y, scale));
+    root.style.setProperty('--tz-search-mb', px(BASE.SEARCH_MB, scale));
 
-  applyPageShift();
-  updateDynamicLayout();
-}
+    applyPageShift();
+    updateDynamicLayout();
+  }
 
-function scheduleMetricsUpdate(force = false) {
-  if (_metricsRAF) cancelAnimationFrame(_metricsRAF);
-  _metricsRAF = requestAnimationFrame(() => {
-    _metricsRAF = 0;
-    applyZoomCompensatedMetrics(force);
-  });
-}
+  function scheduleMetricsUpdate(force = false) {
+    if (_metricsRAF) cancelAnimationFrame(_metricsRAF);
+    _metricsRAF = requestAnimationFrame(() => {
+      _metricsRAF = 0;
+      applyZoomCompensatedMetrics(force);
+    });
+  }
 
-window.addEventListener('resize', () => scheduleMetricsUpdate());
+  window.addEventListener('resize', () => scheduleMetricsUpdate());
 
-// Initial setup
-captureBaseDPR();
-scheduleMetricsUpdate();
+  // Initial setup
+  captureBaseDPR();
+  scheduleMetricsUpdate();
 
-// Add this at the end of the file:
-window.__tzZoomMetrics = {
-  ensureSizingStyle,
-  applyZoomCompensatedMetrics,
-  scheduleMetricsUpdate,
-  captureBaseDPR,
-  setInitialZoom
-};
+  // Add this at the end of the file:
+  window.__tzZoomMetrics = {
+    ensureSizingStyle,
+    applyZoomCompensatedMetrics,
+    scheduleMetricsUpdate,
+    captureBaseDPR,
+    setInitialZoom
+  };
+})();
