@@ -2,6 +2,27 @@
  * ZOOM.JS - Zoom scale detection and metrics application
  */
 
+const BASE = {
+  TAB_W: 148,
+  BAR_H: 38,
+  FONT_PX: 14,
+  FAV_PX: 16,
+  PAD_X: 10,
+  GAP_X: 2,
+  PLUS_W: 26,
+  SEP_W: 1,
+  SEP_MX: 10,
+  ICON_GAP: 8,
+  INDICATOR_H: 2,
+  GROUP_MIN_PAD_X: 12,
+  LVL2_FAV_PX: 14,
+  LVL2_FAV_ML: 6,
+  GAP_MD: 4,    // Add this
+  GAP_LG: 8,    // Add this
+  SEARCH_PAD_Y: 0,    // Add this
+  SEARCH_MB: 0,       // Add this
+};
+
 let _lastScale = null;
 let _metricsRAF = 0;
 let _baseDPR = null;
@@ -89,6 +110,8 @@ function ensureSizingStyle() {
       --tz-popover-preview: 12px;
       --tz-favicon-sm: 16px;
       --tz-search-icn-y: 4px;
+      --tz-search-pad-y: ${BASE.SEARCH_PAD_Y}px;
+      --tz-search-mb: ${BASE.SEARCH_MB}px;
     }
   `;
   document.head?.appendChild(style);
@@ -139,6 +162,8 @@ function applyZoomCompensatedMetrics(force = false) {
   root.style.setProperty('--tz-popover-preview', px(12, scale));
   root.style.setProperty('--tz-favicon-sm', px(16, scale));
   root.style.setProperty('--tz-search-icn-y', px(4, scale));
+  root.style.setProperty('--tz-search-pad-y', px(BASE.SEARCH_PAD_Y, scale));
+  root.style.setProperty('--tz-search-mb', px(BASE.SEARCH_MB, scale));
 
   applyPageShift();
   updateDynamicLayout();
