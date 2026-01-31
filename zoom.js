@@ -70,6 +70,18 @@ function ensureSizingStyle() {
       --tz-group-min-pad-x: ${BASE.GROUP_MIN_PAD_X}px;
       --tz-lvl2-fav: ${BASE.LVL2_FAV_PX}px;
       --tz-lvl2-fav-ml: ${BASE.LVL2_FAV_ML}px;
+      --tz-search-icon: 32px;
+      --tz-search-w: 38px;
+      --tz-search-exp-w: 260px;
+      --tz-search-mt: -4px;
+      --tz-act-h: 18px;
+      --tz-btn-sm: 18px;
+      --tz-btn-sm-font: 16px;
+      --tz-min-w: 28px;
+      --tz-min-font: 18px;
+      --tz-search-diff: 10px;
+      --tz-gap-sm: 6px;
+      --tz-gap-xs: 2px;
     }
   `;
   document.head?.appendChild(style);
@@ -100,6 +112,19 @@ function applyZoomCompensatedMetrics(force = false) {
   root.style.setProperty('--tz-group-min-pad-x', px(BASE.GROUP_MIN_PAD_X, scale));
   root.style.setProperty('--tz-lvl2-fav', px(BASE.LVL2_FAV_PX, scale));
   root.style.setProperty('--tz-lvl2-fav-ml', px(BASE.LVL2_FAV_ML, scale));
+
+  root.style.setProperty('--tz-search-icon', px(32, scale));
+  root.style.setProperty('--tz-search-w', px(38, scale));
+  root.style.setProperty('--tz-search-exp-w', px(260, scale));
+  root.style.setProperty('--tz-search-mt', px(-4, scale));
+  root.style.setProperty('--tz-act-h', px(18, scale));
+  root.style.setProperty('--tz-btn-sm', px(18, scale));
+  root.style.setProperty('--tz-btn-sm-font', px(16, scale));
+  root.style.setProperty('--tz-min-w', px(28, scale));
+  root.style.setProperty('--tz-min-font', px(18, scale));
+  root.style.setProperty('--tz-search-diff', px(10, scale));
+  root.style.setProperty('--tz-gap-sm', px(6, scale));
+  root.style.setProperty('--tz-gap-xs', px(2, scale));
 
   applyPageShift();
   updateDynamicLayout();
