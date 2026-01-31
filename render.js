@@ -5,8 +5,16 @@
 // isInternalResize is declared in page-shift.js
 
 function ensureBar() {
-  ensureSizingStyle();
-  applyZoomCompensatedMetrics(true);
+  // Add safe reference to zoom functions
+  const zoomUtils = window.__tzZoomMetrics || {};
+  const { ensureSizingStyle, applyZoomCompensatedMetrics } = zoomUtils;
+  
+  if (typeof ensureSizingStyle === 'function') {
+    ensureSizingStyle();
+  }
+  if (typeof applyZoomCompensatedMetrics === 'function') {
+    applyZoomCompensatedMetrics(true);
+  }
 
   let bar = document.getElementById(TZ_BAR_ID);
   if (bar && !document.body?.contains(bar)) {

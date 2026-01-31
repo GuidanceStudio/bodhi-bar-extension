@@ -2,26 +2,30 @@
  * ZOOM.JS - Zoom scale detection and metrics application
  */
 
-var BASE = {
-  TAB_W: 148,
-  BAR_H: 38,
-  FONT_PX: 14,
-  FAV_PX: 16,
-  PAD_X: 10,
-  GAP_X: 2,
-  PLUS_W: 26,
-  SEP_W: 1,
-  SEP_MX: 10,
-  ICON_GAP: 8,
-  INDICATOR_H: 2,
-  GROUP_MIN_PAD_X: 12,
-  LVL2_FAV_PX: 14,
-  LVL2_FAV_ML: 6,
-  GAP_MD: 4,    // Add this
-  GAP_LG: 8,    // Add this
-  SEARCH_PAD_Y: 0,    // Add this
-  SEARCH_MB: 0,       // Add this
-};
+if (typeof window.__tzBase === 'undefined') {
+  window.__tzBase = {
+    TAB_W: 148,
+    BAR_H: 38,
+    FONT_PX: 14,
+    FAV_PX: 16,
+    PAD_X: 10,
+    GAP_X: 2,
+    PLUS_W: 26,
+    SEP_W: 1,
+    SEP_MX: 10,
+    ICON_GAP: 8,
+    INDICATOR_H: 2,
+    GROUP_MIN_PAD_X: 12,
+    LVL2_FAV_PX: 14,
+    LVL2_FAV_ML: 6,
+    GAP_MD: 4,
+    GAP_LG: 8,
+    SEARCH_PAD_Y: 0,
+    SEARCH_MB: 0,
+    SEARCH_ICN_Y: 2  // Reduced from 4 to better center icon
+  };
+}
+const BASE = window.__tzBase;
 
 let _lastScale = null;
 let _metricsRAF = 0;
@@ -182,3 +186,12 @@ window.addEventListener('resize', () => scheduleMetricsUpdate());
 // Initial setup
 captureBaseDPR();
 scheduleMetricsUpdate();
+
+// Add this at the end of the file:
+window.__tzZoomMetrics = {
+  ensureSizingStyle,
+  applyZoomCompensatedMetrics,
+  scheduleMetricsUpdate,
+  captureBaseDPR,
+  setInitialZoom
+};
