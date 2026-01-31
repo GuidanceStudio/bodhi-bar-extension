@@ -14,6 +14,19 @@
   --tz-group-min-pad-x: 12px;
   --tz-lvl2-fav: 14px;
   --tz-lvl2-fav-ml: 6px;
+
+  --tz-search-icon: 32px;
+  --tz-search-w: 38px;
+  --tz-search-exp-w: 260px;
+  --tz-search-mt: -4px;
+  --tz-act-h: 18px;
+  --tz-btn-sm: 18px;
+  --tz-btn-sm-font: 16px;
+  --tz-min-w: 28px;
+  --tz-min-font: 18px;
+  --tz-search-diff: 10px;
+  --tz-gap-sm: 6px;
+  --tz-gap-xs: 2px;
 }
 #ungroup-automatic-tab-bar .scroll-container::-webkit-scrollbar{ display:none; }
 
@@ -210,9 +223,9 @@
 #ungroup-automatic-tab-bar .tz-search{
   all: initial;
   box-sizing:border-box;
-  height:calc(var(--tz-h) - 10px);
-  margin-left:6px;
-  margin-right:-2px; /* Changed from 10px to -2px */
+  height:calc(var(--tz-h) - var(--tz-search-diff));
+  margin-left:var(--tz-gap-sm);
+  margin-right:calc(var(--tz-gap-xs) * -1);
   display:flex;
   align-items:center;
   gap:8px;
@@ -223,7 +236,7 @@
   color:#fff;
   font-family:Arial, sans-serif;
   flex:0 0 auto;
-  width:38px; /* collapsed */
+  width:var(--tz-search-w); /* collapsed */
   transition:width 160ms ease, background 160ms ease, border-color 160ms ease;
   overflow:hidden;
   cursor:pointer;
@@ -235,8 +248,8 @@
   cursor:pointer;
 }
 #ungroup-automatic-tab-bar .tz-search:not(.expanded) .icon{
-  font-size:32px; /* Changed from 28px */
-  margin-top:-4px; /* Added to move icon higher */
+  font-size:var(--tz-search-icon);
+  margin-top:var(--tz-search-mt);
   cursor:pointer;
 }
 /* Ensure the icon can actually move vertically (some pages override line-height/align) */
@@ -244,10 +257,10 @@
 #ungroup-automatic-tab-bar .tz-search:not(.expanded){ align-items:flex-start; padding-top:0; }
 #ungroup-automatic-tab-bar .tz-search.expanded{ align-items:center; padding-top:0; }
 #ungroup-automatic-tab-bar .tz-search.expanded{
-  width:260px;
+  width:var(--tz-search-exp-w);
   background:#222;
   border-color:#444;
-  margin-right:6px; /* Changed from -2px to 6px */
+  margin-right:var(--tz-gap-sm);
 }
 #ungroup-automatic-tab-bar .tz-search:not(.expanded) input{ display:none; }
 #ungroup-automatic-tab-bar .tz-search:not(.expanded) .clear{ display:none !important; }
@@ -363,7 +376,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 18px;
+  height: var(--tz-act-h);
 }
 
 /* ========================================
@@ -628,14 +641,14 @@
    ======================================== */
 #ungroup-automatic-tab-bar .tz-close-x {
   all: initial;
-  width: 18px;
-  height: 18px;
+  width: var(--tz-btn-sm);
+  height: var(--tz-btn-sm);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: Arial, sans-serif;
-  font-size: 16px;
+  font-size: var(--tz-btn-sm-font);
   line-height: 1;
   cursor: pointer;
   user-select: none;
@@ -646,14 +659,14 @@
    ======================================== */
 #ungroup-automatic-tab-bar .tz-group-btn {
   all: initial;
-  width: 18px;
-  height: 18px;
+  width: var(--tz-btn-sm);
+  height: var(--tz-btn-sm);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: Arial, sans-serif;
-  font-size: 16px;
+  font-size: var(--tz-btn-sm-font);
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
@@ -672,17 +685,17 @@
 #ungroup-automatic-tab-bar .tz-minimize-btn{
   all: initial;
   box-sizing:border-box;
-  height:calc(var(--tz-h) - 10px);
-  width:28px;
-  margin-left:6px;
-  margin-right:2px;
+  height:calc(var(--tz-h) - var(--tz-search-diff));
+  width:var(--tz-min-w);
+  margin-left:var(--tz-gap-sm);
+  margin-right:var(--tz-gap-xs);
   display:flex;
   align-items:center;
   justify-content:center;
   cursor:pointer;
   user-select:none;
   font-family:Arial, sans-serif;
-  font-size:18px;
+  font-size:var(--tz-min-font);
   line-height:1;
   color:#0078d4;
   background:transparent;
@@ -701,7 +714,7 @@
 #ungroup-automatic-tab-bar .tz-search .icon {
   all: initial;
   font-family: Arial, sans-serif;
-  font-size: 32px;
+  font-size: var(--tz-search-icon);
   line-height: 1;
   color: #0078d4;
   flex: 0 0 auto;
@@ -710,7 +723,7 @@
 }
 
 #ungroup-automatic-tab-bar .tz-search:not(.expanded) .icon {
-  margin-top: -4px;
+  margin-top: var(--tz-search-mt);
 }
 
 /* ========================================
