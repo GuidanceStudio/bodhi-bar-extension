@@ -229,7 +229,7 @@
   display:flex;
   align-items:center;
   gap:8px;
-  padding:0 10px;
+  padding:0 var(--tz-gap-sm);
   border-radius:8px;
   background:#1f1f1f;
   border:1px solid #333;
@@ -240,6 +240,7 @@
   transition:width 160ms ease, background 160ms ease, border-color 160ms ease;
   overflow:hidden;
   cursor:pointer;
+  position:relative;
 }
 #ungroup-automatic-tab-bar .tz-search:not(.expanded){
   border-color:transparent;
@@ -251,6 +252,8 @@
   font-size:var(--tz-search-icon);
   margin-top:var(--tz-search-mt);
   cursor:pointer;
+  position:relative;
+  top:var(--tz-search-icn-y);
 }
 /* Ensure the icon can actually move vertically (some pages override line-height/align) */
 #ungroup-automatic-tab-bar .tz-search{ align-items:center; }
