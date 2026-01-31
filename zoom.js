@@ -84,6 +84,10 @@ function ensureSizingStyle() {
       --tz-gap-xs: 2px;
       --tz-gap-md: ${BASE.GAP_MD}px;
       --tz-gap-lg: ${BASE.GAP_LG}px;
+      --tz-popover-pad: 6px;
+      --tz-popover-swatch: 10px;
+      --tz-popover-preview: 12px;
+      --tz-favicon-sm: 16px;
     }
   `;
   document.head?.appendChild(style);
@@ -129,6 +133,10 @@ function applyZoomCompensatedMetrics(force = false) {
   root.style.setProperty('--tz-gap-xs', px(2, scale));
   root.style.setProperty('--tz-gap-md', px(BASE.GAP_MD, scale));
   root.style.setProperty('--tz-gap-lg', px(BASE.GAP_LG, scale));
+  root.style.setProperty('--tz-popover-pad', px(6, scale));
+  root.style.setProperty('--tz-popover-swatch', px(10, scale));
+  root.style.setProperty('--tz-popover-preview', px(12, scale));
+  root.style.setProperty('--tz-favicon-sm', px(16, scale));
 
   applyPageShift();
   updateDynamicLayout();
