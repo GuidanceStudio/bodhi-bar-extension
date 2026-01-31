@@ -82,6 +82,8 @@ function ensureSizingStyle() {
       --tz-search-diff: 10px;
       --tz-gap-sm: 6px;
       --tz-gap-xs: 2px;
+      --tz-gap-md: ${BASE.GAP_MD}px;
+      --tz-gap-lg: ${BASE.GAP_LG}px;
     }
   `;
   document.head?.appendChild(style);
@@ -125,6 +127,8 @@ function applyZoomCompensatedMetrics(force = false) {
   root.style.setProperty('--tz-search-diff', px(10, scale));
   root.style.setProperty('--tz-gap-sm', px(6, scale));
   root.style.setProperty('--tz-gap-xs', px(2, scale));
+  root.style.setProperty('--tz-gap-md', px(BASE.GAP_MD, scale));
+  root.style.setProperty('--tz-gap-lg', px(BASE.GAP_LG, scale));
 
   applyPageShift();
   updateDynamicLayout();
