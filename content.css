@@ -251,9 +251,11 @@
 }
 #ungroup-automatic-tab-bar .tz-search:not(.expanded) .icon{
   font-size:var(--tz-search-icon);
-  top: 0; /* Remove vertical positioning */
+  position: static;
+  top: 0;
+  margin-top: 0;
+  transform: translateY(var(--tz-search-icn-y));
   cursor:pointer;
-  position:relative;
 }
 /* Ensure the icon can actually move vertically (some pages override line-height/align) */
 /* Unified vertical alignment */
