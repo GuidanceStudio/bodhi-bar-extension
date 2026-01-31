@@ -2,7 +2,7 @@
  * ZOOM.JS - Zoom scale detection and metrics application
  */
 
-const BASE = {
+var BASE = {
   TAB_W: 148,
   BAR_H: 38,
   FONT_PX: 14,
