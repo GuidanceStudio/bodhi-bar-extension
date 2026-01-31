@@ -128,23 +128,23 @@ function hookViewportEvents() {
   }
 
   function onDprChange() {
-    scheduleMetricsUpdate(true);
+    window.__tzZoomMetrics?.scheduleMetricsUpdate(true);
     installDprListener();
   }
 
   window.addEventListener('resize', () => {
-    if (!isInternalResize) scheduleMetricsUpdate(false);
+    if (!isInternalResize) window.__tzZoomMetrics?.scheduleMetricsUpdate(false);
   });
 
   window.addEventListener('focus', () => {
-    scheduleMetricsUpdate(false);
+    window.__tzZoomMetrics?.scheduleMetricsUpdate(false);
     requestTabList();
     installDprListener();
   });
 
   const vv = window.visualViewport;
   if (vv && vv.addEventListener) {
-    const onVV = () => scheduleMetricsUpdate(false);
+    const onVV = () => window.__tzZoomMetrics?.scheduleMetricsUpdate(false);
     vv.addEventListener('resize', onVV, { passive: true });
     vv.addEventListener('scroll', onVV, { passive: true });
   }
@@ -239,7 +239,7 @@ async function boot() {
     setVisibilityMode(initialMode);
     const isHidden = (initialMode === VISIBILITY_MODES.HIDDEN);
 
-    captureBaseDPR();
+    window.__tzZoomMetrics?.captureBaseDPR();
     safeConnectPort();
     const bar = ensureBar();
     
@@ -249,7 +249,7 @@ async function boot() {
     }
 
     // Apply metrics (which calls applyPageShift internally) now that mode is set
-    applyZoomCompensatedMetrics(true);
+    window.__tzZoomMetrics?.applyZoomCompensatedMetrics(true);
     
     // Explicitly call applyPageShift once more to be safe
     if (typeof applyPageShift === 'function') applyPageShift();
