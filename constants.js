@@ -30,7 +30,9 @@ const BASE = {
   INDICATOR_H: 2,
   GROUP_MIN_PAD_X: 12,
   LVL2_FAV_PX: 14,
-  LVL2_FAV_ML: 6
+  LVL2_FAV_ML: 6,
+  GAP_MD: 4,
+  GAP_LG: 8
 };
 
 const NAV_LEVELS = {
