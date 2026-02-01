@@ -5,6 +5,11 @@
   if (window.__tzZoomInited) return;
   window.__tzZoomInited = true;
 
+  // Logging enabled for debugging
+  function log(msg) {
+    console.log(`[BodhiBar Zoom] ${msg}`);
+  }
+
   if (typeof window.__tzBase === 'undefined') {
     window.__tzBase = {
       TAB_W: 148,
@@ -25,8 +30,7 @@
       GAP_LG: 8,
       SEARCH_PAD_Y: 0,
       SEARCH_MB: 0,
-      SEARCH_ICN_Y: 2,  // Reduced from 4 to better center icon
-      // New constants for zoom robustness
+      SEARCH_ICN_Y: 2,
       POPOVER_W: 240,
       POPOVER_MAX_H: 300,
       POPOVER_RADIUS: 8,
@@ -59,13 +63,17 @@
   let _baseDPR = null;
 
   function round3(n) { return Math.round(n * 1000) / 1000; }
-  function captureBaseDPR() { _baseDPR = window.devicePixelRatio || 1; }
+  
+  function captureBaseDPR() { 
+    _baseDPR = window.devicePixelRatio || 1; 
+    log(`Captured Base DPR (Fallback): ${_baseDPR}`);
+  }
 
   function setInitialZoom(z) {
     if (z && z > 0) {
       const dpr = window.devicePixelRatio || 1;
-      // Calculate what the DPR would be at 100% zoom (Monitor DPR)
       _baseDPR = dpr / z;
+      log(`Set Initial Zoom: ${z}. DPR: ${dpr}. Calculated BaseDPR: ${_baseDPR}`);
       if (typeof applyZoomCompensatedMetrics === 'function') {
         applyZoomCompensatedMetrics(true);
       }
@@ -73,12 +81,12 @@
   }
 
   function requestZoomWithRetry(tries = 0) {
-    const MAX_TRIES = 5;
-    const DELAY_MS = 200;
+    // Increased retries to ~5 seconds total to handle slow Service Worker wakeup
+    const MAX_TRIES = 15; 
+    const DELAY_MS = 300;
 
     if (tries >= MAX_TRIES) {
-      // Fallback: If async detection fails, capture current state as base
-      // to ensure the bar at least renders, even if sized incorrectly.
+      log('Max retries reached. Giving up and using fallback.');
       if (_baseDPR == null) {
         captureBaseDPR();
         if (typeof applyZoomCompensatedMetrics === 'function') {
@@ -88,26 +96,30 @@
       return;
     }
 
+    log(`Requesting zoom (try ${tries + 1}/${MAX_TRIES})...`);
     chrome.runtime.sendMessage({ action: 'GET_ZOOM' }, (res) => {
       const err = chrome.runtime.lastError;
       if (err) {
+        log(`Runtime error: ${err.message}. Retrying...`);
         setTimeout(() => requestZoomWithRetry(tries + 1), DELAY_MS);
         return;
       }
       if (res && res.ok && typeof res.zoom === 'number' && res.zoom > 0) {
+        log(`Got zoom response: ${res.zoom}`);
         setInitialZoom(res.zoom);
       } else {
+        log(`Invalid response: ${JSON.stringify(res)}. Retrying...`);
         setTimeout(() => requestZoomWithRetry(tries + 1), DELAY_MS);
       }
     });
   }
 
   function initZoom() {
-    // Always use the background script to get the true Page Zoom level (Ctrl+/-).
-    // visualViewport.scale is unreliable for this as it often remains 1.0 during Page Zoom.
+    log('Initializing Zoom...');
     if (chrome?.runtime?.sendMessage) {
       requestZoomWithRetry();
     } else {
+      log('No runtime.sendMessage available. Using fallback.');
       captureBaseDPR();
     }
   }
@@ -124,7 +136,11 @@
     if (_baseDPR == null) return captureBaseDPR();
     const dpr = window.devicePixelRatio || 1;
     const s = dpr / _baseDPR;
-    if (!isFinite(s) || s <= 0.1 || s >= 10) captureBaseDPR();
+    // Only reset if something is wildly off (e.g. dragged to another monitor with different DPI)
+    if (!isFinite(s) || s <= 0.1 || s >= 10) {
+      log(`Recapturing Base DPR due to extreme scale change (s=${s})`);
+      captureBaseDPR();
+    }
   }
 
   function px(base, scale) {
@@ -174,7 +190,6 @@
         --tz-search-icn-y: 4px;
         --tz-search-pad-y: ${BASE.SEARCH_PAD_Y}px;
         --tz-search-mb: ${BASE.SEARCH_MB}px;
-        /* New variables */
         --tz-popover-w: ${BASE.POPOVER_W}px;
         --tz-popover-max-h: ${BASE.POPOVER_MAX_H}px;
         --tz-popover-radius: ${BASE.POPOVER_RADIUS}px;
@@ -251,7 +266,6 @@
     root.style.setProperty('--tz-search-pad-y', px(BASE.SEARCH_PAD_Y, scale));
     root.style.setProperty('--tz-search-mb', px(BASE.SEARCH_MB, scale));
 
-    // New properties
     root.style.setProperty('--tz-popover-w', px(BASE.POPOVER_W, scale));
     root.style.setProperty('--tz-popover-max-h', px(BASE.POPOVER_MAX_H, scale));
     root.style.setProperty('--tz-popover-radius', px(BASE.POPOVER_RADIUS, scale));
@@ -276,8 +290,8 @@
     root.style.setProperty('--tz-minimized-w', px(BASE.MINIMIZED_W, scale));
     root.style.setProperty('--tz-fav-wrap-radius', px(BASE.FAV_WRAP_RADIUS, scale));
 
-    applyPageShift();
-    updateDynamicLayout();
+    if (typeof applyPageShift === 'function') applyPageShift();
+    if (typeof updateDynamicLayout === 'function') updateDynamicLayout();
   }
 
   function scheduleMetricsUpdate(force = false) {
@@ -291,10 +305,9 @@
   window.addEventListener('resize', () => scheduleMetricsUpdate());
 
   // Initial setup
-  initZoom(); // Calculates correct base DPR based on zoom level
+  initZoom();
   scheduleMetricsUpdate();
 
-  // Add this at the end of the file:
   window.__tzZoomMetrics = {
     ensureSizingStyle,
     applyZoomCompensatedMetrics,
