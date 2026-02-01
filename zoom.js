@@ -72,13 +72,51 @@
     }
   }
 
-  if (chrome?.runtime?.sendMessage) {
+  function requestZoomWithRetry(tries = 0) {
+    const MAX_TRIES = 5;
+    const DELAY_MS = 200;
+
+    if (tries >= MAX_TRIES) {
+      // Fallback: If async detection fails, capture current state as base
+      // to ensure the bar at least renders, even if sized incorrectly.
+      if (_baseDPR == null) {
+        captureBaseDPR();
+        if (typeof applyZoomCompensatedMetrics === 'function') {
+          applyZoomCompensatedMetrics(true);
+        }
+      }
+      return;
+    }
+
     chrome.runtime.sendMessage({ action: 'GET_ZOOM' }, (res) => {
-      if (chrome.runtime.lastError) return;
-      if (res && res.ok && res.zoom) {
+      const err = chrome.runtime.lastError;
+      if (err) {
+        setTimeout(() => requestZoomWithRetry(tries + 1), DELAY_MS);
+        return;
+      }
+      if (res && res.ok && typeof res.zoom === 'number' && res.zoom > 0) {
         setInitialZoom(res.zoom);
+      } else {
+        setTimeout(() => requestZoomWithRetry(tries + 1), DELAY_MS);
       }
     });
+  }
+
+  function initZoom() {
+    // 1. Optimal: Use visualViewport (Synchronous & Accurate)
+    // This fixes the "initial load" size immediately without waiting for background.
+    if (window.visualViewport && typeof window.visualViewport.scale === 'number') {
+      setInitialZoom(window.visualViewport.scale);
+      return;
+    }
+
+    // 2. Fallback: Async Message
+    if (chrome?.runtime?.sendMessage) {
+      requestZoomWithRetry();
+    } else {
+      // 3. Last Resort
+      captureBaseDPR();
+    }
   }
 
   function getZoomScale() {
@@ -260,7 +298,7 @@
   window.addEventListener('resize', () => scheduleMetricsUpdate());
 
   // Initial setup
-  window.__tzZoomMetrics?.captureBaseDPR();
+  initZoom(); // Calculates correct base DPR based on zoom level
   scheduleMetricsUpdate();
 
   // Add this at the end of the file:
