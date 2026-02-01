@@ -187,7 +187,7 @@
   window.addEventListener('resize', () => scheduleMetricsUpdate());
 
   // Initial setup
-  captureBaseDPR();
+  window.__tzZoomMetrics?.captureBaseDPR();
   scheduleMetricsUpdate();
 
   // Add this at the end of the file:
