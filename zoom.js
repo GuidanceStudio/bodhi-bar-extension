@@ -25,7 +25,31 @@
       GAP_LG: 8,
       SEARCH_PAD_Y: 0,
       SEARCH_MB: 0,
-      SEARCH_ICN_Y: 2  // Reduced from 4 to better center icon
+      SEARCH_ICN_Y: 2,  // Reduced from 4 to better center icon
+      // New constants for zoom robustness
+      POPOVER_W: 240,
+      POPOVER_MAX_H: 300,
+      POPOVER_RADIUS: 8,
+      POPOVER_FONT: 13,
+      INPUT_RADIUS: 6,
+      INPUT_PAD_Y: 6,
+      INPUT_PAD_X: 8,
+      GROUP_ITEM_PAD: 6,
+      SWATCH_RADIUS: 3,
+      SEARCH_RADIUS: 8,
+      SEARCH_FONT: 13,
+      SEARCH_INPUT_PAD_R: 6,
+      CLEAR_FONT: 16,
+      CLEAR_PAD_Y: 2,
+      CLEAR_PAD_X: 4,
+      CLEAR_RADIUS: 4,
+      TAB_ACTIONS_GAP: 6,
+      TRIGGER_ML: 6,
+      MENU_BTN_FONT: 18,
+      POPOVER_ICON_W: 10,
+      POPOVER_ICON_FONT: 16,
+      MINIMIZED_W: 46,
+      FAV_WRAP_RADIUS: 4
     };
   }
   const BASE = window.__tzBase;
@@ -119,6 +143,30 @@
         --tz-search-icn-y: 4px;
         --tz-search-pad-y: ${BASE.SEARCH_PAD_Y}px;
         --tz-search-mb: ${BASE.SEARCH_MB}px;
+        /* New variables */
+        --tz-popover-w: ${BASE.POPOVER_W}px;
+        --tz-popover-max-h: ${BASE.POPOVER_MAX_H}px;
+        --tz-popover-radius: ${BASE.POPOVER_RADIUS}px;
+        --tz-popover-font: ${BASE.POPOVER_FONT}px;
+        --tz-input-radius: ${BASE.INPUT_RADIUS}px;
+        --tz-input-pad-y: ${BASE.INPUT_PAD_Y}px;
+        --tz-input-pad-x: ${BASE.INPUT_PAD_X}px;
+        --tz-group-item-pad: ${BASE.GROUP_ITEM_PAD}px;
+        --tz-swatch-radius: ${BASE.SWATCH_RADIUS}px;
+        --tz-search-radius: ${BASE.SEARCH_RADIUS}px;
+        --tz-search-font: ${BASE.SEARCH_FONT}px;
+        --tz-search-input-pad-r: ${BASE.SEARCH_INPUT_PAD_R}px;
+        --tz-clear-font: ${BASE.CLEAR_FONT}px;
+        --tz-clear-pad-y: ${BASE.CLEAR_PAD_Y}px;
+        --tz-clear-pad-x: ${BASE.CLEAR_PAD_X}px;
+        --tz-clear-radius: ${BASE.CLEAR_RADIUS}px;
+        --tz-tab-actions-gap: ${BASE.TAB_ACTIONS_GAP}px;
+        --tz-trigger-ml: ${BASE.TRIGGER_ML}px;
+        --tz-menu-btn-font: ${BASE.MENU_BTN_FONT}px;
+        --tz-popover-icon-w: ${BASE.POPOVER_ICON_W}px;
+        --tz-popover-icon-font: ${BASE.POPOVER_ICON_FONT}px;
+        --tz-minimized-w: ${BASE.MINIMIZED_W}px;
+        --tz-fav-wrap-radius: ${BASE.FAV_WRAP_RADIUS}px;
       }
     `;
     document.head?.appendChild(style);
@@ -171,6 +219,31 @@
     root.style.setProperty('--tz-search-icn-y', px(4, scale));
     root.style.setProperty('--tz-search-pad-y', px(BASE.SEARCH_PAD_Y, scale));
     root.style.setProperty('--tz-search-mb', px(BASE.SEARCH_MB, scale));
+
+    // New properties
+    root.style.setProperty('--tz-popover-w', px(BASE.POPOVER_W, scale));
+    root.style.setProperty('--tz-popover-max-h', px(BASE.POPOVER_MAX_H, scale));
+    root.style.setProperty('--tz-popover-radius', px(BASE.POPOVER_RADIUS, scale));
+    root.style.setProperty('--tz-popover-font', px(BASE.POPOVER_FONT, scale));
+    root.style.setProperty('--tz-input-radius', px(BASE.INPUT_RADIUS, scale));
+    root.style.setProperty('--tz-input-pad-y', px(BASE.INPUT_PAD_Y, scale));
+    root.style.setProperty('--tz-input-pad-x', px(BASE.INPUT_PAD_X, scale));
+    root.style.setProperty('--tz-group-item-pad', px(BASE.GROUP_ITEM_PAD, scale));
+    root.style.setProperty('--tz-swatch-radius', px(BASE.SWATCH_RADIUS, scale));
+    root.style.setProperty('--tz-search-radius', px(BASE.SEARCH_RADIUS, scale));
+    root.style.setProperty('--tz-search-font', px(BASE.SEARCH_FONT, scale));
+    root.style.setProperty('--tz-search-input-pad-r', px(BASE.SEARCH_INPUT_PAD_R, scale));
+    root.style.setProperty('--tz-clear-font', px(BASE.CLEAR_FONT, scale));
+    root.style.setProperty('--tz-clear-pad-y', px(BASE.CLEAR_PAD_Y, scale));
+    root.style.setProperty('--tz-clear-pad-x', px(BASE.CLEAR_PAD_X, scale));
+    root.style.setProperty('--tz-clear-radius', px(BASE.CLEAR_RADIUS, scale));
+    root.style.setProperty('--tz-tab-actions-gap', px(BASE.TAB_ACTIONS_GAP, scale));
+    root.style.setProperty('--tz-trigger-ml', px(BASE.TRIGGER_ML, scale));
+    root.style.setProperty('--tz-menu-btn-font', px(BASE.MENU_BTN_FONT, scale));
+    root.style.setProperty('--tz-popover-icon-w', px(BASE.POPOVER_ICON_W, scale));
+    root.style.setProperty('--tz-popover-icon-font', px(BASE.POPOVER_ICON_FONT, scale));
+    root.style.setProperty('--tz-minimized-w', px(BASE.MINIMIZED_W, scale));
+    root.style.setProperty('--tz-fav-wrap-radius', px(BASE.FAV_WRAP_RADIUS, scale));
 
     applyPageShift();
     updateDynamicLayout();
