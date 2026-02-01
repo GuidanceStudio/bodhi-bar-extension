@@ -27,6 +27,7 @@
   --tz-search-diff: 10px;
   --tz-gap-sm: 6px;
   --tz-gap-xs: 2px;
+  --tz-fav-wrap-radius: 4px;
 }
 #ungroup-automatic-tab-bar .scroll-container::-webkit-scrollbar{ display:none; }
 
