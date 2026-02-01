@@ -61,10 +61,16 @@
   let _lastScale = null;
   let _metricsRAF = 0;
   let _baseDPR = null;
+  let _isZoomAuthoritative = false; // NEW: Protects _baseDPR from being overwritten
 
   function round3(n) { return Math.round(n * 1000) / 1000; }
   
   function captureBaseDPR() { 
+    // If we have an authoritative zoom from background, ignore fallback calls
+    if (_isZoomAuthoritative) {
+      log('Ignoring captureBaseDPR: Zoom is authoritative.');
+      return;
+    }
     _baseDPR = window.devicePixelRatio || 1; 
     log(`Captured Base DPR (Fallback): ${_baseDPR}`);
   }
@@ -73,6 +79,7 @@
     if (z && z > 0) {
       const dpr = window.devicePixelRatio || 1;
       _baseDPR = dpr / z;
+      _isZoomAuthoritative = true; // Lock it
       log(`Set Initial Zoom: ${z}. DPR: ${dpr}. Calculated BaseDPR: ${_baseDPR}`);
       if (typeof applyZoomCompensatedMetrics === 'function') {
         applyZoomCompensatedMetrics(true);
@@ -139,6 +146,7 @@
     // Only reset if something is wildly off (e.g. dragged to another monitor with different DPI)
     if (!isFinite(s) || s <= 0.1 || s >= 10) {
       log(`Recapturing Base DPR due to extreme scale change (s=${s})`);
+      _isZoomAuthoritative = false; // Unlock to allow reset
       captureBaseDPR();
     }
   }
