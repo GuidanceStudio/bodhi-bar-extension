@@ -103,18 +103,11 @@
   }
 
   function initZoom() {
-    // 1. Optimal: Use visualViewport (Synchronous & Accurate)
-    // This fixes the "initial load" size immediately without waiting for background.
-    if (window.visualViewport && typeof window.visualViewport.scale === 'number') {
-      setInitialZoom(window.visualViewport.scale);
-      return;
-    }
-
-    // 2. Fallback: Async Message
+    // Always use the background script to get the true Page Zoom level (Ctrl+/-).
+    // visualViewport.scale is unreliable for this as it often remains 1.0 during Page Zoom.
     if (chrome?.runtime?.sendMessage) {
       requestZoomWithRetry();
     } else {
-      // 3. Last Resort
       captureBaseDPR();
     }
   }
