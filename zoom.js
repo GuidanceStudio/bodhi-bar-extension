@@ -64,7 +64,7 @@
   let _isZoomAuthoritative = false; // NEW: Protects _baseDPR from being overwritten
 
   function round3(n) { return Math.round(n * 1000) / 1000; }
-  
+
   function captureBaseDPR() { 
     // If we have an authoritative zoom from background, ignore fallback calls
     if (_isZoomAuthoritative) {
@@ -157,6 +157,15 @@
   }
 
   function ensureSizingStyle() {
+    // Check current mode - only add sizing style in PUSH mode
+    // In OVERLAY or HIDDEN modes, we don't want to add padding
+    if (window.currentVisibilityMode && window.currentVisibilityMode !== VISIBILITY_MODES.PUSH) {
+      // Remove existing style if present
+      const existing = document.head?.querySelector('style[data-tz-px-zoom]');
+      if (existing) existing.remove();
+      return;
+    }
+
     if (document.head?.querySelector('style[data-tz-px-zoom]')) return;
 
     const style = document.createElement('style');

@@ -82,6 +82,8 @@ function requestTabList() {
         response.currentTabTitle || '',
         cachedTabGroups
       );
+      // Ensure page shift is applied after rendering (checks current mode)
+      if (typeof applyPageShift === 'function') applyPageShift();
     } else {
       handleStateChange();
     }
