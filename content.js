@@ -242,6 +242,10 @@ async function boot() {
     window.__tzZoomMetrics?.captureBaseDPR();
     safeConnectPort();
     const bar = ensureBar();
+
+    // Apply CSS classes for the mode (Overlay vs Push)
+    bar.classList.toggle('tz-mode-overlay', initialMode === VISIBILITY_MODES.OVERLAY);
+    bar.classList.toggle('tz-mode-push', initialMode === VISIBILITY_MODES.PUSH);
     
 
     if (isHidden) {
