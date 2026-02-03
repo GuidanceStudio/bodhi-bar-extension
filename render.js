@@ -9,7 +9,9 @@ function ensureBar() {
   const zoomUtils = window.__tzZoomMetrics || {};
   const { ensureSizingStyle, applyZoomCompensatedMetrics } = zoomUtils;
   
-  if (typeof ensureSizingStyle === 'function') {
+
+  // Only call ensureSizingStyle in PUSH mode (it may add padding-related CSS)
+  if (typeof ensureSizingStyle === 'function' && window.currentVisibilityMode === VISIBILITY_MODES.PUSH) {
     ensureSizingStyle();
   }
   if (typeof applyZoomCompensatedMetrics === 'function') {

@@ -30,6 +30,25 @@ function getBarHeightPx() {
 }
 
 function ensureSafeAreasStyle() {
+  // Only inject safe areas CSS in PUSH mode
+  if (window.currentVisibilityMode !== VISIBILITY_MODES.PUSH) {
+    // Remove existing safe areas style if present
+    try {
+      const existing = document.head?.querySelector(`style[${TZ_SAFE_STYLE_ATTR}]`);
+      if (existing) existing.remove();
+    } catch (e) {
+      // If TZ_SAFE_STYLE_ATTR is undefined or query fails, try to find by content
+      const styles = document.head?.querySelectorAll('style');
+      for (const st of styles || []) {
+        if (st.textContent && st.textContent.includes('padding-top: var(--tz-safe-top)')) {
+          st.remove();
+          break;
+        }
+      }
+    }
+    return;
+  }
+
   if (document.head?.querySelector(`style[${TZ_SAFE_STYLE_ATTR}]`)) return;
 
   const st = document.createElement('style');
@@ -48,6 +67,15 @@ function ensureSafeAreasStyle() {
 function setInlineSafeAreasFallback() {
   const body = document.body;
   if (!body) return;
+
+  // Only apply padding in PUSH mode
+  if (window.currentVisibilityMode !== VISIBILITY_MODES.PUSH) {
+    body.style.removeProperty('padding-top');
+    body.style.removeProperty('padding-bottom');
+    body.style.removeProperty('box-sizing');
+    return;
+  }
+
   body.style.setProperty('padding-top', `var(--tz-h)`, 'important');
   body.style.setProperty('padding-bottom', `min(var(--tz-h), 48px)`, 'important');
   body.style.setProperty('box-sizing', 'border-box', 'important');
