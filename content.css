@@ -59,6 +59,13 @@
   background:#3a3a3a;
   color:#ffffff !important;
 }
+/* Show actions on the active tab */
+#ungroup-automatic-tab-bar .tz-tab-btn.active .tz-close-x,
+#ungroup-automatic-tab-bar .tz-tab-btn.active .tz-group-btn {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  color: #fff !important;
+}
 #ungroup-automatic-tab-bar .tz-close-x:hover{
   background:#4a4a4a;
   transform:scale(1.03);
