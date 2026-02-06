@@ -157,9 +157,8 @@
   }
 
   function ensureSizingStyle() {
-    // Check current mode - only add sizing style in PUSH mode
-    // In OVERLAY or HIDDEN modes, we don't want to add padding
-    if (window.currentVisibilityMode && window.currentVisibilityMode !== VISIBILITY_MODES.PUSH) {
+    // Don't inject sizing style until mode is determined, or if not PUSH
+    if (!window.currentVisibilityMode || window.currentVisibilityMode !== VISIBILITY_MODES.PUSH) {
       // Remove existing style if present
       const existing = document.head?.querySelector('style[data-tz-px-zoom]');
       if (existing) existing.remove();
@@ -236,6 +235,8 @@
   }
 
   function applyZoomCompensatedMetrics(force = false) {
+    // Don't apply metrics until visibility mode is determined by boot()
+    if (window.currentVisibilityMode === null) return;
     ensureSizingStyle();
     maybeRecaptureBaseDPR();
 
