@@ -124,7 +124,7 @@ function applyVisibilityState(tabId) {
   if (tabId == null) return;
   chrome.storage.local.get([STORAGE_KEY_VISIBILITY_MODE], (obj) => {
     const map = obj?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-    const mode = map[String(tabId)] || VISIBILITY_MODES.PUSH;
+    const mode = map[String(tabId)] || window.currentVisibilityMode || VISIBILITY_MODES.PUSH;
     // Update the global mode variable
     if (typeof setVisibilityMode === 'function') {
       setVisibilityMode(mode);
