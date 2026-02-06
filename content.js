@@ -248,7 +248,12 @@ async function boot() {
     // Apply CSS classes for the mode (Overlay vs Push)
     bar.classList.toggle('tz-mode-overlay', initialMode === VISIBILITY_MODES.OVERLAY);
     bar.classList.toggle('tz-mode-push', initialMode === VISIBILITY_MODES.PUSH);
-    
+
+    // Remove any stale PUSH padding style injected before mode was known
+    if (initialMode !== VISIBILITY_MODES.PUSH) {
+      const staleStyle = document.head?.querySelector('style[data-tz-px-zoom]');
+      if (staleStyle) staleStyle.remove();
+    }
 
     if (isHidden) {
       bar.style.setProperty('display', 'none', 'important');
