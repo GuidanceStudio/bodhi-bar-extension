@@ -538,43 +538,34 @@ function handleImportFile() {
       try {
         parsed = JSON.parse(text);
       } catch {
-        alert('Invalid JSON file.');
+        showInlineMessage('Invalid JSON file.', false);
         return;
       }
 
       const norm = normalizeImportedWorkspaceJson(parsed);
       if (!norm.ok) {
-        alert(norm.error || 'Invalid workspace file.');
+        showInlineMessage(norm.error || 'Invalid workspace file.', false);
         return;
       }
 
       let name = norm.name;
       if (!name) name = deriveWorkspaceNameFromFilename(file.name);
       if (!name) {
-        const raw = prompt('Workspace name:');
-        name = sanitizeWorkspaceName(raw);
+        // Show inline name input form
+        showNameInputForm((enteredName) => {
+          if (!enteredName) return;
+          finishImport(enteredName, norm.payload, file);
+        });
+        return;
       }
-      if (!name) return;
 
       const workspaces = await storageGetWorkspaces();
       let finalName = name;
 
       if (workspaces[finalName]) {
-        const newName = sanitizeWorkspaceName(prompt(`A workspace named "${finalName}" already exists. Enter a different name to import:`));
-        if (!newName) {
-          alert('Import cancelled.');
-          return;
-        }
-        while (workspaces[newName]) {
-          alert(`A workspace named "${newName}" already exists. Please choose a different name.`);
-          const again = sanitizeWorkspaceName(prompt(`Enter a different name to import:`));
-          if (!again) {
-            alert('Import cancelled.');
-            return;
-          }
-          finalName = again;
-        }
-        finalName = newName;
+        // Show conflict resolution inline
+        showConflictResolution(finalName, workspaces, norm.payload);
+        return;
       }
 
       workspaces[finalName] = {
@@ -584,10 +575,10 @@ function handleImportFile() {
       };
 
       await storageSetWorkspaces(workspaces);
-      alert(`Imported workspace "${finalName}".`);
-      window.close();
+      showInlineMessage(`Imported workspace "${finalName}".`, true);
+      setTimeout(() => window.close(), 1500);
     } catch (e) {
-      alert('Import failed: ' + String(e?.message || 'Unknown error'));
+      showInlineMessage('Import failed: ' + String(e?.message || 'Unknown error'), false);
     } finally {
       cleanup();
     }
@@ -840,8 +831,17 @@ function initPopup() {
     btn.style.padding = '10px 20px';
     btn.onclick = handleImportFile;
 
+    const container = document.createElement('div');
+    container.id = 'importContainer';
+    container.style.marginTop = '20px';
+    container.style.width = '100%';
+    container.style.maxWidth = '400px';
+    container.style.marginLeft = 'auto';
+    container.style.marginRight = 'auto';
+
     document.body.appendChild(h2);
     document.body.appendChild(btn);
+    document.body.appendChild(container);
     return;
   }
 
