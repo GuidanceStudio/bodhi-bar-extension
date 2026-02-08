@@ -471,20 +471,72 @@ function renderWorkspacesList(workspacesMap) {
     actions.style.gap = '4px';
     actions.style.alignItems = 'center';
 
+    // Helper for inline confirmation to avoid native dialogs
+    const withConfirmation = (btn, text, onConfirm) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        // Hide all action buttons
+        const children = Array.from(actions.children);
+        children.forEach(c => c.style.display = 'none');
+
+        const confirmDiv = document.createElement('div');
+        confirmDiv.style.display = 'flex';
+        confirmDiv.style.alignItems = 'center';
+        confirmDiv.style.gap = '4px';
+        
+        const label = document.createElement('span');
+        label.textContent = text;
+        label.style.fontSize = '11px';
+        label.style.fontWeight = 'bold';
+        label.style.color = '#d32f2f';
+
+        const yes = document.createElement('button');
+        yes.textContent = 'Yes';
+        yes.className = 'btn small';
+        yes.style.padding = '2px 6px';
+        yes.style.fontSize = '10px';
+        yes.style.minWidth = 'auto';
+        
+        const no = document.createElement('button');
+        no.textContent = 'No';
+        no.className = 'btn small';
+        no.style.padding = '2px 6px';
+        no.style.fontSize = '10px';
+        no.style.minWidth = 'auto';
+        no.style.background = '#eee';
+        no.style.color = '#333';
+
+        yes.onclick = async (ev) => {
+          ev.stopPropagation();
+          confirmDiv.remove();
+          await onConfirm();
+        };
+
+        no.onclick = (ev) => {
+          ev.stopPropagation();
+          confirmDiv.remove();
+          children.forEach(c => c.style.display = '');
+        };
+
+        confirmDiv.appendChild(label);
+        confirmDiv.appendChild(yes);
+        confirmDiv.appendChild(no);
+        actions.appendChild(confirmDiv);
+      });
+    };
+
     const restoreIcon = document.createElement('span');
     restoreIcon.className = 'workspace-action-icon restore';
     restoreIcon.innerHTML = '&#128260;';
     restoreIcon.title = 'Restore';
-    restoreIcon.addEventListener('click', async () => {
+    
+    withConfirmation(restoreIcon, 'Restore?', async () => {
       const payload = workspacesMap[name]?.payload;
       if (!payload) return;
 
-      const confirmed = confirm('This will close all current tabs and groups and replace them with the workspace tabs. Continue?');
-      if (!confirmed) return;
-
-      restoreIcon.style.opacity = '0.5';
+      showWorkspacesMessage('Restoring workspace...');
       try {
-        // Restore Site Overrides if present
         if (payload.siteOverrides) {
           const currentOverrides = await storageGet(STORAGE_KEY_OVERRIDES);
           const merged = { ...(currentOverrides?.[STORAGE_KEY_OVERRIDES] || {}), ...payload.siteOverrides };
@@ -494,11 +546,16 @@ function renderWorkspacesList(workspacesMap) {
         const res = await runtimeSendMessage({ action: 'APPLY_WORKSPACE', payload });
         if (!res?.ok) {
           showWorkspacesMessage(res?.error || 'Restore failed.');
+          // Restore buttons if failed
+          Array.from(actions.children).forEach(c => {
+             if (c.classList.contains('workspace-action-icon')) c.style.display = '';
+          });
         } else {
-          window.close();
+          showWorkspacesMessage('Workspace restored!', true);
+          setTimeout(() => window.close(), 1000);
         }
-      } finally {
-        restoreIcon.style.opacity = '1';
+      } catch (e) {
+        showWorkspacesMessage('Error: ' + e.message);
       }
     });
 
@@ -511,7 +568,7 @@ function renderWorkspacesList(workspacesMap) {
       const cur = await storageGetWorkspaces();
       const existing = cur[oldName];
       if (!existing) {
-        alert('Workspace not found (it may have been deleted).');
+        showWorkspacesMessage('Workspace not found.');
         return;
       }
 
@@ -519,8 +576,7 @@ function renderWorkspacesList(workspacesMap) {
       if (!newName) return;
 
       while (newName !== oldName && cur[newName]) {
-        alert(`A workspace named "${newName}" already exists. Please choose a different name.`);
-        newName = sanitizeWorkspaceName(prompt(`Rename workspace "${oldName}" to:`));
+        newName = sanitizeWorkspaceName(prompt(`"${newName}" exists. New name:`));
         if (!newName) return;
       }
 
@@ -531,7 +587,7 @@ function renderWorkspacesList(workspacesMap) {
 
       await storageSetWorkspaces(cur);
       renderWorkspacesList(cur);
-      showWorkspacesMessage(`Renamed workspace to "${newName}".`);
+      showWorkspacesMessage(`Renamed to "${newName}".`);
     });
 
     const exportIcon = document.createElement('span');
@@ -559,8 +615,8 @@ function renderWorkspacesList(workspacesMap) {
     delIcon.className = 'workspace-action-icon delete';
     delIcon.innerHTML = '&#128465;';
     delIcon.title = 'Delete';
-    delIcon.addEventListener('click', async () => {
-      if (!confirm(`Delete workspace "${name}"?`)) return;
+    
+    withConfirmation(delIcon, 'Delete?', async () => {
       const cur = await storageGetWorkspaces();
       delete cur[name];
       await storageSetWorkspaces(cur);
