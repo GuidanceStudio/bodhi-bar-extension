@@ -1175,10 +1175,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       if (action === 'APPLY_WORKSPACE') {
         try {
-          const payload = request?.payload;
+          let payload = request?.payload;
+          // Handle wrapped payload (e.g. { wv: "1.0", payload: { ... } })
+          if (payload?.payload && typeof payload.payload === 'object') {
+            payload = payload.payload;
+          }
+
           const pinnedTabs = Array.isArray(payload?.pinnedTabs) ? payload.pinnedTabs : [];
           const allTabGroups = Array.isArray(payload?.allTabGroups) ? payload.allTabGroups : [];
           const siteOverrides = payload?.siteOverrides || {};
+          const visibilityRules = Array.isArray(payload?.visibilityRules) ? payload.visibilityRules : [];
 
           // Get current window
           const activeWindow = await chrome.windows.getLastFocused({});
@@ -1222,6 +1228,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 console.error('Failed to restore pinned visibility', e);
               }
             }
+            await sleep(80); // Throttle to prevent browser crash
           }
 
           // Create groups and their tabs
@@ -1253,6 +1260,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   }
                 }
               }
+              await sleep(80); // Throttle to prevent browser crash
             }
 
             if (groupTabIds.length > 0) {
@@ -1273,6 +1281,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           // Restore site overrides
           if (Object.keys(siteOverrides).length > 0) {
             await chrome.storage.local.set({ [STORAGE_KEY_OVERRIDES]: siteOverrides });
+          }
+
+          // Restore visibility rules
+          if (visibilityRules.length > 0) {
+            await chrome.storage.local.set({ 'tz_visibility_rules': visibilityRules });
           }
 
           // Minimize all groups (so they're collapsed)
