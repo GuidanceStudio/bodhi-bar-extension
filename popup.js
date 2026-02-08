@@ -943,7 +943,7 @@ function initPopup() {
            try {
              const exp = await runtimeSendMessage({ action: 'GET_EXPORT_PAYLOAD' });
              if (!exp?.ok || !exp?.payload) {
-               showWorkspacesMessage(exp?.error || 'Error getting payload.');
+               showWorkspacesMessage(exp?.error || 'Error getting payload.', 'error');
                return;
              }
              const workspaces = await storageGetWorkspaces();
