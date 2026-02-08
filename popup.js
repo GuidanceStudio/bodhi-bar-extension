@@ -243,26 +243,17 @@ async function saveRule(oldPattern, newPattern, mode) {
 }
 
 function applyMessageStyle(el, type) {
-  el.style.padding = '8px 10px';
-  el.style.margin = '8px 0';
-  el.style.fontSize = '12px';
-  el.style.lineHeight = '1.3';
-  el.style.borderRadius = '4px';
-  el.style.wordBreak = 'break-word';
+  // Reset classi
+  el.className = 'msg-box';
+
+  // Aggiunge classe specifica per il tipo
   
   if (type === 'success') {
-    el.style.color = '#166534';
-    el.style.background = '#dcfce7';
-    el.style.border = '1px solid #86efac';
+    el.classList.add('msg-success');
   } else if (type === 'error') {
-    el.style.color = '#b91c1c';
-    el.style.background = '#fee2e2';
-    el.style.border = '1px solid #fca5a5';
+    el.classList.add('msg-error');
   } else {
-    // info / warning
-    el.style.color = '#1a1a1a';
-    el.style.background = '#fff7e6';
-    el.style.border = '1px solid #f1d9a8';
+    el.classList.add('msg-info');
   }
 }
 
@@ -318,7 +309,7 @@ function showNameInputForm(onSubmit) {
   
   const input = document.createElement('input');
   input.type = 'text';
-  input.className = 'pattern-input';
+  input.className = 'std-input';
   input.style.width = '100%';
   input.style.marginBottom = '8px';
   
@@ -396,7 +387,7 @@ function showConflictResolution(name, workspaces, payload) {
   const input = document.createElement('input');
   input.type = 'text';
   input.value = name;
-  input.className = 'pattern-input';
+  input.className = 'std-input';
   input.style.width = '100%';
   input.style.marginBottom = '8px';
   
@@ -749,7 +740,7 @@ function renderWorkspacesList(workspacesMap) {
       const input = document.createElement('input');
       input.type = 'text';
       input.value = name;
-      input.className = 'pattern-input';
+      input.className = 'std-input';
       input.style.flex = '1';
       input.style.minWidth = '0';
 
