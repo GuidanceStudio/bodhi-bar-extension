@@ -279,6 +279,191 @@ function showToggleMessage(text) {
   return msg;
 }
 
+function showInlineMessage(text, isSuccess) {
+  const msg = document.createElement('div');
+  msg.textContent = text;
+  msg.style.padding = '8px';
+  msg.style.margin = '8px 0';
+  msg.style.borderRadius = '4px';
+  msg.style.fontSize = '12px';
+  msg.style.wordBreak = 'break-word';
+  msg.style.color = isSuccess ? '#166534' : '#b91c1c';
+  msg.style.background = isSuccess ? '#dcfce7' : '#fee2e2';
+  msg.style.border = isSuccess ? '1px solid #86efac' : '1px solid #fca5a5';
+  
+  const container = document.getElementById('importContainer');
+  if (container) {
+    container.appendChild(msg);
+    setTimeout(() => msg.remove(), 5000);
+  }
+}
+
+function showNameInputForm(onSubmit) {
+  const container = document.getElementById('importContainer');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  const label = document.createElement('div');
+  label.textContent = 'Workspace Name:';
+  label.style.marginBottom = '4px';
+  label.style.fontWeight = 'bold';
+  
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.style.width = '100%';
+  input.style.padding = '6px';
+  input.style.marginBottom = '8px';
+  input.style.border = '1px solid #ccc';
+  input.style.borderRadius = '3px';
+  
+  const buttonRow = document.createElement('div');
+  buttonRow.style.display = 'flex';
+  buttonRow.style.gap = '8px';
+  
+  const save = document.createElement('button');
+  save.textContent = 'Save';
+  save.className = 'btn small success';
+  save.onclick = () => {
+    const name = sanitizeWorkspaceName(input.value);
+    if (!name) {
+      showInlineMessage('Please enter a name.', false);
+      return;
+    }
+    onSubmit(name);
+  };
+  
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.className = 'btn small';
+  cancel.onclick = () => {
+    container.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.textContent = 'Select JSON File...';
+    btn.className = 'btn';
+    btn.style.fontSize = '16px';
+    btn.style.padding = '10px 20px';
+    btn.onclick = handleImportFile;
+    container.appendChild(btn);
+  };
+  
+  buttonRow.appendChild(save);
+  buttonRow.appendChild(cancel);
+  
+  container.appendChild(label);
+  container.appendChild(input);
+  container.appendChild(buttonRow);
+  
+  input.focus();
+}
+
+async function finishImport(name, payload, file) {
+  const workspaces = await storageGetWorkspaces();
+  let finalName = name;
+  
+  if (workspaces[finalName]) {
+    // Show inline form for conflict resolution
+    showConflictResolution(finalName, workspaces, payload);
+    return;
+  }
+  
+  workspaces[finalName] = {
+    name: finalName,
+    createdAt: Date.now(),
+    payload
+  };
+  
+  await storageSetWorkspaces(workspaces);
+  showInlineMessage(`Imported workspace "${finalName}".`, true);
+  setTimeout(() => window.close(), 1500);
+}
+
+function showConflictResolution(name, workspaces, payload) {
+  const container = document.getElementById('importContainer');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  const msg = document.createElement('div');
+  msg.textContent = `A workspace named "${name}" already exists.`;
+  msg.style.marginBottom = '8px';
+  msg.style.color = '#b91c1c';
+  
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = name;
+  input.style.width = '100%';
+  input.style.padding = '6px';
+  input.style.marginBottom = '8px';
+  input.style.border = '1px solid #ccc';
+  input.style.borderRadius = '3px';
+  
+  const buttonRow = document.createElement('div');
+  buttonRow.style.display = 'flex';
+  buttonRow.style.gap = '8px';
+  
+  const overwrite = document.createElement('button');
+  overwrite.textContent = 'Overwrite';
+  overwrite.className = 'btn small';
+  overwrite.onclick = async () => {
+    workspaces[name] = {
+      name,
+      createdAt: Date.now(),
+      payload
+    };
+    await storageSetWorkspaces(workspaces);
+    showInlineMessage(`Overwrote "${name}".`, true);
+    setTimeout(() => window.close(), 1500);
+  };
+  
+  const rename = document.createElement('button');
+  rename.textContent = 'Rename';
+  rename.className = 'btn small success';
+  rename.onclick = async () => {
+    const newName = sanitizeWorkspaceName(input.value);
+    if (!newName) {
+      showInlineMessage('Please enter a new name.', false);
+      return;
+    }
+    if (workspaces[newName]) {
+      showInlineMessage(`"${newName}" already exists.`, false);
+      return;
+    }
+    workspaces[newName] = {
+      name: newName,
+      createdAt: Date.now(),
+      payload
+    };
+    await storageSetWorkspaces(workspaces);
+    showInlineMessage(`Imported as "${newName}".`, true);
+    setTimeout(() => window.close(), 1500);
+  };
+  
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.className = 'btn small';
+  cancel.onclick = () => {
+    container.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.textContent = 'Select JSON File...';
+    btn.className = 'btn';
+    btn.style.fontSize = '16px';
+    btn.style.padding = '10px 20px';
+    btn.onclick = handleImportFile;
+    container.appendChild(btn);
+  };
+  
+  buttonRow.appendChild(overwrite);
+  buttonRow.appendChild(rename);
+  buttonRow.appendChild(cancel);
+  
+  container.appendChild(msg);
+  container.appendChild(input);
+  container.appendChild(buttonRow);
+  
+  input.focus();
+}
+
 function showWorkspacesMessage(text, isSuccess = false) {
   const id = 'workspaces-msg';
   const message = String(text || '').trim();
