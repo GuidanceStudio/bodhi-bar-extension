@@ -324,6 +324,94 @@ function showWorkspacesMessage(text, isSuccess = false) {
   return msg;
 }
 
+function handleImportFile() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.style.position = 'absolute';
+  input.style.left = '-9999px';
+  input.style.top = '0';
+  input.style.opacity = '0';
+
+  const cleanup = () => {
+    try { input.remove(); } catch {}
+  };
+
+  input.addEventListener('change', async () => {
+    try {
+      const file = input.files && input.files[0] ? input.files[0] : null;
+      if (!file) return;
+
+      const text = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onerror = () => reject(new Error('Could not read file.'));
+        r.onload = () => resolve(String(r.result || ''));
+        r.readAsText(file);
+      });
+
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        alert('Invalid JSON file.');
+        return;
+      }
+
+      const norm = normalizeImportedWorkspaceJson(parsed);
+      if (!norm.ok) {
+        alert(norm.error || 'Invalid workspace file.');
+        return;
+      }
+
+      let name = norm.name;
+      if (!name) name = deriveWorkspaceNameFromFilename(file.name);
+      if (!name) {
+        const raw = prompt('Workspace name:');
+        name = sanitizeWorkspaceName(raw);
+      }
+      if (!name) return;
+
+      const workspaces = await storageGetWorkspaces();
+      let finalName = name;
+
+      if (workspaces[finalName]) {
+        const newName = sanitizeWorkspaceName(prompt(`A workspace named "${finalName}" already exists. Enter a different name to import:`));
+        if (!newName) {
+          alert('Import cancelled.');
+          return;
+        }
+        while (workspaces[newName]) {
+          alert(`A workspace named "${newName}" already exists. Please choose a different name.`);
+          const again = sanitizeWorkspaceName(prompt(`Enter a different name to import:`));
+          if (!again) {
+            alert('Import cancelled.');
+            return;
+          }
+          finalName = again;
+        }
+        finalName = newName;
+      }
+
+      workspaces[finalName] = {
+        name: finalName,
+        createdAt: Date.now(),
+        payload: norm.payload
+      };
+
+      await storageSetWorkspaces(workspaces);
+      alert(`Imported workspace "${finalName}".`);
+      window.close();
+    } catch (e) {
+      alert('Import failed: ' + String(e?.message || 'Unknown error'));
+    } finally {
+      cleanup();
+    }
+  }, { once: true });
+
+  document.body.appendChild(input);
+  input.click();
+}
+
 function appendImportRow(ul) {
   const li = document.createElement('li');
   li.className = 'workspace-item import-row';
@@ -340,94 +428,7 @@ function appendImportRow(ul) {
   importBtn.textContent = 'Import';
   importBtn.style.marginLeft = '8px';
   importBtn.addEventListener('click', () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.style.position = 'absolute';
-    input.style.left = '-9999px';
-    input.style.top = '0';
-    input.style.opacity = '0';
-
-    const cleanup = () => {
-      try { input.remove(); } catch {}
-    };
-
-    input.addEventListener('change', async () => {
-      try {
-        const file = input.files && input.files[0] ? input.files[0] : null;
-        if (!file) return;
-
-        importBtn.disabled = true;
-
-        const text = await new Promise((resolve, reject) => {
-          const r = new FileReader();
-          r.onerror = () => reject(new Error('Could not read file.'));
-          r.onload = () => resolve(String(r.result || ''));
-          r.readAsText(file);
-        });
-
-        let parsed;
-        try {
-          parsed = JSON.parse(text);
-        } catch {
-          alert('Invalid JSON file.');
-          return;
-        }
-
-        const norm = normalizeImportedWorkspaceJson(parsed);
-        if (!norm.ok) {
-          alert(norm.error || 'Invalid workspace file.');
-          return;
-        }
-
-        let name = norm.name;
-        if (!name) name = deriveWorkspaceNameFromFilename(file.name);
-        if (!name) {
-          const raw = prompt('Workspace name:');
-          name = sanitizeWorkspaceName(raw);
-        }
-        if (!name) return;
-
-        const workspaces = await storageGetWorkspaces();
-        let finalName = name;
-
-        if (workspaces[finalName]) {
-          const newName = sanitizeWorkspaceName(prompt(`A workspace named "${finalName}" already exists. Enter a different name to import:`));
-          if (!newName) {
-            showWorkspacesMessage('Import cancelled.');
-            return;
-          }
-          while (workspaces[newName]) {
-            alert(`A workspace named "${newName}" already exists. Please choose a different name.`);
-            const again = sanitizeWorkspaceName(prompt(`Enter a different name to import:`));
-            if (!again) {
-              showWorkspacesMessage('Import cancelled.');
-              return;
-            }
-            finalName = again;
-          }
-          finalName = newName;
-        }
-
-        workspaces[finalName] = {
-          name: finalName,
-          createdAt: Date.now(),
-          payload: norm.payload
-        };
-
-        await storageSetWorkspaces(workspaces);
-        renderWorkspacesList(workspaces);
-        showWorkspacesMessage(`Imported workspace "${finalName}".`, true);
-      } catch (e) {
-        alert('Import failed: ' + String(e?.message || 'Unknown error'));
-      } finally {
-        importBtn.disabled = false;
-        cleanup();
-      }
-    }, { once: true });
-
-    document.body.appendChild(input);
-    input.click();
+    chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?mode=import') });
   });
 
   actions.appendChild(importBtn);
@@ -580,6 +581,29 @@ function renderWorkspacesList(workspacesMap) {
 }
 
 function initPopup() {
+  if (window.location.search.includes('mode=import')) {
+    document.body.innerHTML = '';
+    document.body.style.padding = '40px';
+    document.body.style.textAlign = 'center';
+    document.body.style.width = '100%';
+    document.body.style.height = '100vh';
+    
+    const h2 = document.createElement('h2');
+    h2.textContent = 'Import Workspace';
+    h2.style.marginBottom = '20px';
+    
+    const btn = document.createElement('button');
+    btn.textContent = 'Select JSON File...';
+    btn.className = 'btn';
+    btn.style.fontSize = '16px';
+    btn.style.padding = '10px 20px';
+    btn.onclick = handleImportFile;
+
+    document.body.appendChild(h2);
+    document.body.appendChild(btn);
+    return;
+  }
+
   const select = document.getElementById('visibilityModeSelect');
   if (!select) return;
 
