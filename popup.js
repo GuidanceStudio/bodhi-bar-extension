@@ -339,11 +339,14 @@ function appendImportRow(ul) {
   importBtn.className = 'btn small';
   importBtn.textContent = 'Import';
   importBtn.style.marginLeft = '8px';
-  importBtn.addEventListener('click', async () => {
+  importBtn.addEventListener('click', () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'application/json,.json';
-    input.style.display = 'none';
+    input.accept = '.json';
+    input.style.position = 'absolute';
+    input.style.left = '-9999px';
+    input.style.top = '0';
+    input.style.opacity = '0';
 
     const cleanup = () => {
       try { input.remove(); } catch {}
