@@ -242,6 +242,30 @@ async function saveRule(oldPattern, newPattern, mode) {
   await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
 }
 
+function applyMessageStyle(el, type) {
+  el.style.padding = '8px 10px';
+  el.style.margin = '8px 0';
+  el.style.fontSize = '12px';
+  el.style.lineHeight = '1.3';
+  el.style.borderRadius = '4px';
+  el.style.wordBreak = 'break-word';
+  
+  if (type === 'success') {
+    el.style.color = '#166534';
+    el.style.background = '#dcfce7';
+    el.style.border = '1px solid #86efac';
+  } else if (type === 'error') {
+    el.style.color = '#b91c1c';
+    el.style.background = '#fee2e2';
+    el.style.border = '1px solid #fca5a5';
+  } else {
+    // info / warning
+    el.style.color = '#1a1a1a';
+    el.style.background = '#fff7e6';
+    el.style.border = '1px solid #f1d9a8';
+  }
+}
+
 function showToggleMessage(text) {
   const id = 'toggle-msg';
   const message = String(text || '').trim();
@@ -257,17 +281,8 @@ function showToggleMessage(text) {
   const msg = document.createElement('div');
   msg.id = id;
   msg.textContent = message;
-
-  msg.style.padding = '8px 10px';
-  msg.style.margin = '8px 0 0 0';
-  msg.style.fontSize = '12px';
-  msg.style.lineHeight = '1.3';
-  msg.style.color = '#1a1a1a';
-  msg.style.background = '#fff7e6';
-  msg.style.border = '1px solid #f1d9a8';
-  msg.style.borderRadius = '4px';
+  applyMessageStyle(msg, 'info');
   msg.style.maxWidth = '320px';
-  msg.style.wordBreak = 'break-word';
 
   const select = document.getElementById('visibilityModeSelect');
   if (select && select.parentNode) {
@@ -282,14 +297,7 @@ function showToggleMessage(text) {
 function showInlineMessage(text, isSuccess) {
   const msg = document.createElement('div');
   msg.textContent = text;
-  msg.style.padding = '8px';
-  msg.style.margin = '8px 0';
-  msg.style.borderRadius = '4px';
-  msg.style.fontSize = '12px';
-  msg.style.wordBreak = 'break-word';
-  msg.style.color = isSuccess ? '#166534' : '#b91c1c';
-  msg.style.background = isSuccess ? '#dcfce7' : '#fee2e2';
-  msg.style.border = isSuccess ? '1px solid #86efac' : '1px solid #fca5a5';
+  applyMessageStyle(msg, isSuccess ? 'success' : 'error');
   
   const container = document.getElementById('importContainer');
   if (container) {
@@ -464,15 +472,20 @@ function showConflictResolution(name, workspaces, payload) {
   input.focus();
 }
 
-function showWorkspacesMessage(text, isSuccess = false) {
+function showWorkspacesMessage(text, status = 'info') {
   const id = 'workspaces-msg';
   const message = String(text || '').trim();
   if (!message) return null;
 
+  // Map status: true -> success, 'error' -> error, else -> info
+  let type = 'info';
+  if (status === true || status === 'success') type = 'success';
+  else if (status === 'error') type = 'error';
+
   const existing = document.getElementById(id);
   if (existing) {
     existing.textContent = message;
-    existing.className = isSuccess ? 'success' : '';
+    applyMessageStyle(existing, type);
     existing.style.display = '';
     return existing;
   }
@@ -480,22 +493,7 @@ function showWorkspacesMessage(text, isSuccess = false) {
   const msg = document.createElement('div');
   msg.id = id;
   msg.textContent = message;
-
-  if (isSuccess) {
-    msg.style.color = '#166534';
-    msg.style.background = '#dcfce7';
-    msg.style.border = '1px solid #86efac';
-  } else {
-    msg.style.color = '#1a1a1a';
-    msg.style.background = '#fff7e6';
-    msg.style.border = '1px solid #f1d9a8';
-  }
-  msg.style.padding = '8px 10px';
-  msg.style.margin = '8px 0 0 0';
-  msg.style.fontSize = '12px';
-  msg.style.lineHeight = '1.3';
-  msg.style.borderRadius = '4px';
-  msg.style.wordBreak = 'break-word';
+  applyMessageStyle(msg, type);
 
   const section = document.getElementById('workspaces-section');
   const note = document.getElementById('workspaces-note');
@@ -505,6 +503,9 @@ function showWorkspacesMessage(text, isSuccess = false) {
   } else {
     document.body.appendChild(msg);
   }
+
+  // Ensure the message is visible
+  msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
   return msg;
 }
@@ -721,7 +722,7 @@ function renderWorkspacesList(workspacesMap) {
 
         const res = await runtimeSendMessage({ action: 'APPLY_WORKSPACE', payload });
         if (!res?.ok) {
-          showWorkspacesMessage(res?.error || 'Restore failed.');
+          showWorkspacesMessage(res?.error || 'Restore failed.', 'error');
           // Restore buttons if failed
           Array.from(actions.children).forEach(c => {
              if (c.classList.contains('workspace-action-icon')) c.style.display = '';
@@ -731,7 +732,7 @@ function renderWorkspacesList(workspacesMap) {
           setTimeout(() => window.close(), 1000);
         }
       } catch (e) {
-        showWorkspacesMessage('Error: ' + e.message);
+        showWorkspacesMessage('Error: ' + e.message, 'error');
       }
     });
 
@@ -801,13 +802,13 @@ function renderWorkspacesList(workspacesMap) {
 
         const cur = await storageGetWorkspaces();
         if (cur[newName]) {
-          showWorkspacesMessage(`Name "${newName}" already exists.`);
+          showWorkspacesMessage(`Name "${newName}" already exists.`, 'error');
           return;
         }
 
         const existing = cur[name];
         if (!existing) {
-           showWorkspacesMessage('Original workspace missing.');
+           showWorkspacesMessage('Original workspace missing.', 'error');
            renderWorkspacesList(cur);
            return;
         }
@@ -847,7 +848,7 @@ function renderWorkspacesList(workspacesMap) {
         const exportObj = { wv: '1.0', name, payload };
         const res = await runtimeSendMessage({ action: 'DOWNLOAD_JSON', filename, payload: exportObj });
         if (!res?.ok) {
-          showWorkspacesMessage(res?.error || 'Export failed.');
+          showWorkspacesMessage(res?.error || 'Export failed.', 'error');
         }
       } finally {
         exportIcon.style.opacity = '1';
