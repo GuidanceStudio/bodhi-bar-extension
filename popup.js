@@ -739,31 +739,98 @@ function renderWorkspacesList(workspacesMap) {
     renameIcon.className = 'workspace-action-icon rename';
     renameIcon.innerHTML = '&#9997;';
     renameIcon.title = 'Rename';
-    renameIcon.addEventListener('click', async () => {
-      const oldName = name;
-      const cur = await storageGetWorkspaces();
-      const existing = cur[oldName];
-      if (!existing) {
-        showWorkspacesMessage('Workspace not found.');
-        return;
-      }
+    renameIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      
+      // Hide display elements
+      nameSpan.style.display = 'none';
+      actions.style.display = 'none';
 
-      let newName = sanitizeWorkspaceName(prompt(`Rename workspace "${oldName}" to:`));
-      if (!newName) return;
+      // Create edit UI
+      const editContainer = document.createElement('div');
+      editContainer.style.display = 'flex';
+      editContainer.style.flex = '1';
+      editContainer.style.gap = '4px';
+      editContainer.style.alignItems = 'center';
 
-      while (newName !== oldName && cur[newName]) {
-        newName = sanitizeWorkspaceName(prompt(`"${newName}" exists. New name:`));
-        if (!newName) return;
-      }
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = name;
+      input.style.flex = '1';
+      input.style.minWidth = '0';
+      input.style.padding = '2px 4px';
+      input.style.fontSize = '12px';
+      input.style.border = '1px solid #ccc';
+      input.style.borderRadius = '3px';
 
-      if (newName === oldName) return;
+      const save = document.createElement('button');
+      save.innerHTML = '&#10003;'; // Checkmark
+      save.className = 'btn small success';
+      save.style.padding = '2px 6px';
+      save.style.minWidth = 'auto';
 
-      delete cur[oldName];
-      cur[newName] = { ...existing, name: newName };
+      const cancel = document.createElement('button');
+      cancel.innerHTML = '&#10005;'; // X
+      cancel.className = 'btn small';
+      cancel.style.padding = '2px 6px';
+      cancel.style.minWidth = 'auto';
 
-      await storageSetWorkspaces(cur);
-      renderWorkspacesList(cur);
-      showWorkspacesMessage(`Renamed to "${newName}".`);
+      const cleanup = () => {
+        editContainer.remove();
+        nameSpan.style.display = '';
+        actions.style.display = 'flex';
+      };
+
+      cancel.onclick = (ev) => {
+        ev.stopPropagation();
+        cleanup();
+      };
+
+      save.onclick = async (ev) => {
+        ev.stopPropagation();
+        const newName = sanitizeWorkspaceName(input.value);
+        if (!newName) {
+           cleanup();
+           return;
+        }
+        
+        if (newName === name) {
+          cleanup();
+          return;
+        }
+
+        const cur = await storageGetWorkspaces();
+        if (cur[newName]) {
+          showWorkspacesMessage(`Name "${newName}" already exists.`);
+          return;
+        }
+
+        const existing = cur[name];
+        if (!existing) {
+           showWorkspacesMessage('Original workspace missing.');
+           renderWorkspacesList(cur);
+           return;
+        }
+
+        delete cur[name];
+        cur[newName] = { ...existing, name: newName };
+        await storageSetWorkspaces(cur);
+        renderWorkspacesList(cur);
+        showWorkspacesMessage(`Renamed to "${newName}".`);
+      };
+
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') save.click();
+        if (ev.key === 'Escape') cancel.click();
+        ev.stopPropagation();
+      });
+
+      editContainer.appendChild(input);
+      editContainer.appendChild(save);
+      editContainer.appendChild(cancel);
+      
+      li.insertBefore(editContainer, actions);
+      input.focus();
     });
 
     const exportIcon = document.createElement('span');
