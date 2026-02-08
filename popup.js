@@ -314,20 +314,17 @@ function showNameInputForm(onSubmit) {
   
   const label = document.createElement('div');
   label.textContent = 'Workspace Name:';
-  label.style.marginBottom = '4px';
-  label.style.fontWeight = 'bold';
+  label.className = 'control-group label';
   
   const input = document.createElement('input');
   input.type = 'text';
+  input.className = 'pattern-input';
   input.style.width = '100%';
-  input.style.padding = '6px';
   input.style.marginBottom = '8px';
-  input.style.border = '1px solid #ccc';
-  input.style.borderRadius = '3px';
   
   const buttonRow = document.createElement('div');
-  buttonRow.style.display = 'flex';
-  buttonRow.style.gap = '8px';
+  buttonRow.className = 'rule-actions';
+  buttonRow.style.justifyContent = 'flex-start';
   
   const save = document.createElement('button');
   save.textContent = 'Save';
@@ -394,21 +391,18 @@ function showConflictResolution(name, workspaces, payload) {
   
   const msg = document.createElement('div');
   msg.textContent = `A workspace named "${name}" already exists.`;
-  msg.style.marginBottom = '8px';
-  msg.style.color = '#b91c1c';
+  applyMessageStyle(msg, 'error');
   
   const input = document.createElement('input');
   input.type = 'text';
   input.value = name;
+  input.className = 'pattern-input';
   input.style.width = '100%';
-  input.style.padding = '6px';
   input.style.marginBottom = '8px';
-  input.style.border = '1px solid #ccc';
-  input.style.borderRadius = '3px';
   
   const buttonRow = document.createElement('div');
-  buttonRow.style.display = 'flex';
-  buttonRow.style.gap = '8px';
+  buttonRow.className = 'rule-actions';
+  buttonRow.style.justifyContent = 'flex-start';
   
   const overwrite = document.createElement('button');
   overwrite.textContent = 'Overwrite';
@@ -658,15 +652,14 @@ function renderWorkspacesList(workspacesMap) {
         children.forEach(c => c.style.display = 'none');
 
         const confirmDiv = document.createElement('div');
-        confirmDiv.style.display = 'flex';
-        confirmDiv.style.alignItems = 'center';
+        confirmDiv.className = 'rule-actions';
         confirmDiv.style.gap = '4px';
         
         const label = document.createElement('span');
         label.textContent = text;
         label.style.fontSize = '11px';
         label.style.fontWeight = 'bold';
-        label.style.color = '#d32f2f';
+        label.style.color = '#f87171'; // Red from CSS
 
         const yes = document.createElement('button');
         yes.textContent = 'Yes';
@@ -674,6 +667,8 @@ function renderWorkspacesList(workspacesMap) {
         yes.style.padding = '2px 6px';
         yes.style.fontSize = '10px';
         yes.style.minWidth = 'auto';
+        yes.style.background = '#f87171';
+        yes.style.color = '#fff';
         
         const no = document.createElement('button');
         no.textContent = 'No';
@@ -681,8 +676,6 @@ function renderWorkspacesList(workspacesMap) {
         no.style.padding = '2px 6px';
         no.style.fontSize = '10px';
         no.style.minWidth = 'auto';
-        no.style.background = '#eee';
-        no.style.color = '#333';
 
         yes.onclick = async (ev) => {
           ev.stopPropagation();
@@ -749,32 +742,24 @@ function renderWorkspacesList(workspacesMap) {
 
       // Create edit UI
       const editContainer = document.createElement('div');
-      editContainer.style.display = 'flex';
+      editContainer.className = 'rule-actions';
       editContainer.style.flex = '1';
-      editContainer.style.gap = '4px';
-      editContainer.style.alignItems = 'center';
+      editContainer.style.width = '100%';
 
       const input = document.createElement('input');
       input.type = 'text';
       input.value = name;
+      input.className = 'pattern-input';
       input.style.flex = '1';
       input.style.minWidth = '0';
-      input.style.padding = '2px 4px';
-      input.style.fontSize = '12px';
-      input.style.border = '1px solid #ccc';
-      input.style.borderRadius = '3px';
 
       const save = document.createElement('button');
       save.innerHTML = '&#10003;'; // Checkmark
-      save.className = 'btn small success';
-      save.style.padding = '2px 6px';
-      save.style.minWidth = 'auto';
+      save.className = 'btn-icon success';
 
       const cancel = document.createElement('button');
       cancel.innerHTML = '&#10005;'; // X
-      cancel.className = 'btn small';
-      cancel.style.padding = '2px 6px';
-      cancel.style.minWidth = 'auto';
+      cancel.className = 'btn-icon';
 
       const cleanup = () => {
         editContainer.remove();
