@@ -909,6 +909,124 @@ function initPopup() {
 
       // --- Workspaces Init ---
       const createBtn = document.getElementById('createWorkspace');
+      const titleRow = document.querySelector('.workspaces-title-row');
+
+      // Helper to reset UI to default button
+      const resetSaveUI = () => {
+        const form = document.getElementById('save-workspace-form');
+        if (form) form.remove();
+        createBtn.style.display = '';
+      };
+
+      // Helper to perform the actual save operation
+      const executeSave = async (name, workspaces) => {
+        createBtn.disabled = true;
+        try {
+          const exp = await runtimeSendMessage({ action: 'GET_EXPORT_PAYLOAD' });
+          if (!exp?.ok || !exp?.payload) {
+            showWorkspacesMessage(exp?.error || 'Error getting payload.', 'error');
+            resetSaveUI();
+            return;
+          }
+
+          // Capture current site overrides and visibility rules
+          const [overridesData, rulesData] = await Promise.all([
+            storageGet(STORAGE_KEY_OVERRIDES),
+            storageGet(STORAGE_KEY_VISIBILITY_RULES)
+          ]);
+          const currentOverrides = overridesData?.[STORAGE_KEY_OVERRIDES] || {};
+          const currentRules = rulesData?.[STORAGE_KEY_VISIBILITY_RULES] || [];
+          exp.payload.siteOverrides = currentOverrides;
+          exp.payload.visibilityRules = currentRules;
+
+          workspaces[name] = { name, createdAt: Date.now(), payload: exp.payload };
+          await storageSetWorkspaces(workspaces);
+          renderWorkspacesList(workspaces);
+          showWorkspacesMessage(`Saved "${name}".`, 'success');
+        } finally {
+          createBtn.disabled = false;
+          resetSaveUI();
+        }
+      };
+
+      // Helper to show the overwrite confirmation UI
+      const showOverwriteConfirmation = (name, container, workspaces) => {
+        container.innerHTML = '';
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.gap = '8px';
+
+        const msg = document.createElement('span');
+        msg.textContent = `Overwrite "${name}"?`;
+        msg.style.fontSize = '12px';
+        msg.style.color = '#f87171'; // Red
+        msg.style.flex = '1';
+
+        const yesBtn = document.createElement('button');
+        yesBtn.textContent = 'Yes';
+        yesBtn.className = 'btn small';
+
+        const noBtn = document.createElement('button');
+        noBtn.textContent = 'No';
+        noBtn.className = 'btn small';
+
+        container.appendChild(msg);
+        container.appendChild(yesBtn);
+        container.appendChild(noBtn);
+
+        yesBtn.onclick = () => executeSave(name, workspaces);
+        noBtn.onclick = resetSaveUI;
+      };
+
+      // Helper to show the input form
+      const showSaveWorkspaceForm = () => {
+        createBtn.style.display = 'none';
+
+        const container = document.createElement('div');
+        container.id = 'save-workspace-form';
+        container.className = 'input-row';
+        container.style.flex = '1';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'std-input';
+        input.placeholder = 'Workspace name...';
+
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Save';
+        saveBtn.className = 'btn small';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.className = 'btn small';
+
+        container.appendChild(input);
+        container.appendChild(saveBtn);
+        container.appendChild(cancelBtn);
+
+        if (titleRow) titleRow.appendChild(container);
+        input.focus();
+
+        cancelBtn.onclick = resetSaveUI;
+
+        saveBtn.onclick = async () => {
+          const name = sanitizeWorkspaceName(input.value);
+          if (!name) return;
+
+          const currentWorkspaces = await storageGetWorkspaces();
+          if (currentWorkspaces[name]) {
+            showOverwriteConfirmation(name, container, currentWorkspaces);
+          } else {
+            executeSave(name, currentWorkspaces);
+          }
+        };
+
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') saveBtn.click();
+          if (e.key === 'Escape') resetSaveUI();
+        });
+      };
+
       if (createBtn) {
         createBtn.onclick = null;
         createBtn.addEventListener('click', async () => {
@@ -925,6 +1043,7 @@ function initPopup() {
              const workspaces = await storageGetWorkspaces();
              if (workspaces[workspaceName] && !confirm(`Overwrite "${workspaceName}"?`)) return;
              
+
              // Capture current site overrides and visibility rules
              const [overridesData, rulesData] = await Promise.all([
                storageGet(STORAGE_KEY_OVERRIDES),
