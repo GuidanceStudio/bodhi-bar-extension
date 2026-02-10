@@ -1028,39 +1028,7 @@ function initPopup() {
       };
 
       if (createBtn) {
-        createBtn.onclick = null;
-        createBtn.addEventListener('click', async () => {
-           const raw = prompt('Workspace name:');
-           const workspaceName = sanitizeWorkspaceName(raw);
-           if (!workspaceName) return;
-           createBtn.disabled = true;
-           try {
-             const exp = await runtimeSendMessage({ action: 'GET_EXPORT_PAYLOAD' });
-             if (!exp?.ok || !exp?.payload) {
-               showWorkspacesMessage(exp?.error || 'Error getting payload.', 'error');
-               return;
-             }
-             const workspaces = await storageGetWorkspaces();
-             if (workspaces[workspaceName] && !confirm(`Overwrite "${workspaceName}"?`)) return;
-             
-
-             // Capture current site overrides and visibility rules
-             const [overridesData, rulesData] = await Promise.all([
-               storageGet(STORAGE_KEY_OVERRIDES),
-               storageGet(STORAGE_KEY_VISIBILITY_RULES)
-             ]);
-             const currentOverrides = overridesData?.[STORAGE_KEY_OVERRIDES] || {};
-             const currentRules = rulesData?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-             exp.payload.siteOverrides = currentOverrides;
-             exp.payload.visibilityRules = currentRules;
-
-             workspaces[workspaceName] = { name: workspaceName, createdAt: Date.now(), payload: exp.payload };
-             await storageSetWorkspaces(workspaces);
-             renderWorkspacesList(workspaces);
-           } finally {
-             createBtn.disabled = false;
-           }
-        });
+        createBtn.onclick = showSaveWorkspaceForm;
       }
       const workspaces = await storageGetWorkspaces();
       renderWorkspacesList(workspaces);
