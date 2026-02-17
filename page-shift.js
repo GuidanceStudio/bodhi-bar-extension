@@ -96,18 +96,6 @@ function restoreShiftedHeaders() {
   _tzShifted.clear();
 }
 
-function restoreSafeBottomClipper() {
-  if (!_tzClipperEl) return;
-  try {
-    const prev = _tzClipperPrev || {};
-    if (prev.paddingBottom == null) _tzClipperEl.style.removeProperty('padding-bottom'); else _tzClipperEl.style.paddingBottom = prev.paddingBottom;
-    if (prev.boxSizing == null) _tzClipperEl.style.removeProperty('box-sizing'); else _tzClipperEl.style.boxSizing = prev.boxSizing;
-    _tzClipperEl.removeAttribute(TZ_CLIP_ATTR);
-  } catch {}
-  _tzClipperEl = null;
-  _tzClipperPrev = null;
-}
-
 function overlap(a, b) { return !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom); }
 
 function safeSel(el) {
@@ -242,7 +230,7 @@ function findViewportBottomClipper() {
   return null;
 }
 
-function applySafeBottomToClipper() {
+function restoreSafeBottomClipper() {
   if (!_tzClipperEl) return;
   try {
     const prev = _tzClipperPrev || {};
@@ -282,14 +270,26 @@ function scheduleHeaderShift() {
   _tzShiftRAF = requestAnimationFrame(() => {
     _tzShiftRAF = 0;
     shiftOverlappingTopHeaders();
-    applySafeBottomToClipper();
+    restoreSafeBottomClipper();
   });
 }
 
-function applyPageShift() {
+// Shared teardown for HIDDEN and OVERLAY modes: remove push-related padding and header shifts.
+function clearPushLayout(bar, barDisplay) {
+  if (bar) bar.style.setProperty('display', barDisplay, 'important');
+  restoreShiftedHeaders();
   const body = document.body;
-  if (!body) return;
-  
+  if (body) {
+    body.style.removeProperty('padding-top');
+    body.style.removeProperty('padding-bottom');
+  }
+  const st = document.head?.querySelector(`style[${TZ_SAFE_STYLE_ATTR}]`);
+  if (st) st.remove();
+}
+
+function applyPageShift() {
+  if (!document.body) return;
+
   // If mode hasn't been determined yet, do nothing to avoid layout thrashing
   if (window.currentVisibilityMode === null) return;
 
@@ -298,40 +298,24 @@ function applyPageShift() {
 
   // 1. HIDDEN MODE: Bar is gone, no padding
   if (mode === VISIBILITY_MODES.HIDDEN) {
-    if (bar) bar.style.setProperty('display', 'none', 'important');
-    restoreShiftedHeaders();
-    body.style.removeProperty('padding-top');
-    body.style.removeProperty('padding-bottom');
-    const st = document.head?.querySelector(`style[${TZ_SAFE_STYLE_ATTR}]`);
-    if (st) st.remove();
+    clearPushLayout(bar, 'none');
     return;
   }
 
   // 2. OVERLAY MODE: Bar floats over content, no padding
   if (mode === VISIBILITY_MODES.OVERLAY) {
-    if (bar) bar.style.setProperty('display', '', 'important');
-    restoreShiftedHeaders();
-    body.style.removeProperty('padding-top');
-    body.style.removeProperty('padding-bottom');
-    const st = document.head?.querySelector(`style[${TZ_SAFE_STYLE_ATTR}]`);
-    if (st) st.remove();
+    clearPushLayout(bar, '');
     return;
   }
 
   // 3. PUSH MODE: Bar pushes content down, apply padding
   if (mode === VISIBILITY_MODES.PUSH) {
     if (bar) bar.style.setProperty('display', '', 'important');
-    try {
-      ensureSafeAreasStyle();
-    } catch {}
-    try {
-      setInlineSafeAreasFallback();
-    } catch {}
+    try { ensureSafeAreasStyle(); } catch {}
+    try { setInlineSafeAreasFallback(); } catch {}
     scheduleHeaderShift();
     isInternalResize = true;
     window.dispatchEvent(new Event('resize'));
-    setTimeout(() => {
-      isInternalResize = false;
-    }, 80);
+    setTimeout(() => { isInternalResize = false; }, 80);
   }
 }

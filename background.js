@@ -30,17 +30,13 @@ const STARTUP_GRACE_MS = 20000;
 const OVERRIDES_FILE = 'site_overrides.js';
 const overridesInjected = new Map(); // tabId -> lastInjectedUrl
 
-function isHttpUrl(url = '') {
-  return /^https?:\/\//i.test(url);
-}
-
 function effectiveUrl(tab) {
   return tab?.url || tab?.pendingUrl || '';
 }
 
 function canInjectIntoUrl(url = '') {
   if (!url) return false;
-  if (!isHttpUrl(url)) return false;
+  if (!WEB_URL_RE.test(url)) return false;
   if (isSystemPage(url)) return false;
   return true;
 }
@@ -422,7 +418,6 @@ async function enforceRound(windowId) {
 
   const isGrouped = (t) => t.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE;
   const isUngrouped = (t) => !t.pinned && !isGrouped(t);
-
   const isUngroupedWeb = (t) => isUngrouped(t) && !isSystemPage(t);
   const isUngroupedSystem = (t) => isUngrouped(t) && isSystemPage(t);
 
@@ -434,19 +429,14 @@ async function enforceRound(windowId) {
   async function moveTabSafe(tabId, index, reason) {
     const before = ordered.find(t => t.id === tabId);
     const beforeG = before?.groupId;
-
     log('MOVE', { reason, tabId, from: before?.index, to: index, beforeG });
-
     await chrome.tabs.move(tabId, { index });
     await refresh();
-
     const after = ordered.find(t => t.id === tabId);
     const afterG = after?.groupId;
-
     const becameGrouped =
       (beforeG === chrome.tabGroups.TAB_GROUP_ID_NONE) &&
       (afterG != null && afterG !== chrome.tabGroups.TAB_GROUP_ID_NONE);
-
     if (becameGrouped) {
       warn('AUTO-GROUP -> ungroup', { tabId, beforeG, afterG });
       await chrome.tabs.ungroup(tabId);
@@ -454,100 +444,93 @@ async function enforceRound(windowId) {
     }
   }
 
-  try {
-    let movedTabs = 0;
-    let movedGroups = 0;
+  let movedTabs = 0;
+  let movedGroups = 0;
 
-    // 1) Pinned -> prefix
-    {
-      let firstNonPinnedPos = firstIndex(t => !t.pinned);
-
-      for (let i = firstNonPinnedPos; i < ordered.length; i++) {
-        const t = ordered[i];
-        if (!t.pinned) continue;
-
-        await moveTabSafe(t.id, firstNonPinnedPos, 'pinned->prefix');
-        movedTabs += 1;
-
-        firstNonPinnedPos = firstIndex(x => !x.pinned);
-        i = firstNonPinnedPos;
-      }
+  // 1) Move any misplaced pinned tabs to the front
+  async function enforcePinnedPrefix() {
+    let firstNonPinnedPos = firstIndex(t => !t.pinned);
+    for (let i = firstNonPinnedPos; i < ordered.length; i++) {
+      const t = ordered[i];
+      if (!t.pinned) continue;
+      await moveTabSafe(t.id, firstNonPinnedPos, 'pinned->prefix');
+      movedTabs += 1;
+      firstNonPinnedPos = firstIndex(x => !x.pinned);
+      i = firstNonPinnedPos;
     }
+  }
 
+  // 2) Pack groups contiguously immediately after pinned tabs
+  async function enforceGroupCompaction(afterPinned) {
+    const groupOrder = [];
+    const seen = new Set();
+    for (const t of ordered) {
+      if (t.pinned || !isGrouped(t) || seen.has(t.groupId)) continue;
+      seen.add(t.groupId);
+      groupOrder.push(t.groupId);
+    }
+    let target = afterPinned;
+    for (const gid of groupOrder) {
+      const firstTabIdx = ordered.findIndex(t => t.groupId === gid);
+      if (firstTabIdx === -1) continue;
+      if (firstTabIdx !== target) {
+        log('MOVE group', { groupId: gid, to: target });
+        // Brave/Chromium variants may not expose tabGroups.index reliably.
+        // Moving by tab index is still valid, but must be an integer.
+        const safeTarget = Number.isInteger(target) ? target : 0;
+        await chrome.tabGroups.move(gid, { index: safeTarget });
+        movedGroups += 1;
+        await refresh();
+      }
+      const size = ordered.filter(t => t.groupId === gid).length;
+      target += size;
+    }
+  }
+
+  // 3) Push any ungrouped tabs that ended up inside the group block to after it
+  async function enforceUngroupedEjection(afterPinned) {
+    const groupedCount = ordered.filter(t => !t.pinned && isGrouped(t)).length;
+    let endOfGroups = afterPinned + groupedCount;
+    for (let i = afterPinned; i < endOfGroups && i < ordered.length; i++) {
+      const t = ordered[i];
+      if (!isUngrouped(t)) continue;
+      await moveTabSafe(t.id, endOfGroups, 'ejectUngroupedFromGroupBlock');
+      movedTabs += 1;
+      await refresh();
+      const groupedCount2 = ordered.filter(x => !t.pinned && isGrouped(x)).length;
+      endOfGroups = afterPinned + groupedCount2;
+      i = afterPinned - 1;
+    }
+  }
+
+  // 4) Sort ungrouped section: web tabs first, system tabs last
+  async function enforceUngroupedOrder(afterGroups) {
+    const ungrouped = ordered.filter(t => isUngrouped(t));
+    const desiredIds = [
+      ...ungrouped.filter(isUngroupedWeb).map(t => t.id),
+      ...ungrouped.filter(isUngroupedSystem).map(t => t.id),
+    ];
+    for (let k = 0; k < desiredIds.length; k++) {
+      const wantId = desiredIds[k];
+      const pos = afterGroups + k;
+      if (ordered[pos]?.id === wantId) continue;
+      await moveTabSafe(wantId, pos, 'ungrouped:webBeforeSystem');
+      movedTabs += 1;
+    }
+  }
+
+  try {
+    await enforcePinnedPrefix();
     await refresh();
     const afterPinned = firstIndex(t => !t.pinned);
 
-    // 2) Compact groups after pinned
-    {
-      const groupOrder = [];
-      const seen = new Set();
-
-      for (const t of ordered) {
-        if (t.pinned || !isGrouped(t) || seen.has(t.groupId)) continue;
-        seen.add(t.groupId);
-        groupOrder.push(t.groupId);
-      }
-
-      let target = afterPinned;
-      for (const gid of groupOrder) {
-        const firstTabIdx = ordered.findIndex(t => t.groupId === gid);
-        if (firstTabIdx === -1) continue;
-
-        if (firstTabIdx !== target) {
-          log('MOVE group', { groupId: gid, to: target });
-          // Brave/Chromium variants may not expose tabGroups.index reliably.
-          // Moving by tab index is still valid, but must be an integer.
-          const safeTarget = Number.isInteger(target) ? target : 0;
-          await chrome.tabGroups.move(gid, { index: safeTarget });
-          movedGroups += 1;
-          await refresh();
-        }
-
-        const size = ordered.filter(t => t.groupId === gid).length;
-        target += size;
-      }
-    }
-
+    await enforceGroupCompaction(afterPinned);
     await refresh();
 
-    // 3) Eject ungrouped from group block
-    {
-      const groupedCount = ordered.filter(t => !t.pinned && isGrouped(t)).length;
-      let endOfGroups = afterPinned + groupedCount;
+    await enforceUngroupedEjection(afterPinned);
+    const afterGroups = afterPinned + ordered.filter(t => !t.pinned && isGrouped(t)).length;
 
-      for (let i = afterPinned; i < endOfGroups && i < ordered.length; i++) {
-        const t = ordered[i];
-        if (!isUngrouped(t)) continue;
-
-        await moveTabSafe(t.id, endOfGroups, 'ejectUngroupedFromGroupBlock');
-        movedTabs += 1;
-
-        await refresh();
-        const groupedCount2 = ordered.filter(x => !t.pinned && isGrouped(x)).length;
-        endOfGroups = afterPinned + groupedCount2;
-        i = afterPinned - 1;
-      }
-    }
-
-    // 4) Reorder ungrouped (web before system) after groups
-    {
-      const afterGroups = afterPinned + ordered.filter(t => !t.pinned && isGrouped(t)).length;
-
-      const ungrouped = ordered.filter(t => isUngrouped(t));
-      const desiredIds = [
-        ...ungrouped.filter(isUngroupedWeb).map(t => t.id),
-        ...ungrouped.filter(isUngroupedSystem).map(t => t.id),
-      ];
-
-      for (let k = 0; k < desiredIds.length; k++) {
-        const wantId = desiredIds[k];
-        const pos = afterGroups + k;
-        if (ordered[pos]?.id === wantId) continue;
-
-        await moveTabSafe(wantId, pos, 'ungrouped:webBeforeSystem');
-        movedTabs += 1;
-      }
-    }
+    await enforceUngroupedOrder(afterGroups);
 
     log('ENFORCE end', { windowId, movedTabs, movedGroups });
     return { ok: true, locked: false, movedTabs, movedGroups };

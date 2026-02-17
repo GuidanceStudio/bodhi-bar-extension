@@ -204,34 +204,9 @@ function createMinimizeButton(tabId) {
     btn.title = 'Minimize bar';
   }
 
-  btn.onclick = async (e) => {
+  btn.onclick = (e) => {
     e.stopPropagation();
-    const bar = document.getElementById(TZ_BAR_ID);
-    if (!bar) return;
-
-    // Toggle minimized state
-    const nextMinimized = !bar.classList.contains('tz-minimized');
-    if (nextMinimized) {
-      bar.classList.add('tz-minimized');
-      btn.textContent = '›';
-      btn.title = 'Expand bar';
-    } else {
-      bar.classList.remove('tz-minimized');
-      btn.textContent = '‹';
-      btn.title = 'Minimize bar';
-    }
-
-    // Save to storage
-    if (tabId != null) {
-      const minData = await chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB]);
-      const minMap = minData?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
-      if (nextMinimized) {
-        minMap[String(tabId)] = true;
-      } else {
-        delete minMap[String(tabId)];
-      }
-      await chrome.storage.local.set({ [STORAGE_KEY_MINIMIZED_BY_TAB]: minMap });
-    }
+    toggleMinimizedState(tabId);
   };
 
   return btn;
@@ -384,6 +359,74 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
   applyVisibilityState(currentTabId);
 }
 
+function createLevel2GroupTile(item) {
+  const tile = document.createElement('div');
+  tile.className = 'tz-group-tile';
+  tile.title = item.title || item.url || '';
+  const groupColorHex = GROUP_COLOR_MAP[item.color] || GROUP_COLOR_MAP.default;
+  tile.style.borderBottom = `var(--tz-ind-h) solid ${groupColorHex}`;
+  tile.style.color = groupColorHex;
+  tile.draggable = true;
+  tile.setAttribute('draggable', 'true');
+  tile.dataset.tzDraggable = 'group';
+  tile.dataset.groupid = String(item.id);
+
+  const titleSpan = document.createElement('span');
+  titleSpan.className = 'group-title';
+  titleSpan.textContent = getDisplayedTitle(item.title || item.url);
+  tile.appendChild(titleSpan);
+
+  const favs = Array.isArray(item.tabs) ? item.tabs : [];
+  if (favs.length > 0) {
+    const favRow = document.createElement('div');
+    favRow.className = 'fav-row';
+    favs.forEach(tab => favRow.appendChild(createLevel2Favicon(tab)));
+    tile.appendChild(favRow);
+  }
+
+  tile.onclick = (e) => {
+    e.stopPropagation();
+    currentViewedGroupId = item.id;
+    navigationState = NAV_LEVELS.LEVEL_3;
+    handleStateChange();
+  };
+  return tile;
+}
+
+function createLevel3TabTile(item) {
+  const tile = document.createElement('div');
+  tile.className = 'tz-tab-btn tz-lvl3-tab';
+  tile.title = item.title || item.url || '';
+  tile.draggable = true;
+  tile.setAttribute('draggable', 'true');
+  tile.dataset.tzDraggable = 'tab';
+  tile.dataset.tabid = String(item.id);
+  tile.dataset.tzKind = 'group';
+  tile.dataset.groupid = String(item.groupId ?? currentViewedGroupId ?? '');
+
+  tile.appendChild(createLevel2Favicon(item, { interactive: false }));
+
+  const label = document.createElement('span');
+  label.className = 'tab-title';
+  label.textContent = getDisplayedTitle(item.title || item.url);
+  tile.appendChild(label);
+
+  const actions = document.createElement('div');
+  actions.className = 'tab-actions';
+  const menuBtn = createLevel3MenuButton(item.id);
+  menuBtn.onclick = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    openGroupPopover(menuBtn, item.id, { includeUngroup: true, excludeGroupId: (item.groupId ?? currentViewedGroupId ?? null) });
+  };
+  actions.appendChild(menuBtn);
+  actions.appendChild(createCloseButton(item.id));
+  tile.appendChild(actions);
+
+  tile.onclick = (e) => { e.stopPropagation(); handleTabClick(item.id); };
+  return tile;
+}
+
 function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
   const bar = ensureBar();
 
@@ -414,80 +457,24 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
   container.className = 'scroll-container';
 
   const items = Array.isArray(data) ? data : [];
+  const isLevel2 = (navigationState === NAV_LEVELS.LEVEL_2);
+  const isLevel3 = (navigationState === NAV_LEVELS.LEVEL_3);
 
   items.forEach(item => {
-    const isLevel2Groups = (navigationState === NAV_LEVELS.LEVEL_2);
-    const isLevel3GroupTabs = (navigationState === NAV_LEVELS.LEVEL_3);
-
-    const itemBtn = document.createElement('div');
-    itemBtn.title = item.title || item.url || "";
-
-    if (isLevel2Groups) {
-      itemBtn.className = 'tz-group-tile';
-      const groupColorHex = GROUP_COLOR_MAP[item.color] || GROUP_COLOR_MAP.default;
-      itemBtn.style.borderBottom = `var(--tz-ind-h) solid ${groupColorHex}`;
-      itemBtn.style.color = groupColorHex;
-      itemBtn.draggable = true;
-      itemBtn.setAttribute('draggable', 'true');
-      itemBtn.dataset.tzDraggable = 'group';
-      itemBtn.dataset.groupid = String(item.id);
-
-      const titleSpan = document.createElement('span');
-      titleSpan.className = 'group-title';
-      titleSpan.textContent = getDisplayedTitle(item.title || item.url);
-      itemBtn.appendChild(titleSpan);
-
-      const favs = Array.isArray(item.tabs) ? item.tabs : [];
-      if (favs.length > 0) {
-        const favRow = document.createElement('div');
-        favRow.className = 'fav-row';
-
-        favs.forEach(tab => {
-          favRow.appendChild(createLevel2Favicon(tab));
-        });
-
-        itemBtn.appendChild(favRow);
-      }
-
-      itemBtn.onclick = (e) => {
-        e.stopPropagation();
-        currentViewedGroupId = item.id;
-        navigationState = NAV_LEVELS.LEVEL_3;
-        handleStateChange();
-      };
-    } else if (isLevel3GroupTabs) {
-      itemBtn.className = 'tz-tab-btn tz-lvl3-tab';
-      itemBtn.draggable = true;
-      itemBtn.setAttribute('draggable', 'true');
-      itemBtn.dataset.tzDraggable = 'tab';
-      itemBtn.dataset.tabid = String(item.id);
-      itemBtn.dataset.tzKind = 'group';
-      itemBtn.dataset.groupid = String(item.groupId ?? currentViewedGroupId ?? '');
-
-      itemBtn.appendChild(createLevel2Favicon(item, { interactive: false }));
-
-      const label = document.createElement('span');
-      label.className = 'tab-title';
-      label.textContent = getDisplayedTitle(item.title || item.url);
-      itemBtn.appendChild(label);
-
-      const actions = document.createElement('div');
-      actions.className = 'tab-actions';
-
-      const menuBtn = createLevel3MenuButton(item.id);
-      menuBtn.onclick = (e) => { e.stopPropagation(); e.preventDefault(); openGroupPopover(menuBtn, item.id, { includeUngroup: true, excludeGroupId: (item.groupId ?? currentViewedGroupId ?? null) }); };
-      actions.appendChild(menuBtn);
-      actions.appendChild(createCloseButton(item.id));
-      itemBtn.appendChild(actions);
-      itemBtn.onclick = (e) => { e.stopPropagation(); handleTabClick(item.id); };
+    let tile;
+    if (isLevel2) {
+      tile = createLevel2GroupTile(item);
+    } else if (isLevel3) {
+      tile = createLevel3TabTile(item);
     } else {
+      tile = document.createElement('div');
+      tile.title = item.title || item.url || '';
       const titleSpan = document.createElement('span');
       titleSpan.textContent = getDisplayedTitle(item.title || item.url);
-      itemBtn.appendChild(titleSpan);
-      itemBtn.onclick = (e) => { e.stopPropagation(); };
+      tile.appendChild(titleSpan);
+      tile.onclick = (e) => { e.stopPropagation(); };
     }
-
-    container.appendChild(itemBtn);
+    container.appendChild(tile);
   });
 
   container.appendChild(createStickyPlus());
