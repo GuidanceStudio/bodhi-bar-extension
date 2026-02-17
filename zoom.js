@@ -5,9 +5,9 @@
   if (window.__tzZoomInited) return;
   window.__tzZoomInited = true;
 
-  // Logging enabled for debugging
+  const DEBUG = false;
   function log(msg) {
-    console.log(`[BodhiBar Zoom] ${msg}`);
+    if (DEBUG) console.log(`[BodhiBar Zoom] ${msg}`);
   }
 
   if (typeof window.__tzBase === 'undefined') {

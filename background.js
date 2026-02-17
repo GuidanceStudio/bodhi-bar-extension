@@ -29,7 +29,7 @@ const VISIBILITY_MODES = {
   HIDDEN: 'hidden'
 };
 
-const DEBUG = true;
+const DEBUG = false;
 const TAG = '[BodhiBar]';
 const log = (...a) => DEBUG && console.log(TAG, ...a);
 const warn = (...a) => DEBUG && console.warn(TAG, ...a);
