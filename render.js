@@ -269,8 +269,7 @@ function createPinnedFavicon(tab, isCurrent) {
   wrap.dataset.tzKind = 'pinned';
 
   if (isCurrent) {
-    wrap.style.outline = `2px solid ${INDICATOR_COLOR}`;
-    wrap.style.outlineOffset = '2px';
+    wrap.classList.add('active');
   }
 
   const fav = createFaviconElement(tab);
@@ -458,8 +457,7 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
         handleStateChange();
       };
     } else if (isLevel3GroupTabs) {
-      itemBtn.className = 'tz-tab-btn';
-      itemBtn.style.borderBottom = `var(--tz-ind-h) solid ${INDICATOR_COLOR}`;
+      itemBtn.className = 'tz-tab-btn tz-lvl3-tab';
       itemBtn.draggable = true;
       itemBtn.setAttribute('draggable', 'true');
       itemBtn.dataset.tzDraggable = 'tab';
@@ -472,7 +470,6 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
       const label = document.createElement('span');
       label.className = 'tab-title';
       label.textContent = getDisplayedTitle(item.title || item.url);
-      label.style.color = '#fff';
       itemBtn.appendChild(label);
 
       const actions = document.createElement('div');
