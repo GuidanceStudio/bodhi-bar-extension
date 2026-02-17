@@ -14,9 +14,7 @@ const RESTRICTED_PREFIXES = [
   'opera://'
 ];
 
-const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
 const STORAGE_KEY_WORKSPACES = 'tz_workspaces_v1';
-const STORAGE_KEY_HIDDEN_SITES = 'tz_default_hidden_sites';
 const STORAGE_KEY_VISIBILITY_MODE = 'tz_visibility_mode';
 const STORAGE_KEY_VISIBILITY_RULES = 'tz_visibility_rules';
 const STORAGE_KEY_OVERRIDES = 'tz_site_overrides';
@@ -131,17 +129,6 @@ function deriveWorkspaceNameFromFilename(filename) {
   return sanitizeWorkspaceName(stripped || noExt);
 }
 
-function storageGetHiddenByTab() {
-  return storageGet(STORAGE_KEY_HIDDEN_BY_TAB).then(obj => {
-    const map = obj?.[STORAGE_KEY_HIDDEN_BY_TAB];
-    return (map && typeof map === 'object') ? map : {};
-  });
-}
-
-function storageSetHiddenByTab(map) {
-  return storageSet({ [STORAGE_KEY_HIDDEN_BY_TAB]: map || {} });
-}
-
 function storageGetWorkspaces() {
   return storageGet(STORAGE_KEY_WORKSPACES).then(obj => obj[STORAGE_KEY_WORKSPACES] || {});
 }
@@ -150,13 +137,7 @@ function storageSetWorkspaces(map) {
   return storageSet({ [STORAGE_KEY_WORKSPACES]: map || {} });
 }
 
-function storageGetHiddenSites() {
-  return storageGet(STORAGE_KEY_HIDDEN_SITES).then(obj => obj[STORAGE_KEY_HIDDEN_SITES] || []);
-}
 
-function storageSetHiddenSites(list) {
-  return storageSet({ [STORAGE_KEY_HIDDEN_SITES]: list || [] });
-}
 
 async function migrateHiddenSitesToRules() {
   const oldData = await storageGet('tz_default_hidden_sites');
@@ -168,21 +149,6 @@ async function migrateHiddenSitesToRules() {
     await chrome.storage.local.remove('tz_default_hidden_sites');
     console.log('Bodhi Bar: Migrated hidden sites to visibility rules.');
   }
-}
-
-function sendVisibilityToTab(tabId, hidden) {
-  return new Promise((resolve) => {
-    try {
-      if (!chrome.tabs?.sendMessage || tabId == null) return resolve(false);
-      chrome.tabs.sendMessage(tabId, { action: 'SET_VISIBILITY', hidden: !!hidden }, () => {
-        const err = chrome.runtime?.lastError;
-        if (err) return resolve(false);
-        resolve(true);
-      });
-    } catch {
-      resolve(false);
-    }
-  });
 }
 
 function runtimeSendMessage(msg) {
