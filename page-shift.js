@@ -2,9 +2,11 @@
  * PAGE-SHIFT.JS - Header collision detection and page shift
  */
 
-// Shared flag to prevent resize loops (also used by render.js)
+// Shared flag to prevent resize loops (also used by render.js).
+// Intentionally uses `var` because content scripts share a scope and
+// `let`/`const` would throw on re-declaration if the script runs twice.
 if (typeof isInternalResize === 'undefined') {
-  var isInternalResize = false;
+  var isInternalResize = false; // eslint-disable-line no-var
 }
 
 let _tzShifted = new Map();
