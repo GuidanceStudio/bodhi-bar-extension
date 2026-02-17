@@ -5,7 +5,6 @@
 const MAX_TITLE_LENGTH = 30;
 const INDICATOR_COLOR = '#0078d4';
 const BACK_ARROW = '◀';
-const GLOBAL_FONT = 'Arial, sans-serif';
 const SEARCH_ICON = '⌕';
 
 const GROUP_COLOR_MAP = {
@@ -15,25 +14,6 @@ const GROUP_COLOR_MAP = {
 };
 
 const WEB_URL_RE = /^https?:\/\//i;
-
-const BASE = {
-  BAR_H: 38,
-  TAB_W: 148,
-  FONT_PX: 14,
-  FAV_PX: 16,
-  PAD_X: 10,
-  GAP_X: 2,
-  PLUS_W: 26,
-  SEP_W: 1,
-  SEP_MX: 10,
-  ICON_GAP: 8,
-  INDICATOR_H: 2,
-  GROUP_MIN_PAD_X: 12,
-  LVL2_FAV_PX: 14,
-  LVL2_FAV_ML: 6,
-  GAP_MD: 4,
-  GAP_LG: 8
-};
 
 const NAV_LEVELS = {
   LEVEL_1: 'default',
