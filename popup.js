@@ -1,30 +1,5 @@
  // popup.js - Bodhi Bar popup behavior
-
-const RESTRICTED_PREFIXES = [
-  'chrome://',
-  'brave://',
-  'about:',
-  'edge://',
-  'devtools://',
-  'view-source:',
-  'chrome-extension://',
-  'brave-extension://',
-  'extension://',
-  'vivaldi://',
-  'opera://'
-];
-
-const STORAGE_KEY_WORKSPACES = 'tz_workspaces_v1';
-const STORAGE_KEY_VISIBILITY_MODE = 'tz_visibility_mode';
-const STORAGE_KEY_VISIBILITY_RULES = 'tz_visibility_rules';
-const STORAGE_KEY_OVERRIDES = 'tz_site_overrides';
-const PRESET_NAME_MAX_LEN = 60;
-
-const VISIBILITY_MODES = {
-  PUSH: 'push',
-  OVERLAY: 'overlay',
-  HIDDEN: 'hidden'
-};
+// Shared constants loaded from constants.js via <script> tag in popup.html
 
 function storageGet(key) {
   return new Promise((resolve) => {
@@ -166,11 +141,7 @@ function runtimeSendMessage(msg) {
   });
 }
 
-function isRestrictedUrl(url = '') {
-  if (!url || typeof url !== 'string') return true;
-  const u = url.trim().toLowerCase();
-  return RESTRICTED_PREFIXES.some(p => u.startsWith(p));
-}
+// isSystemPage and globToRegex are now imported from constants.js
 
 function getHostname(url) {
   try {
@@ -178,12 +149,6 @@ function getHostname(url) {
   } catch {
     return null;
   }
-}
-
-function globToRegex(glob) {
-  const escaped = glob.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = escaped.replace(/\*/g, '.*');
-  return new RegExp(`^${pattern}$`, 'i');
 }
 
 async function getMatchingRule(url) {
@@ -1000,7 +965,7 @@ function initPopup() {
       renderWorkspacesList(workspaces);
 
       // --- Visibility Init ---
-      if (!tab || isRestrictedUrl(String(url || ''))) {
+      if (!tab || isSystemPage(String(url || ''))) {
         select.style.display = 'none';
         showToggleMessage('Bodhi Bar is not available on system pages.');
         return;

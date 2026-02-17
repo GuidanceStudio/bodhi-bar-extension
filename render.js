@@ -64,8 +64,7 @@ function renderDisconnectedBar(reason = 'Disconnected') {
   applyPageShift();
 }
 
-// Minimize button helpers
-const STORAGE_KEY_MINIMIZED_BY_TAB = 'tz_minimized_by_tab';
+// Minimize button helpers (STORAGE_KEY_MINIMIZED_BY_TAB from constants.js)
 
 function setBarMinimized(minimized) {
   const bar = document.getElementById(TZ_BAR_ID);
