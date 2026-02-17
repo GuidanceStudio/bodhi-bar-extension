@@ -1,45 +1,15 @@
 /* eslint-disable no-unused-vars */
 /**
  * BACKGROUND.JS - Bodhi Bar (v9.24)
- *
- * + Injects site_overrides.js into all frames on completed navigations
- *   so overrides are always available even when content_scripts ordering
- *   / injection is flaky in Brave. The new site_overrides.js dynamically
- *   loads CSS from user-editable storage (tz_site_overrides) and applies
- *   it only when visibility mode is PUSH.
- *
- * + CLOSE_TAB action for UI "X" button.
- *
- * --- Integrated for Level 2 UI (Groups with favicons) ---
- * GET_UNGROUPED_TABS now includes, for each group in allTabGroups, a "tabs" array
- * with the group's tabs (tabToItem shape). This enables Level 2 to render all
- * favicons inside each group tile without extra per-group requests.
  */
 
-// Constants
-const TZ_PORT_NAME = 'TZ_UI_PORT';
-const TZ_HANDSHAKE_MSG = { action: '__TZ_HANDSHAKE__' };
-const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
-const STORAGE_KEY_VISIBILITY_MODE = 'tz_visibility_mode';
-const STORAGE_KEY_OVERRIDES = 'tz_site_overrides';
-
-const VISIBILITY_MODES = {
-  PUSH: 'push',
-  OVERLAY: 'overlay',
-  HIDDEN: 'hidden'
-};
+// Import shared constants and utilities from constants.js
+importScripts('constants.js');
 
 const DEBUG = false;
 const TAG = '[BodhiBar]';
 const log = (...a) => DEBUG && console.log(TAG, ...a);
 const warn = (...a) => DEBUG && console.warn(TAG, ...a);
-
-const SYSTEM_PREFIXES = [
-  'chrome://', 'brave://', 'about:',
-  'chrome-extension://', 'brave-extension://',
-  'edge://', 'devtools://', 'extension://',
-  'vivaldi://', 'opera://', 'view-source:'
-];
 
 const DEBOUNCE_MS = 80;
 const DRAG_SETTLE_MS = 350;
@@ -71,17 +41,11 @@ function effectiveUrl(tab) {
 function canInjectIntoUrl(url = '') {
   if (!url) return false;
   if (!isHttpUrl(url)) return false;
-  if (SYSTEM_PREFIXES.some(prefix => url.startsWith(prefix))) return false;
+  if (isSystemPage(url)) return false;
   return true;
 }
 
-function isSystemPage(tabOrUrl) {
-  const url = (typeof tabOrUrl === 'string')
-    ? tabOrUrl
-    : (tabOrUrl?.url || tabOrUrl?.pendingUrl || '');
-  if (!url) return false;
-  return SYSTEM_PREFIXES.some(prefix => String(url).startsWith(prefix));
-}
+// isSystemPage is now imported from constants.js
 
 async function injectOverrides(tabId, url) {
   if (tabId == null) return;

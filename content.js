@@ -156,27 +156,7 @@ function hookViewportEvents() {
  // Boot
 let _tzDidBoot = false;
 
-/**
- * Helper to check if the current URL matches a pattern with wildcards.
- * Example: "docs.google.com/spreadsheets/*" matches "docs.google.com/spreadsheets/d/123"
- */
-function matchesPattern(url, pattern) {
-  if (!url || !pattern) return false;
-  try {
-    // 1. Convert pattern to valid Regex
-    // Escape special regex characters except the asterisk *
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-    // Replace * with .* (any character, any number of times)
-    const regexStr = '^' + escaped.replace(/\*/g, '.*') + '$';
-
-    // 2. Test case-insensitive
-    return new RegExp(regexStr, 'i').test(url);
-  } catch (e) {
-    // If pattern is invalid, return false (safe)
-    return false;
-  }
-}
-
+// globToRegex is imported from constants.js (loaded before this script)
 // setVisibilityMode is defined in page-shift.js
 
 async function boot() {
@@ -212,7 +192,7 @@ async function boot() {
       // Find matching rules and sort by specificity (length)
       const matches = rules.filter(rule => {
         if (!rule.pattern || !rule.mode) return false;
-        return matchesPattern(currentUrl, rule.pattern);
+        return globToRegex(rule.pattern).test(currentUrl);
       });
       
       matches.sort((a, b) => b.pattern.length - a.pattern.length);
@@ -226,7 +206,7 @@ async function boot() {
     if (!initialMode) {
       const hiddenSites = storageData?.['tz_default_hidden_sites'] || [];
       const currentUrl = window.location.href;
-      if (hiddenSites.some(site => matchesPattern(currentUrl, site))) {
+      if (hiddenSites.some(site => globToRegex(site).test(currentUrl))) {
         initialMode = VISIBILITY_MODES.HIDDEN;
       }
     }
