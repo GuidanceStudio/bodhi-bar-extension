@@ -1229,7 +1229,40 @@ function initPopup() {
                 }
             };
             btnSave.onclick = () => onSave(rule.pattern, input.value.trim(), modeSelect.value);
-            btnDel.onclick = () => onDelete(rule.pattern);
+            btnDel.onclick = () => {
+                // Inline confirmation instead of native confirm()
+                viewDiv.style.display = 'none';
+                editDiv.style.display = 'none';
+
+                const confirmDiv = document.createElement('div');
+                confirmDiv.className = 'rule-actions';
+                confirmDiv.style.flex = '1';
+                confirmDiv.style.gap = '6px';
+
+                const label = document.createElement('span');
+                label.textContent = 'Delete?';
+                label.style.fontSize = '11px';
+                label.style.fontWeight = 'bold';
+                label.style.color = '#f87171';
+
+                const yes = document.createElement('button');
+                yes.textContent = 'Yes';
+                yes.className = 'btn-icon delete';
+                yes.style.fontSize = '10px';
+
+                const no = document.createElement('button');
+                no.textContent = 'No';
+                no.className = 'btn-icon';
+                no.style.fontSize = '10px';
+
+                yes.onclick = () => { confirmDiv.remove(); onDelete(rule.pattern); };
+                no.onclick = () => { confirmDiv.remove(); viewDiv.style.display = 'flex'; };
+
+                confirmDiv.appendChild(label);
+                confirmDiv.appendChild(yes);
+                confirmDiv.appendChild(no);
+                row.appendChild(confirmDiv);
+            };
             
             input.addEventListener('keydown', (e) => {
               if (e.key === 'Enter') btnSave.click();
@@ -1256,17 +1289,14 @@ function initPopup() {
              
              rulesListEl.innerHTML = '';
              matching.forEach((r, idx) => {
-                 const row = createRowUI(r, false, 
-                    async (oldP, newP, m) => { 
-                        if (oldP !== newP) await saveRule(oldP, newP, m);
-                        else await saveRule(oldP, newP, m);
+                 const row = createRowUI(r, false,
+                    async (oldP, newP, m) => {
+                        await saveRule(oldP, newP, m);
                         refreshList();
                     },
                     async (p) => {
-                        if (confirm('Delete rule?')) {
-                            await saveRule(p, null, null);
-                            refreshList();
-                        }
+                        await saveRule(p, null, null);
+                        refreshList();
                     }
                  );
                  if (idx === 0) row.classList.add('winning');
