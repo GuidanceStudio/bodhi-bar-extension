@@ -115,6 +115,10 @@
   margin-right: var(--tz-gap-sm);
   transition:background 120ms ease, transform 120ms ease;
 }
+#ungroup-automatic-tab-bar .tz-pin-fav-wrap.active{
+  outline:2px solid #0078d4;
+  outline-offset:2px;
+}
 #ungroup-automatic-tab-bar .tz-pin-fav-wrap:hover{
   background:#3a3a3a;
   transform:scale(1.03);
@@ -383,6 +387,10 @@
   background: #3a3a3a;
   color: #fff;
   border-bottom-color: #0078d4;
+}
+#ungroup-automatic-tab-bar .tz-tab-btn.tz-lvl3-tab {
+  border-bottom: var(--tz-ind-h) solid #0078d4;
+  color: #fff;
 }
 
 #ungroup-automatic-tab-bar .tz-tab-btn .tab-title {
