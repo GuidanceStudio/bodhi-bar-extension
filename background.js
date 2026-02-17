@@ -1356,12 +1356,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return;
       }
 
-      if (action === 'GET_UNGROUPED_TABS') {
-        const payload = await buildUngroupedPayload();
-        sendResponse(payload);
-        return;
-      }
-
       sendResponse(null);
     } catch {
       sendResponse(null);
