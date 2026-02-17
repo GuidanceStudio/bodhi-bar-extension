@@ -491,9 +491,17 @@ async function enforceRound(windowId) {
   async function enforceUngroupedEjection(afterPinned) {
     const groupedCount = ordered.filter(t => !t.pinned && isGrouped(t)).length;
     let endOfGroups = afterPinned + groupedCount;
+    // Guard: at most one move per tab can be needed. If we exceed this,
+    // a move silently failed to update the order and we'd loop forever.
+    const maxMoves = ordered.length + 1;
+    let guardCount = 0;
     for (let i = afterPinned; i < endOfGroups && i < ordered.length; i++) {
       const t = ordered[i];
       if (!isUngrouped(t)) continue;
+      if (++guardCount > maxMoves) {
+        warn('ENFORCE: enforceUngroupedEjection safety limit hit', { windowId });
+        break;
+      }
       await moveTabSafe(t.id, endOfGroups, 'ejectUngroupedFromGroupBlock');
       movedTabs += 1;
       await refresh();

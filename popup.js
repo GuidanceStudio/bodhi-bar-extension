@@ -1238,6 +1238,10 @@ function initPopup() {
         return;
       }
 
+      // Migrate legacy hidden-sites list to visibility rules BEFORE reading the mode,
+      // so getModeForTab sees the migrated rules and matches what the content script applies.
+      await migrateHiddenSitesToRules();
+
       const currentMode = await getModeForTab(tabId, url);
       select.value = currentMode;
       select.disabled = false;
@@ -1258,8 +1262,6 @@ function initPopup() {
           await runtimeSendMessage({ action: 'REFRESH_TAB', tabId });
         } catch (e) {}
       };
-
-      await migrateHiddenSitesToRules();
     });
   } catch {
     if (select) select.style.display = 'none';

@@ -121,53 +121,43 @@ function applyMinimizedState(tabId) {
 
 function applyVisibilityState(tabId) {
   if (tabId == null) return;
-  chrome.storage.local.get([STORAGE_KEY_VISIBILITY_MODE], (obj) => {
-    const map = obj?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-    const mode = map[String(tabId)] || window.currentVisibilityMode || VISIBILITY_MODES.PUSH;
-    // Update the global mode variable
-    if (typeof setVisibilityMode === 'function') {
-      setVisibilityMode(mode);
-    } else {
-      window.currentVisibilityMode = mode;
-    }
+  // window.currentVisibilityMode is always kept in sync by setVisibilityMode(),
+  // which is called before any code path that triggers applyVisibilityState.
+  // Avoid an extra async storage round-trip by using it directly.
+  const mode = window.currentVisibilityMode || VISIBILITY_MODES.PUSH;
 
-    const bar = document.getElementById(TZ_BAR_ID);
-    if (bar) {
-      // Update mode classes
-      bar.classList.toggle('tz-mode-overlay', mode === VISIBILITY_MODES.OVERLAY);
-      bar.classList.toggle('tz-mode-push', mode === VISIBILITY_MODES.PUSH);
-      
-      if (mode === VISIBILITY_MODES.HIDDEN) {
-        bar.style.setProperty('display', 'none', 'important');
-        // Reset minimized state when hidden
-        bar.classList.remove('tz-minimized');
-      } else {
-        bar.style.display = '';
-        bar.style.removeProperty('display');
-        
-        if (mode === VISIBILITY_MODES.OVERLAY) {
-          // Check minimized state for OVERLAY mode
-          chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (minObj) => {
-            const minMap = minObj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
-            if (minMap[String(tabId)]) {
-              bar.classList.add('tz-minimized');
-            } else {
-              bar.classList.remove('tz-minimized');
-            }
-            // Update minimize button visibility
-            syncMinimizeButtonUI();
-            if (typeof applyPageShift === 'function') applyPageShift();
-          });
-          return;
-        } else {
-          // PUSH mode: never minimized
-          bar.classList.remove('tz-minimized');
+  const bar = document.getElementById(TZ_BAR_ID);
+  if (bar) {
+    bar.classList.toggle('tz-mode-overlay', mode === VISIBILITY_MODES.OVERLAY);
+    bar.classList.toggle('tz-mode-push', mode === VISIBILITY_MODES.PUSH);
+
+    if (mode === VISIBILITY_MODES.HIDDEN) {
+      bar.style.setProperty('display', 'none', 'important');
+      bar.classList.remove('tz-minimized');
+    } else {
+      bar.style.removeProperty('display');
+
+      if (mode === VISIBILITY_MODES.OVERLAY) {
+        // Minimized state is per-tab and stored separately; still needs a storage read.
+        chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (minObj) => {
+          const minMap = minObj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
+          if (minMap[String(tabId)]) {
+            bar.classList.add('tz-minimized');
+          } else {
+            bar.classList.remove('tz-minimized');
+          }
           syncMinimizeButtonUI();
-        }
+          if (typeof applyPageShift === 'function') applyPageShift();
+        });
+        return;
+      } else {
+        // PUSH mode: never minimized
+        bar.classList.remove('tz-minimized');
+        syncMinimizeButtonUI();
       }
     }
-    if (typeof applyPageShift === 'function') applyPageShift();
-  });
+  }
+  if (typeof applyPageShift === 'function') applyPageShift();
 }
 
 function toggleMinimizedState(tabId) {
