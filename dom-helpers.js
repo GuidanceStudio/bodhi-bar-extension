@@ -32,8 +32,6 @@ function createFaviconElement(tab) {
     };
     favicon.src = tab.favIconUrl;
   }
-
-  favicon.addEventListener('error', () => { favicon.src = fallback; }, { once: true });
   return favicon;
 }
 
