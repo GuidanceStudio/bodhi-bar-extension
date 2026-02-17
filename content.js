@@ -278,30 +278,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'SET_VISIBILITY_MODE') {
     setVisibilityMode(request.mode);
-    
-    // Get the current tab ID and apply the visibility state
     getThisTabId().then(tabId => {
-      // Re-render the bar to update the minimize button visibility
-      if (typeof applyVisibilityState === 'function') {
-        applyVisibilityState(tabId);
-      }
-      // Also update the bar display
-      const bar = document.getElementById(TZ_BAR_ID);
-      if (bar) {
-        if (request.mode === VISIBILITY_MODES.HIDDEN) {
-          bar.style.setProperty('display', 'none', 'important');
-        } else {
-          bar.style.display = '';
-          // Request tab list to refresh the bar
-          requestTabList();
-        }
-        // Update CSS class for mode
-        bar.classList.toggle('tz-mode-overlay', request.mode === VISIBILITY_MODES.OVERLAY);
-        bar.classList.toggle('tz-mode-push', request.mode === VISIBILITY_MODES.PUSH);
-      }
-      if (typeof applyPageShift === 'function') applyPageShift();
+      applyVisibilityState(tabId);
+      if (request.mode !== VISIBILITY_MODES.HIDDEN) requestTabList();
     });
-    
     sendResponse({ success: true });
   }
 });

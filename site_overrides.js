@@ -2,26 +2,18 @@
  site_overrides.js
  Per-site CSS patches.
  Fetches overrides from storage and applies them ONLY if visibility mode is PUSH.
+
+ Note: STORAGE_KEY_OVERRIDES, STORAGE_KEY_VISIBILITY_MODE, STORAGE_KEY_VISIBILITY_RULES,
+ VISIBILITY_MODES and globToRegex are provided by constants.js, loaded as a content script
+ before this file is injected.
 */
 
 (async () => {
-  const STORAGE_KEY_OVERRIDES = 'tz_site_overrides';
-  const STORAGE_KEY_MODE = 'tz_visibility_mode';
-  const STORAGE_KEY_RULES = 'tz_visibility_rules';
-  const VISIBILITY_MODES = { PUSH: 'push', OVERLAY: 'overlay', HIDDEN: 'hidden' };
-
   // Helper: Get storage
   const getStorage = (keys) => new Promise(r => chrome.storage.local.get(keys, r));
 
   // Helper: Get Tab ID
   const getTabId = () => new Promise(r => chrome.runtime.sendMessage({ action: 'GET_TAB_ID' }, res => r(res?.tabId)));
-
-  // Helper: Glob matcher
-  function globToRegex(glob) {
-    const escaped = glob.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = escaped.replace(/\*/g, '.*');
-    return new RegExp(`^${pattern}$`, 'i');
-  }
 
   // Helper: Inject/Remove CSS
   const updateStyle = (css) => {
@@ -40,8 +32,8 @@
   };
 
   const apply = async () => {
-    const data = await getStorage([STORAGE_KEY_OVERRIDES, STORAGE_KEY_MODE, STORAGE_KEY_RULES]);
-    
+    const data = await getStorage([STORAGE_KEY_OVERRIDES, STORAGE_KEY_VISIBILITY_MODE, STORAGE_KEY_VISIBILITY_RULES]);
+
     const hostname = location.hostname;
     const overrides = data[STORAGE_KEY_OVERRIDES] || {};
     const css = overrides[hostname];
@@ -58,7 +50,7 @@
     try {
       const tabId = await getTabId();
       if (tabId) {
-        const tabModes = data[STORAGE_KEY_MODE] || {};
+        const tabModes = data[STORAGE_KEY_VISIBILITY_MODE] || {};
         if (tabModes[tabId]) {
           mode = tabModes[tabId];
         }
@@ -67,7 +59,7 @@
 
     // 2. Rules (only if no explicit override)
     if (!mode) {
-      const rules = data[STORAGE_KEY_RULES] || [];
+      const rules = data[STORAGE_KEY_VISIBILITY_RULES] || [];
       const url = location.href;
       const matches = rules.filter(r => globToRegex(r.pattern).test(url));
       matches.sort((a, b) => b.pattern.length - a.pattern.length);
@@ -81,7 +73,7 @@
       mode = VISIBILITY_MODES.PUSH;
     }
 
-    // 3. Apply only if PUSH
+    // 4. Apply only if PUSH
     if (mode === VISIBILITY_MODES.PUSH) {
       updateStyle(css);
     } else {
@@ -95,7 +87,7 @@
   // Listen for changes
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local') {
-      if (changes[STORAGE_KEY_OVERRIDES] || changes[STORAGE_KEY_MODE] || changes[STORAGE_KEY_RULES]) {
+      if (changes[STORAGE_KEY_OVERRIDES] || changes[STORAGE_KEY_VISIBILITY_MODE] || changes[STORAGE_KEY_VISIBILITY_RULES]) {
         apply();
       }
     }
