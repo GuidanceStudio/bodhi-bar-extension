@@ -120,18 +120,33 @@ function safeSel(el) {
 function findTopFixedHeaderCandidates(barRect, barH) {
   const vpW = window.innerWidth;
   const maxH = Math.max(80, Math.min(220, barH * 6));
-  const els = Array.from(document.querySelectorAll('body *'));
+  const bar = document.getElementById(TZ_BAR_ID);
   const out = [];
 
-  for (const el of els) {
-    try {
-      if (el.id === TZ_BAR_ID) continue;
-      const bar = document.getElementById(TZ_BAR_ID);
-      if (bar && (el === bar || bar.contains(el))) continue;
+  // Use TreeWalker instead of querySelectorAll('body *') to avoid
+  // materializing the entire DOM into an array. The filter skips
+  // subtrees of non-matching elements early for better performance.
+  const body = document.body;
+  if (!body) return out;
 
+  const walker = document.createTreeWalker(body, NodeFilter.SHOW_ELEMENT, {
+    acceptNode(el) {
+      try {
+        if (el === bar || (bar && bar.contains(el))) return NodeFilter.FILTER_REJECT;
+        const cs = getComputedStyle(el);
+        const pos = cs.position;
+        if (pos !== 'fixed' && pos !== 'sticky') return NodeFilter.FILTER_SKIP;
+        return NodeFilter.FILTER_ACCEPT;
+      } catch {
+        return NodeFilter.FILTER_SKIP;
+      }
+    }
+  });
+
+  let el;
+  while ((el = walker.nextNode())) {
+    try {
       const cs = getComputedStyle(el);
-      const pos = cs.position;
-      if (pos !== 'fixed' && pos !== 'sticky') continue;
 
       const topCss = cs.top;
       const topPx = parseFloat(topCss);
