@@ -37,7 +37,8 @@ const warn = (...a) => DEBUG && console.warn(TAG, ...a);
 const SYSTEM_PREFIXES = [
   'chrome://', 'brave://', 'about:',
   'chrome-extension://', 'brave-extension://',
-  'edge://', 'devtools://', 'extension://'
+  'edge://', 'devtools://', 'extension://',
+  'vivaldi://', 'opera://', 'view-source:'
 ];
 
 const DEBOUNCE_MS = 80;
