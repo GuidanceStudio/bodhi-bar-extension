@@ -242,6 +242,27 @@ function restoreSafeBottomClipper() {
   _tzClipperPrev = null;
 }
 
+// In PUSH mode, some scrollable containers with overflow:hidden won't benefit
+// from body padding-bottom and will hide content behind the bar.
+// This function finds such a container and adds padding-bottom to it directly.
+function applyBottomClipperPadding() {
+  const newClipper = findViewportBottomClipper();
+  if (newClipper === _tzClipperEl) return; // same element, nothing changed
+  restoreSafeBottomClipper();
+  if (!newClipper) return;
+  _tzClipperPrev = {
+    paddingBottom: newClipper.style.paddingBottom || null,
+    boxSizing: newClipper.style.boxSizing || null
+  };
+  _tzClipperEl = newClipper;
+  _tzClipperEl.setAttribute(TZ_CLIP_ATTR, 'true');
+  const barH = getBarHeightPx();
+  try {
+    _tzClipperEl.style.setProperty('padding-bottom', `${barH}px`, 'important');
+    _tzClipperEl.style.setProperty('box-sizing', 'border-box', 'important');
+  } catch {}
+}
+
 function shiftOverlappingTopHeaders() {
   const bar = document.getElementById(TZ_BAR_ID);
   if (!bar) return;
@@ -270,14 +291,15 @@ function scheduleHeaderShift() {
   _tzShiftRAF = requestAnimationFrame(() => {
     _tzShiftRAF = 0;
     shiftOverlappingTopHeaders();
-    restoreSafeBottomClipper();
+    applyBottomClipperPadding();
   });
 }
 
-// Shared teardown for HIDDEN and OVERLAY modes: remove push-related padding and header shifts.
+// Shared teardown for HIDDEN and OVERLAY modes: remove all push-related layout effects.
 function clearPushLayout(bar, barDisplay) {
   if (bar) bar.style.setProperty('display', barDisplay, 'important');
   restoreShiftedHeaders();
+  restoreSafeBottomClipper();
   const body = document.body;
   if (body) {
     body.style.removeProperty('padding-top');
