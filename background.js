@@ -1207,26 +1207,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             await chrome.tabs.remove(toClose);
           }
 
+          // Collect visibility modes to write once at the end
+          const pendingModes = {};
+
           // Create pinned tabs
           for (const t of pinnedTabs) {
             const url = String(t?.url || '').trim();
             if (!url) continue;
-            const muted = !!t.muted; // NEW: get muted state
+            const muted = !!t.muted;
             const created = await chrome.tabs.create({ windowId: activeWindow.id, url, pinned: true, active: false });
             if (created && muted) {
               try { await chrome.tabs.update(created.id, { muted: true }); } catch {}
             }
 
-            // Save visibility mode if present in export
             if (created?.id != null && t.visibilityMode) {
-              try {
-                const res = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_MODE);
-                const map = res?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-                map[String(created.id)] = t.visibilityMode;
-                await chrome.storage.local.set({ [STORAGE_KEY_VISIBILITY_MODE]: map });
-              } catch (e) {
-                console.error('Failed to restore pinned visibility', e);
-              }
+              pendingModes[String(created.id)] = t.visibilityMode;
             }
             await sleep(80); // Throttle to prevent browser crash
           }
@@ -1239,7 +1234,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             for (const t of tabs) {
               const url = String(t?.url || '').trim();
               if (!url) continue;
-              const muted = !!t.muted; // NEW: get muted state
+              const muted = !!t.muted;
 
               const created = await chrome.tabs.create({ windowId: activeWindow.id, url, active: false });
               if (created?.id != null) {
@@ -1248,16 +1243,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   try { await chrome.tabs.update(created.id, { muted: true }); } catch {}
                 }
 
-                // Save visibility mode if present in export
                 if (t.visibilityMode) {
-                  try {
-                    const res = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_MODE);
-                    const map = res?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-                    map[String(created.id)] = t.visibilityMode;
-                    await chrome.storage.local.set({ [STORAGE_KEY_VISIBILITY_MODE]: map });
-                  } catch (e) {
-                    console.error('Failed to restore group tab visibility', e);
-                  }
+                  pendingModes[String(created.id)] = t.visibilityMode;
                 }
               }
               await sleep(80); // Throttle to prevent browser crash
@@ -1286,6 +1273,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           // Restore visibility rules
           if (visibilityRules.length > 0) {
             await chrome.storage.local.set({ 'tz_visibility_rules': visibilityRules });
+          }
+
+          // Batch-write all pending visibility modes in a single storage call
+          if (Object.keys(pendingModes).length > 0) {
+            try {
+              const res = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_MODE);
+              const map = res?.[STORAGE_KEY_VISIBILITY_MODE] || {};
+              Object.assign(map, pendingModes);
+              await chrome.storage.local.set({ [STORAGE_KEY_VISIBILITY_MODE]: map });
+            } catch (e) {
+              warn('Failed to batch-write visibility modes', { message: String(e?.message || e) });
+            }
           }
 
           // Minimize all groups (so they're collapsed)
