@@ -51,6 +51,7 @@ const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
 const STORAGE_KEY_OVERRIDES = 'tz_site_overrides';
 const STORAGE_KEY_WORKSPACES = 'tz_workspaces_v1';
 const STORAGE_KEY_MINIMIZED_BY_TAB = 'tz_minimized_by_tab';
+const STORAGE_KEY_GROUP_META = 'tz_group_meta';
 
 // --- System URL Prefixes ---
 const SYSTEM_PREFIXES = [
