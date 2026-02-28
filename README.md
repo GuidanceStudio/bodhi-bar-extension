@@ -63,6 +63,7 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
     - **Delete**: Remove the workspace from storage.
   - **Import**: Restore workspaces from JSON files. If the imported workspace name already exists, Bodhi asks you to choose a different name.
   - **Versioning**: Exported files include a workspace version field (`wv`, currently `1.0`). Import validates the version to ensure compatibility.
+  - **Group metadata persistence**: After every workspace restore, the extension persists a `url → { title, color }` map (`tz_group_meta`) so that on the next browser startup it can re-apply group titles and colors to session-restored groups (Brave does not persist extension-set metadata across restarts). Re-apply runs automatically ~10 s after startup, once session restore is complete. Note: the visual label in Brave's sidebar/Quick Access still requires a manual click on the group to repaint — this is a Brave rendering limitation not addressable via extension API.
 - **Smart Visibility Rules**: Create powerful rules to automatically set the bar mode (Push, Overlay, Hidden) based on URL patterns (e.g., `*google.com/*` or `*docs.google.com/spreadsheets/*`). Specific rules override generic ones.
 - **Custom CSS Overrides**: Add per-site CSS patches directly from the popup to fix layout issues on tricky sites (e.g., shifting fixed headers). These overrides are applied only in **Push** mode.
 - **Drag & drop reordering**:
@@ -108,6 +109,7 @@ You can also configure **Smart Rules** in the popup to automate this behavior ba
     *   `tz_visibility_mode` tracks explicit mode per tabId.
     *   `tz_visibility_rules` stores the array of user-defined pattern rules.
     *   `tz_site_overrides` stores user-defined CSS patches per hostname.
+    *   `tz_group_meta` stores a `url → { title, color }` map written after each workspace restore, used to re-apply group metadata on the next startup.
 *   **Messaging**: `popup.js` communicates with `content.js` via `chrome.tabs.sendMessage` using the `SET_VISIBILITY_MODE` action.
 *   **CSS Injection**: The bar is hidden using `display: none !important` to ensure it overrides site-specific styles.
 *   **Reflow**: `page-shift.js` checks bar visibility and restores shifted headers / safe-area padding when the bar is hidden, then triggers a resize to let the page reflow.
