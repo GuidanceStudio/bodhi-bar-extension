@@ -23,6 +23,8 @@ const UI_REFRESH_RETRY_MS = 450;
 
 // NEW: Grace period after startup/enable to avoid ungrouping restored session tabs.
 const STARTUP_GRACE_MS = 20000;
+// Delay before re-applying group metadata after restart (shorter than grace, session restore is usually done by then).
+const GROUP_META_REAPPLY_DELAY_MS = 10000;
 
 // ---- Overrides injection (site_overrides.js) ----
 // Injects the dynamic CSS override system that loads user-defined CSS
@@ -1590,9 +1592,9 @@ chrome.runtime.onStartup.addListener(() => {
   chrome.windows.getAll({}, wins => wins.forEach(w => scheduleDebounced(w.id, 'onStartup')));
   // Re-apply group titles/colors after session restore completes
   setTimeout(() => {
-    console.log('[BodhiBar:GroupMeta]', `startup grace period ended (${STARTUP_GRACE_MS}ms), triggering reapply`);
+    console.log('[BodhiBar:GroupMeta]', `reapply delay elapsed (${GROUP_META_REAPPLY_DELAY_MS}ms), triggering reapply`);
     reapplyGroupMeta();
-  }, STARTUP_GRACE_MS + 500);
+  }, GROUP_META_REAPPLY_DELAY_MS);
 });
 
 chrome.runtime.onInstalled.addListener(() => {
