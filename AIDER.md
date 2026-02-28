@@ -20,7 +20,8 @@
 - `page-shift.js`: Manages page padding and header shifting to avoid overlap.
 - `zoom.js`: Compensates for browser zoom levels in sizing.
 - `messaging.js`: Robust message passing with retry logic.
-- `constants.js`: Shared IDs and constants.
+- `constants.js`: Shared IDs, constants, and storage keys.
+- `dom-helpers.js`: DOM element factories and shared utilities (`safeRemove`, `suppressClicks`).
 - `content.css`: All UI styles.
 - `site_overrides.js`: Per-site CSS fixes injected by the service worker.
 - `manifest.json`: MV3 manifest and permissions.
@@ -34,6 +35,7 @@
 - **Zoom**: The bar uses zoom-compensated metrics; ensure `zoom.js` is called on resize/zoom events.
 - **Visibility**: Per-tab visibility is stored in `chrome.storage.local` (`tz_visibility_mode`). Rules are in `tz_visibility_rules`.
 - **Overrides**: CSS overrides are stored in `tz_site_overrides` and applied dynamically by `site_overrides.js`.
+- **Group metadata**: After every workspace restore, `tz_group_meta` stores a `url → {title, color}` map. On startup, `reapplyGroupMeta()` fires after ~10s to re-apply titles/colors to session-restored groups (Brave does not persist extension-set group metadata across restarts).
 
 ## Docs
 - See `README.md` for user-facing features and setup instructions.
