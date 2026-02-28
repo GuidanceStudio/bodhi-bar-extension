@@ -144,6 +144,14 @@ function extractFullDomain(url) {
   }
 }
 
+function safeRemove(el) {
+  try { el?.remove(); } catch {}
+}
+
+function suppressClicks(ms = 700) {
+  suppressClickUntil = Date.now() + ms;
+}
+
 function createPopoverIcon(symbol, color = INDICATOR_COLOR) {
   const ic = document.createElement('div');
   ic.className = 'popover-icon';

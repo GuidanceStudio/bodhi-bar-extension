@@ -61,7 +61,7 @@
   let _lastScale = null;
   let _metricsRAF = 0;
   let _baseDPR = null;
-  let _isZoomAuthoritative = false; // NEW: Protects _baseDPR from being overwritten
+  let _isZoomAuthoritative = false; // Protects _baseDPR from being overwritten
 
   function round3(n) { return Math.round(n * 1000) / 1000; }
 

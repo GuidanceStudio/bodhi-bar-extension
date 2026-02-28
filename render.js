@@ -20,7 +20,7 @@ function ensureBar() {
 
   let bar = document.getElementById(TZ_BAR_ID);
   if (bar && !document.body?.contains(bar)) {
-    try { bar.remove(); } catch {}
+    safeRemove(bar);
     bar = null;
   }
   if (!bar) {
@@ -288,10 +288,8 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
 
   bar.appendChild(createSearchBar());
 
-  // --- START CHANGE: Move Pinned Tabs here ---
   const pinnedSorted = [...(pinnedTabs || [])].sort((a, b) => a.index - b.index);
   pinnedSorted.forEach(tab => bar.appendChild(createPinnedFavicon(tab, tab.id === currentTabId)));
-  // --- END CHANGE ---
 
   // Check if there are any groups
   const hasGroups = allTabGroups && allTabGroups.length > 0;

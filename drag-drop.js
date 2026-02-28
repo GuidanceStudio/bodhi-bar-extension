@@ -62,7 +62,7 @@ function canDropOn(targetEl) {
 }
 
 async function handleMoveTab(sourceTabId, targetTabId, placement) {
-  suppressClickUntil = Date.now() + 700;
+  suppressClicks();
   if (dragState.sourceType === 'group') {
     await safeRuntimeSendMessageWithRetry({
       action: 'MOVE_GROUP',
@@ -107,7 +107,7 @@ function installDragAndDropHandlers() {
 
     el.classList.add('tz-dragging');
     el.style.opacity = '0.65';
-    suppressClickUntil = Date.now() + 700;
+    suppressClicks();
 
     try {
       e.dataTransfer.effectAllowed = 'move';
@@ -159,6 +159,6 @@ function installDragAndDropHandlers() {
     dragState.sourceGroupId = null;
     dragState.sourceGroupTileId = null;
     dragState.lastTargetId = null;
-    suppressClickUntil = Date.now() + 500;
+    suppressClicks(500);
   }, true);
 }

@@ -21,7 +21,7 @@ const STABLE = { SAMPLE_GAP_MS: 120, MAX_ATTEMPTS: 6, REQUIRED_MATCHES: 2 };
 const RETRY_DELAYS_MS = [80, 160, 320, 640, 1200, 2000];
 const UI_REFRESH_RETRY_MS = 450;
 
-// NEW: Grace period after startup/enable to avoid ungrouping restored session tabs.
+// Grace period after startup/enable to avoid ungrouping restored session tabs.
 const STARTUP_GRACE_MS = 20000;
 // Delay before re-applying group metadata after restart (shorter than grace, session restore is usually done by then).
 const GROUP_META_REAPPLY_DELAY_MS = 10000;
@@ -42,8 +42,6 @@ function canInjectIntoUrl(url = '') {
   if (isSystemPage(url)) return false;
   return true;
 }
-
-// isSystemPage is now imported from constants.js
 
 async function injectOverrides(tabId, url) {
   if (tabId == null) return;
@@ -97,8 +95,6 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // ---- UI bridge / receiver (content.js) ----
-// const TZ_PORT_NAME = 'TZ_UI_PORT'; // Moved to constants.js
-
 // throttle REFRESH_BAR broadcasts (so we don't spam content scripts)
 const UI_REFRESH_DEBOUNCE_MS = 120;
 const uiRefreshTimers = new Map(); // windowId -> timerId
@@ -195,7 +191,6 @@ const state = {
   lastEnforceAt: new Map(),
   retryState: new Map(),
 
-  // NEW: used to suppress "new tab" degroup during session restore/startup.
   startupAt: Date.now(),
 };
 
@@ -607,8 +602,7 @@ async function buildUngroupedPayload() {
   const webTabs = [];
   const systemTabs = [];
 
-  // NEW: groupId -> array(tabItem)
-  const groupTabsMap = new Map();
+  const groupTabsMap = new Map(); // groupId -> array(tabItem)
 
   for (const t of tabs) {
     const item = tabToItem(t);
@@ -635,7 +629,6 @@ async function buildUngroupedPayload() {
     title: g.title || 'Group',
     color: g.color || 'grey',
     collapsed: !!g.collapsed,
-    // NEW: include tabs for this group (sorted)
     tabs: (groupTabsMap.get(g.id) || []).slice().sort((a, b) => (a.index ?? 0) - (b.index ?? 0)),
   }));
 
@@ -673,7 +666,7 @@ async function buildExportPayload() {
   const tabToExport = (t) => {
     const item = {
       url: t.url || t.pendingUrl || '',
-      muted: !!(t.mutedInfo && t.mutedInfo.muted) // NEW: capture muted state
+      muted: !!(t.mutedInfo && t.mutedInfo.muted)
     };
 
     // Add visibility mode if it exists and is not the default PUSH

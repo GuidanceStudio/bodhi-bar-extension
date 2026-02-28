@@ -141,8 +141,6 @@ function runtimeSendMessage(msg) {
   });
 }
 
-// isSystemPage and globToRegex are now imported from constants.js
-
 function getHostname(url) {
   try {
     return new URL(url).hostname;
@@ -174,11 +172,7 @@ async function saveRule(oldPattern, newPattern, mode) {
 }
 
 function applyMessageStyle(el, type) {
-  // Reset classi
   el.className = 'msg-box';
-
-  // Aggiunge classe specifica per il tipo
-  
   if (type === 'success') {
     el.classList.add('msg-success');
   } else if (type === 'error') {
@@ -435,9 +429,7 @@ function handleImportFile() {
   input.style.top = '0';
   input.style.opacity = '0';
 
-  const cleanup = () => {
-    try { input.remove(); } catch {}
-  };
+  const cleanup = () => { input.remove(); };
 
   input.addEventListener('change', async () => {
     try {
