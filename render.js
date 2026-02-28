@@ -141,10 +141,10 @@ function applyVisibilityState(tabId) {
         // Minimized state is per-tab and stored separately; still needs a storage read.
         chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (minObj) => {
           const minMap = minObj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
-          if (minMap[String(tabId)]) {
-            bar.classList.add('tz-minimized');
-          } else {
+          if (minMap[String(tabId)] === false) {
             bar.classList.remove('tz-minimized');
+          } else {
+            bar.classList.add('tz-minimized');
           }
           syncMinimizeButtonUI();
           if (typeof applyPageShift === 'function') applyPageShift();
@@ -174,8 +174,8 @@ function toggleMinimizedState(tabId) {
 
   chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (obj) => {
     const map = obj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
-    if (next) map[String(tabId)] = true;
-    else delete map[String(tabId)];
+    if (next) delete map[String(tabId)];   // minimized = default, no need to store
+    else map[String(tabId)] = false;        // expanded = explicitly set
     chrome.storage.local.set({ [STORAGE_KEY_MINIMIZED_BY_TAB]: map });
   });
 }
