@@ -165,9 +165,10 @@ async function boot() {
     const [tabId, storageData] = await Promise.all([
       getThisTabId(),
       chrome.storage.local.get([
-        STORAGE_KEY_VISIBILITY_MODE, 
-        STORAGE_KEY_VISIBILITY_RULES, 
-        'tz_default_hidden_sites'
+        STORAGE_KEY_VISIBILITY_MODE,
+        STORAGE_KEY_VISIBILITY_RULES,
+        'tz_default_hidden_sites',
+        STORAGE_KEY_MINIMIZED_BY_TAB
       ])
     ]);
 
@@ -210,7 +211,7 @@ async function boot() {
 
     // 4. Default
     if (!initialMode) {
-      initialMode = VISIBILITY_MODES.PUSH;
+      initialMode = VISIBILITY_MODES.OVERLAY;
     }
 
     // Set the global mode
@@ -224,6 +225,13 @@ async function boot() {
     // Apply CSS classes for the mode (Overlay vs Push)
     bar.classList.toggle('tz-mode-overlay', initialMode === VISIBILITY_MODES.OVERLAY);
     bar.classList.toggle('tz-mode-push', initialMode === VISIBILITY_MODES.PUSH);
+
+    // In OVERLAY mode apply minimized state immediately to avoid flash.
+    // Default is minimized; only skip if user explicitly expanded (stored false).
+    if (initialMode === VISIBILITY_MODES.OVERLAY) {
+      const minMap = storageData?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
+      if (minMap[String(tabId)] !== false) bar.classList.add('tz-minimized');
+    }
 
     // Remove any stale PUSH padding style injected before mode was known
     if (initialMode !== VISIBILITY_MODES.PUSH) {
