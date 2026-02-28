@@ -631,7 +631,7 @@ async function buildUngroupedPayload() {
   const allTabGroups = (groups || []).map(g => ({
     id: g.id,
     title: g.title || 'Group',
-    color: g.color || 'default',
+    color: g.color || 'grey',
     collapsed: !!g.collapsed,
     // NEW: include tabs for this group (sorted)
     tabs: (groupTabsMap.get(g.id) || []).slice().sort((a, b) => (a.index ?? 0) - (b.index ?? 0)),
@@ -701,7 +701,7 @@ async function buildExportPayload() {
 
   const allTabGroups = (groups || []).map(g => ({
     title: g.title || 'Group',
-    color: g.color || 'default',
+    color: g.color || 'grey',
     tabs: (groupTabsMap.get(g.id) || []).slice()
   }));
 
@@ -1208,10 +1208,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
             if (groupTabIds.length > 0) {
               const groupId = await chrome.tabs.group({ tabIds: groupTabIds });
+              await sleep(80); // Give Brave time to register the group before updating metadata
 
               // Be defensive: title/color may be missing or invalid
               const title = (typeof g?.title === 'string' && g.title.trim()) ? g.title.trim() : 'Group';
-              const color = (typeof g?.color === 'string' && g.color.trim()) ? g.color.trim() : 'default';
+              const color = (typeof g?.color === 'string' && g.color.trim() && g.color.trim() !== 'default') ? g.color.trim() : 'grey';
 
               try {
                 await chrome.tabGroups.update(groupId, { title, color });
