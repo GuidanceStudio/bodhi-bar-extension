@@ -1276,7 +1276,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
           }
           await chrome.storage.local.set({ [STORAGE_KEY_GROUP_META]: groupMeta });
-          console.log('[BodhiBar:GroupMeta]', `saved ${Object.keys(groupMeta).length} URL→meta entries after workspace restore`);
 
           sendResponse({ ok: true });
           return;
@@ -1520,80 +1519,35 @@ if (chrome.tabGroups?.onUpdated?.addListener) {
 }
 
 async function reapplyGroupMeta() {
-  const TAG_GM = '[BodhiBar:GroupMeta]';
   try {
     const res = await chrome.storage.local.get(STORAGE_KEY_GROUP_META);
     const groupMeta = res?.[STORAGE_KEY_GROUP_META] || {};
-    const metaCount = Object.keys(groupMeta).length;
-    if (!metaCount) {
-      console.log(TAG_GM, 'no saved meta found, skipping reapply');
-      return;
-    }
-    console.log(TAG_GM, `reapply starting — ${metaCount} URL entries in saved meta`);
+    if (!Object.keys(groupMeta).length) return;
 
     const windows = await chrome.windows.getAll({});
-    console.log(TAG_GM, `scanning ${windows.length} window(s)`);
-
     for (const win of windows) {
       const groups = await chrome.tabGroups.query({ windowId: win.id });
-      console.log(TAG_GM, `window ${win.id}: ${groups.length} group(s) found`);
-
       for (const group of groups) {
         const hasTitle = typeof group.title === 'string' && group.title.trim() !== '';
-        if (hasTitle) {
-          console.log(TAG_GM, `group ${group.id} already has title="${group.title}", skipping`);
-          continue;
-        }
+        if (hasTitle) continue;
 
-        // Group is unnamed — try to match by tab URLs
         const tabs = await chrome.tabs.query({ groupId: group.id });
-        console.log(TAG_GM, `group ${group.id} is unnamed, checking ${tabs.length} tab(s)...`);
-
         let matchedMeta = null;
-        let matchedUrl = null;
         for (const tab of tabs) {
           const url = tab.url || tab.pendingUrl || '';
-          if (url && groupMeta[url]) {
-            matchedMeta = groupMeta[url];
-            matchedUrl = url;
-            break;
-          }
+          if (url && groupMeta[url]) { matchedMeta = groupMeta[url]; break; }
         }
+        if (!matchedMeta) continue;
 
-        if (!matchedMeta) {
-          console.log(TAG_GM, `group ${group.id}: no tab URL matched in saved meta`);
-          continue;
-        }
-
-        console.log(TAG_GM, `group ${group.id}: matched via "${matchedUrl}" → title="${matchedMeta.title}" color="${matchedMeta.color}"`);
         try {
           await chrome.tabGroups.update(group.id, { title: matchedMeta.title, color: matchedMeta.color });
-          console.log(TAG_GM, `group ${group.id}: update OK (title + color)`);
-        } catch (e1) {
-          console.warn(TAG_GM, `group ${group.id}: update with color failed (${e1?.message}), retrying title-only`);
-          try {
-            await chrome.tabGroups.update(group.id, { title: matchedMeta.title });
-            console.log(TAG_GM, `group ${group.id}: title-only update OK`);
-          } catch (e2) {
-            console.warn(TAG_GM, `group ${group.id}: title-only update also failed: ${e2?.message}`);
-          }
-        }
-
-        // Double title update trick: set a placeholder first, then the real title,
-        // to force Brave to fire two distinct render events and repaint the group label.
-        try {
-          await chrome.tabGroups.update(group.id, { title: ' ' });
-          await sleep(50);
-          await chrome.tabGroups.update(group.id, { title: matchedMeta.title, color: matchedMeta.color });
-          console.log(TAG_GM, `group ${group.id}: double title update done (force re-render)`);
-        } catch (e) {
-          console.warn(TAG_GM, `group ${group.id}: double title update failed: ${e?.message}`);
+        } catch {
+          try { await chrome.tabGroups.update(group.id, { title: matchedMeta.title }); } catch {}
         }
       }
     }
-    console.log(TAG_GM, 'reapply complete');
   } catch (e) {
-    console.warn('[BodhiBar:GroupMeta]', 'reapplyGroupMeta error:', e?.message);
+    warn('reapplyGroupMeta error:', e?.message);
   }
 }
 
@@ -1602,10 +1556,7 @@ chrome.runtime.onStartup.addListener(() => {
   log('EV onStartup');
   chrome.windows.getAll({}, wins => wins.forEach(w => scheduleDebounced(w.id, 'onStartup')));
   // Re-apply group titles/colors after session restore completes
-  setTimeout(() => {
-    console.log('[BodhiBar:GroupMeta]', `reapply delay elapsed (${GROUP_META_REAPPLY_DELAY_MS}ms), triggering reapply`);
-    reapplyGroupMeta();
-  }, GROUP_META_REAPPLY_DELAY_MS);
+  setTimeout(reapplyGroupMeta, GROUP_META_REAPPLY_DELAY_MS);
 });
 
 chrome.runtime.onInstalled.addListener(() => {
