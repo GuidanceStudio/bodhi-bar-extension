@@ -1263,6 +1263,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
           }
 
+          // Save group metadata (url → { title, color }) so we can re-apply after browser restart
+          const groupMeta = {};
+          for (const g of allTabGroups) {
+            const title = (typeof g?.title === 'string' && g.title.trim()) ? g.title.trim() : 'Group';
+            const color = (typeof g?.color === 'string' && g.color.trim() && g.color.trim() !== 'default') ? g.color.trim() : 'grey';
+            for (const t of (Array.isArray(g?.tabs) ? g.tabs : [])) {
+              const url = String(t?.url || '').trim();
+              if (url) groupMeta[url] = { title, color };
+            }
+          }
+          await chrome.storage.local.set({ [STORAGE_KEY_GROUP_META]: groupMeta });
+          console.log('[BodhiBar:GroupMeta]', `saved ${Object.keys(groupMeta).length} URL→meta entries after workspace restore`);
+
           sendResponse({ ok: true });
           return;
         } catch (e) {
@@ -1504,10 +1517,82 @@ if (chrome.tabGroups?.onUpdated?.addListener) {
   });
 }
 
+async function reapplyGroupMeta() {
+  const TAG_GM = '[BodhiBar:GroupMeta]';
+  try {
+    const res = await chrome.storage.local.get(STORAGE_KEY_GROUP_META);
+    const groupMeta = res?.[STORAGE_KEY_GROUP_META] || {};
+    const metaCount = Object.keys(groupMeta).length;
+    if (!metaCount) {
+      console.log(TAG_GM, 'no saved meta found, skipping reapply');
+      return;
+    }
+    console.log(TAG_GM, `reapply starting — ${metaCount} URL entries in saved meta`);
+
+    const windows = await chrome.windows.getAll({});
+    console.log(TAG_GM, `scanning ${windows.length} window(s)`);
+
+    for (const win of windows) {
+      const groups = await chrome.tabGroups.query({ windowId: win.id });
+      console.log(TAG_GM, `window ${win.id}: ${groups.length} group(s) found`);
+
+      for (const group of groups) {
+        const hasTitle = typeof group.title === 'string' && group.title.trim() !== '';
+        if (hasTitle) {
+          console.log(TAG_GM, `group ${group.id} already has title="${group.title}", skipping`);
+          continue;
+        }
+
+        // Group is unnamed — try to match by tab URLs
+        const tabs = await chrome.tabs.query({ groupId: group.id });
+        console.log(TAG_GM, `group ${group.id} is unnamed, checking ${tabs.length} tab(s)...`);
+
+        let matchedMeta = null;
+        let matchedUrl = null;
+        for (const tab of tabs) {
+          const url = tab.url || tab.pendingUrl || '';
+          if (url && groupMeta[url]) {
+            matchedMeta = groupMeta[url];
+            matchedUrl = url;
+            break;
+          }
+        }
+
+        if (!matchedMeta) {
+          console.log(TAG_GM, `group ${group.id}: no tab URL matched in saved meta`);
+          continue;
+        }
+
+        console.log(TAG_GM, `group ${group.id}: matched via "${matchedUrl}" → title="${matchedMeta.title}" color="${matchedMeta.color}"`);
+        try {
+          await chrome.tabGroups.update(group.id, { title: matchedMeta.title, color: matchedMeta.color });
+          console.log(TAG_GM, `group ${group.id}: update OK (title + color)`);
+        } catch (e1) {
+          console.warn(TAG_GM, `group ${group.id}: update with color failed (${e1?.message}), retrying title-only`);
+          try {
+            await chrome.tabGroups.update(group.id, { title: matchedMeta.title });
+            console.log(TAG_GM, `group ${group.id}: title-only update OK`);
+          } catch (e2) {
+            console.warn(TAG_GM, `group ${group.id}: title-only update also failed: ${e2?.message}`);
+          }
+        }
+      }
+    }
+    console.log(TAG_GM, 'reapply complete');
+  } catch (e) {
+    console.warn('[BodhiBar:GroupMeta]', 'reapplyGroupMeta error:', e?.message);
+  }
+}
+
 chrome.runtime.onStartup.addListener(() => {
   state.startupAt = Date.now();
   log('EV onStartup');
   chrome.windows.getAll({}, wins => wins.forEach(w => scheduleDebounced(w.id, 'onStartup')));
+  // Re-apply group titles/colors after session restore completes
+  setTimeout(() => {
+    console.log('[BodhiBar:GroupMeta]', `startup grace period ended (${STARTUP_GRACE_MS}ms), triggering reapply`);
+    reapplyGroupMeta();
+  }, STARTUP_GRACE_MS + 500);
 });
 
 chrome.runtime.onInstalled.addListener(() => {
