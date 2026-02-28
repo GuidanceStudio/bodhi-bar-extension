@@ -1579,14 +1579,15 @@ async function reapplyGroupMeta() {
           }
         }
 
-        // Toggle collapsed state to force Brave to re-render the group label
+        // Double title update trick: set a placeholder first, then the real title,
+        // to force Brave to fire two distinct render events and repaint the group label.
         try {
-          await chrome.tabGroups.update(group.id, { collapsed: false });
-          await sleep(80);
-          await chrome.tabGroups.update(group.id, { collapsed: true });
-          console.log(TAG_GM, `group ${group.id}: collapse toggle done (force re-render)`);
+          await chrome.tabGroups.update(group.id, { title: ' ' });
+          await sleep(50);
+          await chrome.tabGroups.update(group.id, { title: matchedMeta.title, color: matchedMeta.color });
+          console.log(TAG_GM, `group ${group.id}: double title update done (force re-render)`);
         } catch (e) {
-          console.warn(TAG_GM, `group ${group.id}: collapse toggle failed: ${e?.message}`);
+          console.warn(TAG_GM, `group ${group.id}: double title update failed: ${e?.message}`);
         }
       }
     }
