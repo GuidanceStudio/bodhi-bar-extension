@@ -156,9 +156,6 @@ function hookViewportEvents() {
  // Boot
 let _tzDidBoot = false;
 
-// globToRegex is imported from constants.js (loaded before this script)
-// setVisibilityMode is defined in page-shift.js
-
 async function boot() {
   if (_tzDidBoot) return;
   _tzDidBoot = true;

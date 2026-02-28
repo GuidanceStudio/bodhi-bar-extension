@@ -8,7 +8,7 @@ let activeSearchPopover = null;
 
 function closeActivePopover() {
   if (!activePopover) return;
-  try { activePopover.remove(); } catch {}
+  safeRemove(activePopover);
   activePopover = null;
   activePopoverTabId = null;
   document.removeEventListener('mousedown', onDocMouseDown, true);
@@ -17,7 +17,7 @@ function closeActivePopover() {
 
 function closeActiveSearchPopover() {
   if (!activeSearchPopover) return;
-  try { activeSearchPopover.remove(); } catch {}
+  safeRemove(activeSearchPopover);
   activeSearchPopover = null;
   document.removeEventListener('mousedown', onDocSearchMouseDown, true);
   document.removeEventListener('keydown', onDocSearchKeyDown, true);
@@ -153,7 +153,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
     unItem.appendChild(tx);
     unItem.onclick = async (e) => {
       e.stopPropagation(); e.preventDefault();
-      suppressClickUntil = Date.now() + 700;
+      suppressClicks();
       await handleUngroup(tabId);
       closeActivePopover();
       handleStateChange();
@@ -161,7 +161,6 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
     groupsContainer.appendChild(unItem);
   }
 
-  // --- START: Add Pinned Option ---
   const pinItem = document.createElement('div');
   pinItem.className = 'group-item';
 
@@ -183,7 +182,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
 
   pinItem.onclick = async (e) => {
     e.stopPropagation(); e.preventDefault();
-    suppressClickUntil = Date.now() + 700;
+    suppressClicks();
     await safeRuntimeSendMessageWithRetry({ action: 'PIN_TAB', tabId }, 3);
     closeActivePopover();
     handleStateChange();
@@ -197,7 +196,6 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
   sep.style.background = 'rgba(0,0,0,0.1)';
   sep.style.margin = '4px 8px';
   groupsContainer.appendChild(sep);
-  // --- END: Add Pinned Option ---
 
   groups
     .filter(g => (excludeGroupId == null) || String(g.id) !== String(excludeGroupId))
@@ -214,7 +212,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
     item.appendChild(tx);
     item.onclick = async (e) => {
       e.stopPropagation(); e.preventDefault();
-      suppressClickUntil = Date.now() + 700;
+      suppressClicks();
       await safeRuntimeSendMessageWithRetry({ action: 'GROUP_TAB', tabId, groupId: g.id }, 3);
       closeActivePopover();
       handleStateChange();
@@ -273,7 +271,7 @@ function openGroupPopover(anchorEl, tabId, { includeUngroup = false, excludeGrou
     e.stopPropagation(); e.preventDefault();
     const t = (inp.value || '').trim();
     if (!t) return;
-    suppressClickUntil = Date.now() + 700;
+    suppressClicks();
     await safeRuntimeSendMessageWithRetry({ action: 'GROUP_TAB_NEW', tabId, title: t, color: sel.value }, 3);
     closeActivePopover();
     handleStateChange();
