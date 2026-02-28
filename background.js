@@ -1578,6 +1578,16 @@ async function reapplyGroupMeta() {
             console.warn(TAG_GM, `group ${group.id}: title-only update also failed: ${e2?.message}`);
           }
         }
+
+        // Toggle collapsed state to force Brave to re-render the group label
+        try {
+          await chrome.tabGroups.update(group.id, { collapsed: false });
+          await sleep(80);
+          await chrome.tabGroups.update(group.id, { collapsed: true });
+          console.log(TAG_GM, `group ${group.id}: collapse toggle done (force re-render)`);
+        } catch (e) {
+          console.warn(TAG_GM, `group ${group.id}: collapse toggle failed: ${e?.message}`);
+        }
       }
     }
     console.log(TAG_GM, 'reapply complete');
