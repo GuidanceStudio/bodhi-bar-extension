@@ -696,11 +696,28 @@ async function buildExportPayload() {
     }
   }
 
-  const allTabGroups = (groups || []).map(g => ({
-    title: g.title || 'Group',
-    color: g.color || 'grey',
-    tabs: (groupTabsMap.get(g.id) || []).slice()
-  }));
+  // Build groups and deduplicate: merge groups with same title+color
+  const dedupMap = new Map(); // "title\0color" -> merged group
+  for (const g of (groups || [])) {
+    const title = g.title || 'Group';
+    const color = g.color || 'grey';
+    const key = title + '\0' + color;
+    const tabs = (groupTabsMap.get(g.id) || []).slice();
+
+    if (dedupMap.has(key)) {
+      const existing = dedupMap.get(key);
+      const seenUrls = new Set(existing.tabs.map(t => t.url));
+      for (const t of tabs) {
+        if (t.url && !seenUrls.has(t.url)) {
+          existing.tabs.push(t);
+          seenUrls.add(t.url);
+        }
+      }
+    } else {
+      dedupMap.set(key, { title, color, tabs });
+    }
+  }
+  const allTabGroups = [...dedupMap.values()];
 
   return { pinnedTabs, allTabGroups, siteOverrides };
 }
@@ -1140,9 +1157,37 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }
 
           const pinnedTabs = Array.isArray(payload?.pinnedTabs) ? payload.pinnedTabs : [];
-          const allTabGroups = Array.isArray(payload?.allTabGroups) ? payload.allTabGroups : [];
+          const rawGroups = Array.isArray(payload?.allTabGroups) ? payload.allTabGroups : [];
           const siteOverrides = payload?.siteOverrides || {};
           const visibilityRules = Array.isArray(payload?.visibilityRules) ? payload.visibilityRules : [];
+
+          // Deduplicate groups: merge groups with same title+color (corrupted snapshots)
+          const groupMap = new Map(); // "title\0color" -> merged group
+          for (const g of rawGroups) {
+            const title = (typeof g?.title === 'string' && g.title.trim()) ? g.title.trim() : 'Group';
+            const color = (typeof g?.color === 'string' && g.color.trim()) ? g.color.trim() : 'grey';
+            const key = title + '\0' + color;
+            const tabs = Array.isArray(g?.tabs) ? g.tabs : [];
+
+            if (groupMap.has(key)) {
+              const existing = groupMap.get(key);
+              // Merge tabs, deduplicate by URL
+              const seenUrls = new Set(existing.tabs.map(t => String(t?.url || '').trim()));
+              for (const t of tabs) {
+                const url = String(t?.url || '').trim();
+                if (url && !seenUrls.has(url)) {
+                  existing.tabs.push(t);
+                  seenUrls.add(url);
+                }
+              }
+            } else {
+              groupMap.set(key, { title, color, tabs: [...tabs] });
+            }
+          }
+          const allTabGroups = [...groupMap.values()];
+          if (allTabGroups.length < rawGroups.length) {
+            warn('Workspace dedup: merged', rawGroups.length, 'groups into', allTabGroups.length);
+          }
 
           // Get current window
           const activeWindow = await chrome.windows.getLastFocused({});
