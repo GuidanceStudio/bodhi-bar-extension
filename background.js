@@ -29,6 +29,8 @@ const GROUP_META_REAPPLY_DELAY_MS = 10000;
 // ---- Overrides injection (site_overrides.js) ----
 // Injects the dynamic CSS override system that loads user-defined CSS
 // from storage (tz_site_overrides) and applies it only in PUSH mode.
+let restoreInProgress = false;
+
 const OVERRIDES_FILE = 'site_overrides.js';
 const overridesInjected = new Map(); // tabId -> lastInjectedUrl
 
@@ -1125,6 +1127,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
 
       if (action === 'APPLY_WORKSPACE') {
+        if (restoreInProgress) {
+          sendResponse({ ok: false, error: 'Restore already in progress' });
+          return;
+        }
+        restoreInProgress = true;
         try {
           let payload = request?.payload;
           // Handle wrapped payload (e.g. { wv: "1.0", payload: { ... } })
@@ -1144,7 +1151,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return;
           }
 
-          // Create a placeholder "new tab" (Ctrl+T style) so we can move it to the end later.
+          // Create a placeholder tab so the window never reaches 0 tabs during cleanup.
           const placeholderTab = await chrome.tabs.create({ windowId: activeWindow.id, active: false });
           const placeholderTabId = placeholderTab?.id;
 
@@ -1156,6 +1163,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
           if (toClose.length) {
             await chrome.tabs.remove(toClose);
+          }
+
+          // Verify old tabs are actually gone; retry once if some survived (e.g. beforeunload dialogs)
+          const afterClose = await chrome.tabs.query({ windowId: activeWindow.id });
+          const survivors = (afterClose || [])
+            .map(t => t?.id)
+            .filter(id => id != null && id !== placeholderTabId);
+
+          if (survivors.length) {
+            await sleep(200);
+            try { await chrome.tabs.remove(survivors); } catch {}
+
+            const afterRetry = await chrome.tabs.query({ windowId: activeWindow.id });
+            const stillAlive = (afterRetry || [])
+              .filter(t => t?.id != null && t.id !== placeholderTabId);
+
+            if (stillAlive.length) {
+              sendResponse({ ok: false, error: 'Could not close existing tabs — close them manually and retry' });
+              return;
+            }
           }
 
           // Collect visibility modes to write once at the end
@@ -1247,15 +1274,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
           }
 
-          // Move the placeholder tab to the very end
+          // Remove the placeholder tab (no longer needed — real tabs exist now)
           if (placeholderTabId != null) {
-            try {
-              const tabsNow = await chrome.tabs.query({ windowId: activeWindow.id });
-              const lastIndex = Math.max(0, (tabsNow?.length || 1) - 1);
-              await chrome.tabs.move(placeholderTabId, { index: lastIndex });
-            } catch {
-              // ignore move failures
-            }
+            try { await chrome.tabs.remove(placeholderTabId); } catch {}
           }
 
           // Save group metadata (url → { title, color }) so we can re-apply after browser restart
@@ -1275,6 +1296,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         } catch (e) {
           sendResponse({ ok: false, error: e.message });
           return;
+        } finally {
+          restoreInProgress = false;
         }
       }
 

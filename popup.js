@@ -593,6 +593,8 @@ function renderWorkspacesList(workspacesMap) {
 
         yes.onclick = async (ev) => {
           ev.stopPropagation();
+          yes.disabled = true;
+          no.disabled = true;
           confirmDiv.remove();
           await onConfirm();
         };
