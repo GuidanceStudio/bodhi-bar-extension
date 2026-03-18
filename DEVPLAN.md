@@ -11,6 +11,7 @@ Root causes identified in `background.js` `APPLY_WORKSPACE` handler (lines 1127-
 2. **No verification that old tabs were actually closed** — `chrome.tabs.remove()` can fail silently (e.g. `beforeunload` dialogs), leaving old groups alive while new ones are created on top.
 3. **No concurrency guard** — nothing prevents the restore from running multiple times in parallel if triggered rapidly.
 4. **No retry/force-close loop** — if some tabs survive the first `remove()` call, nothing tries again.
+5. **Brave-specific: ghost groups** — Brave doesn't auto-destroy tab groups when their tabs are removed in bulk via `chrome.tabs.remove()`. Groups survive as empty shells, and new tabs created during restore get assigned to them.
 
 ---
 
@@ -32,3 +33,10 @@ Root causes identified in `background.js` `APPLY_WORKSPACE` handler (lines 1127-
 - [x] After all groups are created and collapsed, remove the placeholder tab with `chrome.tabs.remove(placeholderTabId)`
 - [x] Wrap in try/catch (it may already be gone if the browser auto-closed it)
 - [x] This replaces the current "move placeholder to end" logic
+
+## M4 — Explicitly destroy groups before closing tabs (Brave fix) ✅
+
+- [x] Before closing tabs, query all grouped tabs in the window
+- [x] Call `chrome.tabs.ungroup()` on all grouped tab IDs to force Brave to destroy the group objects
+- [x] Add `sleep(100)` after ungroup to let Brave settle before proceeding with tab removal
+- [x] Add `sleep(100)` after tab removal before verification step
