@@ -1155,25 +1155,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           const placeholderTab = await chrome.tabs.create({ windowId: activeWindow.id, active: false });
           const placeholderTabId = placeholderTab?.id;
 
-          // Close everything else (keep the placeholder so the window never reaches 0 tabs)
+          // Destroy all existing groups first (Brave doesn't auto-destroy groups on bulk tab remove)
           const existingTabs = await chrome.tabs.query({ windowId: activeWindow.id });
+          const groupedTabIds = (existingTabs || [])
+            .filter(t => t?.id != null && t.id !== placeholderTabId && typeof t.groupId === 'number' && t.groupId !== -1)
+            .map(t => t.id);
+
+          if (groupedTabIds.length) {
+            try { await chrome.tabs.ungroup(groupedTabIds); } catch {}
+            await sleep(100);
+          }
+
+          // Now close all non-placeholder tabs
           const toClose = (existingTabs || [])
             .map(t => t?.id)
             .filter(id => id != null && id !== placeholderTabId);
 
           if (toClose.length) {
             await chrome.tabs.remove(toClose);
+            await sleep(100);
           }
 
-          // Verify old tabs are actually gone; retry once if some survived (e.g. beforeunload dialogs)
+          // Verify old tabs are actually gone; retry once if some survived
           const afterClose = await chrome.tabs.query({ windowId: activeWindow.id });
           const survivors = (afterClose || [])
             .map(t => t?.id)
             .filter(id => id != null && id !== placeholderTabId);
 
           if (survivors.length) {
-            await sleep(200);
             try { await chrome.tabs.remove(survivors); } catch {}
+            await sleep(200);
 
             const afterRetry = await chrome.tabs.query({ windowId: activeWindow.id });
             const stillAlive = (afterRetry || [])
