@@ -98,20 +98,21 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 
 ---
 
-## M8 — Rinomina e colori
+## M8 — Rinomina e colori ✅
 
 **Why:** Prima funzionalità di editing concreta. Rinomina di workspace e gruppi è la modifica più richiesta e a basso rischio; il color picker completa la coerenza visiva con la barra dei tab.
 
-**Approach:** In `editor.js`, click sul nome workspace nell'header → input inline (Enter salva, Esc annulla). Validazione: non vuoto, non collide con altro workspace esistente (riusa `sanitizeWorkspaceName` da `popup.js`). Se cambia, rinomina la chiave nello storage map (delete vecchia + set nuova) e aggiorna `?ws=` nell'URL via `history.replaceState`. Stesso pattern per group title. Color picker: dropdown con i 9 colori di `GROUP_COLOR_MAP`, swatch cliccabili. Save helper centrale `saveWorkspace(name, payload)` che fa read-modify-write con check di `savedAt` (se cambiato → warning toast + reload).
+**Approach:** In `editor.js`, click sul nome workspace nell'header → input inline (Enter salva, Esc/blur cancella). Validazione: non vuoto, non collide con altro workspace esistente. Se cambia, rinomina la chiave nello storage map (delete vecchia + set nuova) e aggiorna `?ws=` nell'URL via `history.replaceState`. Stesso pattern per group title. Color picker: piccolo bottone tondo nell'header gruppo, click apre popover absolute-positioned con i 9 swatch di `GROUP_COLOR_MAP`. Save helper centrale `saveWorkspace({mutator, renameTo})` che fa read-modify-write con check di `savedAt` (se cambiato → flash error + reload).
 
 **Tasks:**
-- [ ] Estrarre `sanitizeWorkspaceName` in `constants.js` (o duplicare se cross-context è un problema)
-- [ ] Implementare rinomina inline workspace (input + Enter/Esc + collision check)
-- [ ] Implementare rinomina inline group title
-- [ ] Implementare color picker per gruppi (popover con 9 swatch)
-- [ ] Implementare `saveWorkspace()` helper con concurrency check via `savedAt`
-- [ ] Verificare manualmente: rinomina persiste dopo reload; collision dà errore; color cambia visivamente
-- [ ] Commit & push
+- [x] `sanitizeWorkspaceName` duplicato in `editor.js` (cross-script context: editor non condivide closure col popup)
+- [x] Implementare rinomina inline workspace (input + Enter/Esc/blur + collision check + URL update)
+- [x] Implementare rinomina inline group title
+- [x] Implementare color picker per gruppi (popover con 9 swatch + outside-click close)
+- [x] Implementare `saveWorkspace()` helper con concurrency check via `savedAt`
+- [x] Helper `startInlineEdit` riusabile (Enter commit, Esc/blur cancel)
+- [ ] Verifica manuale (utente): rinomina workspace persiste dopo reload; collision dà errore; rinomina gruppo OK; color cambia visivamente; due editor aperti su stesso WS → secondo write triggera "modified externally" e reload
+- [x] Commit & push
 
 **Done when:** L'utente può rinominare il workspace (con check unicità), rinominare i gruppi e cambiare il loro colore; tutte le modifiche sopravvivono al reload della pagina.
 
