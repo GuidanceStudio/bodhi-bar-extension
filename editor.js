@@ -19,6 +19,8 @@
  *     update an in-memory editorState; the user commits to storage
  *     by clicking Save (or Cmd/Ctrl+S). Concurrency conflicts surface
  *     a discard-or-overwrite picker. beforeunload warns if dirty.
+ * M13: add new tabs to any group or pinned list — the drop-end zone
+ *     doubles as a "+ Add tab" inline form trigger.
  */
 
 const els = {};
@@ -405,6 +407,7 @@ function attachTabDnD(rowEl, listType, groupIdx, tabIdx) {
 function attachTabEndDropZone(zoneEl, listType, groupIdx) {
   zoneEl.addEventListener('dragover', (e) => {
     if (dragState.type !== 'tab') return;
+    if (zoneEl.classList.contains('adding')) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     clearDropIndicators();
@@ -415,12 +418,80 @@ function attachTabEndDropZone(zoneEl, listType, groupIdx) {
   });
   zoneEl.addEventListener('drop', async (e) => {
     if (dragState.type !== 'tab') return;
+    if (zoneEl.classList.contains('adding')) return;
     e.preventDefault();
     e.stopPropagation();
     clearDropIndicators();
     // Insert at end of list
     await commitTabMove(listType, listType === 'group' ? groupIdx : null, Number.MAX_SAFE_INTEGER);
   });
+  zoneEl.addEventListener('click', (e) => {
+    if (zoneEl.classList.contains('adding')) return;
+    if (dragState.active) return;
+    e.stopPropagation();
+    showAddTabForm(zoneEl, listType, groupIdx);
+  });
+}
+
+function showAddTabForm(zoneEl, listType, groupIdx) {
+  zoneEl.classList.add('adding');
+  zoneEl.innerHTML = '';
+
+  const form = document.createElement('div');
+  form.className = 'add-tab-form';
+
+  const input = document.createElement('input');
+  input.type = 'url';
+  input.placeholder = 'https://example.com';
+  input.className = 'inline-edit-input add-tab-input';
+  input.draggable = false;
+
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'inline-confirm-btn yes';
+  add.textContent = 'Add';
+  add.draggable = false;
+
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'inline-confirm-btn no';
+  cancel.textContent = 'Cancel';
+  cancel.draggable = false;
+
+  const closeForm = () => {
+    zoneEl.classList.remove('adding');
+    zoneEl.innerHTML = '';
+    zoneEl.textContent = '+ Add tab';
+  };
+
+  const submit = () => {
+    const url = String(input.value || '').trim();
+    if (!isValidWebUrl(url)) {
+      flashStatus('URL must start with http:// or https://', 'error', 4000);
+      input.focus();
+      input.select();
+      return;
+    }
+    applyMutation((payload) => {
+      const list = getTabList(payload, listType, groupIdx);
+      if (!list) return false;
+      list.push({ url, muted: false });
+    });
+    // renderFromState rebuilds; this drop-end is replaced with a fresh one.
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); closeForm(); }
+  });
+  add.addEventListener('click', (e) => { e.stopPropagation(); submit(); });
+  cancel.addEventListener('click', (e) => { e.stopPropagation(); closeForm(); });
+
+  form.appendChild(input);
+  form.appendChild(add);
+  form.appendChild(cancel);
+  zoneEl.appendChild(form);
+  input.focus();
 }
 
 function commitTabMove(dstListType, dstGroupIdx, dstInsertIdxRaw) {
@@ -693,7 +764,7 @@ function renderPinned(pinnedTabs) {
   }
   const endZone = document.createElement('li');
   endZone.className = 'tab-drop-end';
-  endZone.textContent = tabs.length ? '' : 'Drop a tab here to pin it';
+  endZone.textContent = '+ Add tab';
   attachTabEndDropZone(endZone, 'pinned', null);
   els.pinnedList.appendChild(endZone);
 }
@@ -841,7 +912,7 @@ function renderGroupCard(group, groupIndex) {
   }
   const endZone = document.createElement('li');
   endZone.className = 'tab-drop-end';
-  endZone.textContent = tabsArr.length ? '' : 'Drop a tab here';
+  endZone.textContent = '+ Add tab';
   attachTabEndDropZone(endZone, 'group', groupIndex);
   tabsUl.appendChild(endZone);
 
