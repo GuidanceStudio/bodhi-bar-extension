@@ -8,6 +8,8 @@
  * M7: read-only render + tab.title fallback to hostname.
  * M8: inline rename (workspace + group), color picker, saveWorkspace
  *     helper with savedAt concurrency check.
+ * M9: HTML5 drag & drop — reorder groups, reorder tabs within a list,
+ *     move tabs across groups (and to/from pinned).
  */
 
 const els = {};
@@ -154,6 +156,7 @@ function startInlineEdit(targetEl, opts) {
   input.type = 'text';
   input.value = initial;
   input.className = 'inline-edit-input ' + (opts.inputClass || '');
+  input.draggable = false;
   if (opts.maxLength) input.maxLength = opts.maxLength;
 
   const restore = () => {
@@ -195,7 +198,199 @@ function startInlineEdit(targetEl, opts) {
   input.select();
 }
 
-function renderTabRow(tab) {
+// --- Drag & drop state ----------------------------------------------------
+
+const dragState = {
+  active: false,
+  type: null,            // 'group' | 'tab'
+  // group source
+  sourceGroupIdx: null,  // for type='group'
+  // tab source
+  sourceListType: null,  // 'pinned' | 'group'
+  sourceGroupIdxForTab: null,
+  sourceTabIdx: null,
+};
+
+function dragReset() {
+  dragState.active = false;
+  dragState.type = null;
+  dragState.sourceGroupIdx = null;
+  dragState.sourceListType = null;
+  dragState.sourceGroupIdxForTab = null;
+  dragState.sourceTabIdx = null;
+}
+
+function clearDropIndicators() {
+  document.querySelectorAll('.tz-drop-before, .tz-drop-after, .tz-drop-into')
+    .forEach((el) => el.classList.remove('tz-drop-before', 'tz-drop-after', 'tz-drop-into'));
+}
+
+function isSameTabSource(listType, groupIdx, tabIdx) {
+  return dragState.type === 'tab'
+    && dragState.sourceListType === listType
+    && dragState.sourceGroupIdxForTab === groupIdx
+    && dragState.sourceTabIdx === tabIdx;
+}
+
+function getTabList(payload, listType, groupIdx) {
+  if (listType === 'pinned') return payload.pinnedTabs || (payload.pinnedTabs = []);
+  const groups = payload.allTabGroups || (payload.allTabGroups = []);
+  const g = groups[groupIdx];
+  if (!g) return null;
+  return g.tabs || (g.tabs = []);
+}
+
+function attachTabDnD(rowEl, listType, groupIdx, tabIdx) {
+  rowEl.draggable = true;
+  rowEl.dataset.listType = listType;
+  if (groupIdx != null) rowEl.dataset.groupIdx = String(groupIdx);
+  rowEl.dataset.tabIdx = String(tabIdx);
+
+  rowEl.addEventListener('dragstart', (e) => {
+    dragState.active = true;
+    dragState.type = 'tab';
+    dragState.sourceListType = listType;
+    dragState.sourceGroupIdxForTab = (listType === 'group') ? groupIdx : null;
+    dragState.sourceTabIdx = tabIdx;
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', 'tab'); } catch {}
+    rowEl.classList.add('tz-dragging');
+    e.stopPropagation();
+  });
+
+  rowEl.addEventListener('dragover', (e) => {
+    if (dragState.type !== 'tab') return;
+    if (isSameTabSource(listType, listType === 'group' ? groupIdx : null, tabIdx)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = rowEl.getBoundingClientRect();
+    const placement = (e.clientY < rect.top + rect.height / 2) ? 'before' : 'after';
+    clearDropIndicators();
+    rowEl.classList.add(placement === 'before' ? 'tz-drop-before' : 'tz-drop-after');
+  });
+
+  rowEl.addEventListener('drop', async (e) => {
+    if (dragState.type !== 'tab') return;
+    e.preventDefault();
+    e.stopPropagation();
+    let insertIdx = tabIdx;
+    if (rowEl.classList.contains('tz-drop-after')) insertIdx = tabIdx + 1;
+    clearDropIndicators();
+    await commitTabMove(listType, listType === 'group' ? groupIdx : null, insertIdx);
+  });
+}
+
+function attachTabEndDropZone(zoneEl, listType, groupIdx) {
+  zoneEl.addEventListener('dragover', (e) => {
+    if (dragState.type !== 'tab') return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    clearDropIndicators();
+    zoneEl.classList.add('tz-drop-into');
+  });
+  zoneEl.addEventListener('dragleave', () => {
+    zoneEl.classList.remove('tz-drop-into');
+  });
+  zoneEl.addEventListener('drop', async (e) => {
+    if (dragState.type !== 'tab') return;
+    e.preventDefault();
+    e.stopPropagation();
+    clearDropIndicators();
+    // Insert at end of list
+    await commitTabMove(listType, listType === 'group' ? groupIdx : null, Number.MAX_SAFE_INTEGER);
+  });
+}
+
+async function commitTabMove(dstListType, dstGroupIdx, dstInsertIdxRaw) {
+  const src = {
+    listType: dragState.sourceListType,
+    groupIdx: dragState.sourceGroupIdxForTab,
+    tabIdx: dragState.sourceTabIdx,
+  };
+  const res = await saveWorkspace({
+    mutator: (entry) => {
+      const payload = entry.payload || (entry.payload = {});
+      const srcList = getTabList(payload, src.listType, src.groupIdx);
+      const dstList = getTabList(payload, dstListType, dstGroupIdx);
+      if (!srcList || !dstList) return false;
+      if (src.tabIdx < 0 || src.tabIdx >= srcList.length) return false;
+
+      let dstInsertIdx = Math.min(dstInsertIdxRaw, dstList.length);
+      const sameList = (srcList === dstList);
+      const [moved] = srcList.splice(src.tabIdx, 1);
+      if (sameList && src.tabIdx < dstInsertIdx) dstInsertIdx -= 1;
+      dstList.splice(dstInsertIdx, 0, moved);
+    }
+  });
+  if (!res.ok) {
+    flashStatus(res.error || 'Move failed.', 'error', 4000);
+    if (res.stale) loadAndRender();
+  }
+}
+
+function attachGroupDnD(cardEl, groupIdx) {
+  cardEl.draggable = true;
+  cardEl.dataset.groupIdx = String(groupIdx);
+
+  cardEl.addEventListener('dragstart', (e) => {
+    dragState.active = true;
+    dragState.type = 'group';
+    dragState.sourceGroupIdx = groupIdx;
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', 'group'); } catch {}
+    cardEl.classList.add('tz-dragging');
+    e.stopPropagation();
+  });
+
+  cardEl.addEventListener('dragover', (e) => {
+    if (dragState.type !== 'group') return;
+    if (groupIdx === dragState.sourceGroupIdx) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = cardEl.getBoundingClientRect();
+    const placement = (e.clientY < rect.top + rect.height / 2) ? 'before' : 'after';
+    clearDropIndicators();
+    cardEl.classList.add(placement === 'before' ? 'tz-drop-before' : 'tz-drop-after');
+  });
+
+  cardEl.addEventListener('drop', async (e) => {
+    if (dragState.type !== 'group') return;
+    e.preventDefault();
+    e.stopPropagation();
+    let insertIdx = groupIdx;
+    if (cardEl.classList.contains('tz-drop-after')) insertIdx = groupIdx + 1;
+    const sourceIdx = dragState.sourceGroupIdx;
+    if (sourceIdx < insertIdx) insertIdx -= 1;
+    clearDropIndicators();
+    const res = await saveWorkspace({
+      mutator: (entry) => {
+        const groups = entry.payload && entry.payload.allTabGroups;
+        if (!groups || !groups[sourceIdx]) return false;
+        const [moved] = groups.splice(sourceIdx, 1);
+        groups.splice(Math.min(insertIdx, groups.length), 0, moved);
+      }
+    });
+    if (!res.ok) {
+      flashStatus(res.error || 'Reorder failed.', 'error', 4000);
+      if (res.stale) loadAndRender();
+    }
+  });
+}
+
+// Stop dragover bubbling from inside group cards so groups don't fight tabs
+function stopGroupContentsDragOver(cardEl) {
+  // Tab rows handle their own dragover and the group card handles only group drags.
+  // When dragging a TAB over the card body, prevent the group's dragover from
+  // claiming the event by short-circuiting at the card level.
+  cardEl.addEventListener('dragover', (e) => {
+    if (dragState.type === 'tab') {
+      // let tab rows / drop zones handle it
+      e.stopPropagation();
+    }
+  }, true);
+}
+
+function renderTabRow(tab, listType, groupIdx, tabIdx) {
   const li = document.createElement('li');
   li.className = 'tab-row';
 
@@ -220,15 +415,24 @@ function renderTabRow(tab) {
 
   li.appendChild(dot);
   li.appendChild(label);
+
+  attachTabDnD(li, listType, groupIdx, tabIdx);
   return li;
 }
 
 function renderPinned(pinnedTabs) {
-  els.pinnedSection.hidden = !pinnedTabs || !pinnedTabs.length;
+  // Always shown so it can receive drops, even when empty.
+  els.pinnedSection.hidden = false;
   els.pinnedList.innerHTML = '';
-  for (const t of (pinnedTabs || [])) {
-    els.pinnedList.appendChild(renderTabRow(t));
+  const tabs = pinnedTabs || [];
+  for (let i = 0; i < tabs.length; i++) {
+    els.pinnedList.appendChild(renderTabRow(tabs[i], 'pinned', null, i));
   }
+  const endZone = document.createElement('li');
+  endZone.className = 'tab-drop-end';
+  endZone.textContent = tabs.length ? '' : 'Drop a tab here to pin it';
+  attachTabEndDropZone(endZone, 'pinned', null);
+  els.pinnedList.appendChild(endZone);
 }
 
 function buildColorSwatchPopover(currentColor, onPick) {
@@ -295,6 +499,7 @@ function renderGroupCard(group, groupIndex) {
   const colorBtn = document.createElement('button');
   colorBtn.type = 'button';
   colorBtn.className = 'group-color-btn';
+  colorBtn.draggable = false;
   colorBtn.style.background = colorToHex(group.color || 'grey');
   colorBtn.title = `Color: ${group.color || 'grey'} (click to change)`;
   colorBtn.setAttribute('aria-label', 'Change group color');
@@ -367,18 +572,21 @@ function renderGroupCard(group, groupIndex) {
 
   const tabsUl = document.createElement('ul');
   tabsUl.className = 'group-tabs';
-  for (const t of (group.tabs || [])) {
-    tabsUl.appendChild(renderTabRow(t));
+  const tabsArr = group.tabs || [];
+  for (let i = 0; i < tabsArr.length; i++) {
+    tabsUl.appendChild(renderTabRow(tabsArr[i], 'group', groupIndex, i));
   }
-  if (!count) {
-    const empty = document.createElement('li');
-    empty.className = 'empty-note';
-    empty.textContent = 'No tabs in this group.';
-    tabsUl.appendChild(empty);
-  }
+  const endZone = document.createElement('li');
+  endZone.className = 'tab-drop-end';
+  endZone.textContent = tabsArr.length ? '' : 'Drop a tab here';
+  attachTabEndDropZone(endZone, 'group', groupIndex);
+  tabsUl.appendChild(endZone);
 
   card.appendChild(header);
   card.appendChild(tabsUl);
+
+  attachGroupDnD(card, groupIndex);
+  stopGroupContentsDragOver(card);
   return card;
 }
 
@@ -499,6 +707,14 @@ function init() {
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeAllPopovers();
+  });
+
+  // Global cleanup: clear drop indicators and reset drag state when a
+  // drag ends, regardless of whether it was successful.
+  document.addEventListener('dragend', () => {
+    clearDropIndicators();
+    document.querySelectorAll('.tz-dragging').forEach((el) => el.classList.remove('tz-dragging'));
+    dragReset();
   });
 }
 
