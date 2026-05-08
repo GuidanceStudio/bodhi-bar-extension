@@ -9,12 +9,17 @@
   <main id="editor-root" class="editor-root">
     <header class="editor-header">
       <div class="editor-title-row">
+        <span id="ws-dirty-dot" class="ws-dirty-dot" title="Unsaved changes" aria-hidden="true">●</span>
         <h1 id="ws-name" class="ws-name">Loading…</h1>
         <span id="ws-meta" class="ws-meta"></span>
       </div>
-      <div id="ws-toolbar" class="ws-toolbar"></div>
+      <div id="ws-toolbar" class="ws-toolbar">
+        <button id="ws-discard-btn" type="button" class="btn-ghost" disabled title="Discard unsaved changes">Discard</button>
+        <button id="ws-save-btn" type="button" class="btn-primary" disabled title="Save changes (Cmd/Ctrl+S)">Save</button>
+      </div>
     </header>
 
+    <div id="editor-banners" class="editor-banners" aria-live="polite"></div>
     <div id="editor-status" class="editor-status" role="status" aria-live="polite"></div>
 
     <section id="overrides-section" class="ws-section">
