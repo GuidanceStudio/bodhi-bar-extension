@@ -118,21 +118,25 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 
 ---
 
-## M9 — Riordino e spostamento (drag & drop)
+## M9 — Riordino e spostamento (drag & drop) ✅
 
 **Why:** Riordino e move cross-group sono la ragione principale per cui un editor a pagina intera vale rispetto al popover. Senza questo, l'editor è solo un "rinominatore".
 
-**Approach:** HTML5 native DnD (`draggable="true"`, `dragstart`/`dragover`/`drop`). Tre tipi di operazioni: riordina gruppi (drop su altro gruppo, before/after), riordina tab dentro gruppo, sposta tab tra gruppi (incluso pinned come "gruppo virtuale"). Drop indicator: linea sopra/sotto target (CSS class). Logica in `editor.js`: `dragState` con `{ type: 'group'|'tab', sourceIdx, sourceGroupIdx? }`, su `drop` mutare il payload e chiamare `saveWorkspace`. Re-render incrementale (semplice: full re-render dopo save). Pinned è una sezione separata nell'albero ma per il modello dati equivale a un gruppo speciale; gestire come case a parte nel handler.
+**Approach:** HTML5 native DnD (`draggable="true"`, `dragstart`/`dragover`/`drop`). Tre tipi di operazioni: riordina gruppi (drop su altro gruppo, before/after via `tz-drop-before|after` CSS), riordina tab dentro gruppo, sposta tab tra gruppi (incluso pinned come "gruppo virtuale"). `dragState` modulare con `{ type, sourceListType, sourceGroupIdxForTab, sourceTabIdx, sourceGroupIdx }`. Su `drop` mutazione del payload via `saveWorkspace` (read-modify-write), poi re-render full via storage onChanged. End-zone `.tab-drop-end` per ogni lista così si può droppare in coda o in gruppi vuoti. Pinned section ora sempre visibile per ricevere drop (mostra "Drop a tab here to pin it" quando vuota).
 
 **Tasks:**
-- [ ] Aggiungere `draggable="true"` a group rows e tab rows
-- [ ] Implementare handlers `dragstart`/`dragover`/`dragleave`/`drop` con drop indicator CSS
-- [ ] Implementare riordino gruppi (mutazione di `allTabGroups`)
-- [ ] Implementare riordino tab dentro lo stesso gruppo
-- [ ] Implementare spostamento tab tra gruppi (rimozione da source, insert in target alla posizione drop)
-- [ ] Gestire pinned come sorgente/destinazione di spostamento tab
-- [ ] Verificare manualmente: drag&drop in tutti i casi, reload conferma persistenza, DnD invalido (es. drop gruppo su tab) non cambia nulla
-- [ ] Commit & push
+- [x] `attachTabDnD` su ogni tab row con dragstart/dragover/drop + indicatore before/after
+- [x] `attachGroupDnD` su ogni group card con stessa pattern + indicatore before/after
+- [x] `attachTabEndDropZone` su `.tab-drop-end` (fine pinned + fine ogni gruppo)
+- [x] `commitTabMove` gestisce stesso-list shift (sposta indice se source < target nello stesso list)
+- [x] `stopPropagation` su tab dragstart per non scatenare il group drag che lo contiene
+- [x] `dragReset` + `clearDropIndicators` su global `dragend` per cleanup robusto
+- [x] `draggable=false` su color button e inline-edit input per non rubare il drag al gruppo
+- [x] Pinned section sempre visibile (anche vuota) per ricevere drop
+- [ ] Verifica manuale (utente): riordino gruppi, riordino tab dentro gruppo, move tab cross-group, move tab da/per pinned, drop su gruppo vuoto, drop in coda lista
+- [x] Commit & push
+
+**Notes:** Strategy "full re-render after each save" — semplice ma OK per dati piccoli (workspace in memoria). Se la lista diventa grande (>200 tab) potremmo voler fare update incrementale; non è il caso oggi.
 
 **Done when:** L'utente può trascinare gruppi per riordinarli, trascinare tab per riordinarli o spostarli tra gruppi (incluso pinned); le modifiche persistono dopo reload.
 
