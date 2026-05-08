@@ -15,12 +15,24 @@
  * M11: per-tab visibility mode select (push/overlay/hidden) and a
  *     site-overrides panel for editing host → CSS pairs in
  *     payload.siteOverrides.
+ * M12: switch from autosave to explicit Save/Discard. Mutations now
+ *     update an in-memory editorState; the user commits to storage
+ *     by clicking Save (or Cmd/Ctrl+S). Concurrency conflicts surface
+ *     a discard-or-overwrite picker. beforeunload warns if dirty.
  */
 
 const els = {};
-let currentWorkspaceName = null;
-let loadedSavedAt = null;
-let suppressNextReload = false;
+
+const editorState = {
+  originalName: null,   // workspace key currently in storage
+  name: null,           // workspace name in the editor (may differ if renamed)
+  loadedSavedAt: null,  // savedAt at last load — used for concurrency check
+  payload: null,        // working copy of the workspace payload
+  dirty: false,
+};
+
+// True while commitSave is writing — used to ignore the storage echo of our own write.
+let savingInFlight = false;
 
 function readWorkspaceNameFromUrl() {
   const params = new URLSearchParams(location.search);
@@ -104,50 +116,155 @@ function colorList() {
 }
 
 /**
- * Save the workspace by re-reading the storage map, validating that
- * savedAt matches what we loaded, applying `mutator(entry)` on a deep
- * copy of the entry, optionally renaming the key, and writing back.
+ * Apply a mutation to the in-memory editor state.
  *
- * Returns { ok, error?, newName? }.
+ * `mutator(payload)` may return `false` to signal a no-op (skips
+ * dirtying the state). Any other return value is treated as a
+ * successful mutation. Errors thrown inside the mutator propagate.
+ *
+ * Always re-renders so the UI reflects the new payload.
  */
-async function saveWorkspace(opts) {
-  const mutator = opts.mutator || ((e) => e);
-  const renameTo = opts.renameTo;
+function applyMutation(mutator) {
+  if (!editorState.payload) return false;
+  const result = mutator(editorState.payload);
+  if (result === false) {
+    renderFromState();
+    return false;
+  }
+  setDirty(true);
+  renderFromState();
+  return true;
+}
+
+/**
+ * Toggle the dirty flag and refresh dependent UI (toolbar buttons,
+ * dirty dot, document title).
+ */
+function setDirty(flag) {
+  const next = !!flag;
+  if (editorState.dirty === next) {
+    syncDirtyUi();
+    return;
+  }
+  editorState.dirty = next;
+  syncDirtyUi();
+}
+
+function syncDirtyUi() {
+  const dirty = !!editorState.dirty;
+  if (els.saveBtn) els.saveBtn.disabled = !dirty;
+  if (els.discardBtn) els.discardBtn.disabled = !dirty;
+  if (els.dirtyDot) els.dirtyDot.classList.toggle('visible', dirty);
+  if (editorState.name) {
+    document.title = `${dirty ? '● ' : ''}Bodhi Bar — ${editorState.name}`;
+  }
+}
+
+/**
+ * Read the current workspace from storage and populate `editorState`.
+ * Used at init and on Discard.
+ */
+async function loadFromStorage(name) {
+  const targetName = name || editorState.originalName || readWorkspaceNameFromUrl();
+  if (!targetName) {
+    editorState.originalName = null;
+    editorState.name = null;
+    editorState.loadedSavedAt = null;
+    editorState.payload = null;
+    editorState.dirty = false;
+    renderFromState();
+    return;
+  }
 
   const all = await storageGetWorkspaces();
-  const entry = all[currentWorkspaceName];
+  const entry = all[targetName];
   if (!entry) {
-    return { ok: false, error: 'Workspace no longer exists.' };
+    editorState.originalName = targetName;
+    editorState.name = targetName;
+    editorState.loadedSavedAt = null;
+    editorState.payload = null;
+    editorState.dirty = false;
+    renderFromState();
+    return;
   }
-  if (loadedSavedAt != null && entry.savedAt !== loadedSavedAt) {
-    return { ok: false, error: 'Workspace was modified externally. Reloading…', stale: true };
+
+  editorState.originalName = targetName;
+  editorState.name = targetName;
+  editorState.loadedSavedAt = entry.savedAt;
+  editorState.payload = JSON.parse(JSON.stringify(entry.payload || {}));
+  editorState.dirty = false;
+  syncDirtyUi();
+  setUrlWorkspaceName(targetName);
+  renderFromState();
+}
+
+/**
+ * Persist `editorState` to storage. Performs:
+ *  - existence check on the original entry (deleted externally?)
+ *  - savedAt concurrency check (modified externally?) — bypassed if `force`
+ *  - rename collision check
+ *
+ * Returns { ok } on success, { ok: false, conflict, error } on conflict.
+ * Conflict kinds: 'deleted' | 'modified' | 'rename'.
+ */
+async function commitSave(opts) {
+  const force = !!(opts && opts.force);
+  if (!editorState.payload) {
+    return { ok: false, error: 'Nothing to save.' };
   }
 
-  const next = JSON.parse(JSON.stringify(entry));
-  const result = mutator(next);
-  if (result === false) return { ok: false, error: 'No change.' };
+  const all = await storageGetWorkspaces();
+  const orig = editorState.originalName ? all[editorState.originalName] : null;
 
-  next.savedAt = Date.now();
-
-  let nextName = currentWorkspaceName;
-  if (renameTo && renameTo !== currentWorkspaceName) {
-    if (all[renameTo]) {
-      return { ok: false, error: `Name "${renameTo}" already exists.` };
-    }
-    nextName = renameTo;
-    next.name = renameTo;
-    delete all[currentWorkspaceName];
+  if (editorState.originalName && !orig) {
+    return { ok: false, conflict: 'deleted', error: 'Original workspace was deleted externally.' };
   }
-  all[nextName] = next;
+  if (!force && orig && orig.savedAt !== editorState.loadedSavedAt) {
+    return { ok: false, conflict: 'modified', error: 'Workspace was modified externally.' };
+  }
 
-  suppressNextReload = true;
-  await storageSetWorkspaces(all);
+  const isRename = editorState.name !== editorState.originalName;
+  if (isRename && all[editorState.name]) {
+    return { ok: false, conflict: 'rename', error: `Workspace "${editorState.name}" already exists.` };
+  }
 
-  currentWorkspaceName = nextName;
-  loadedSavedAt = next.savedAt;
-  if (renameTo) setUrlWorkspaceName(nextName);
+  const newSavedAt = Date.now();
+  const newEntry = {
+    name: editorState.name,
+    savedAt: newSavedAt,
+    payload: JSON.parse(JSON.stringify(editorState.payload)),
+  };
 
-  return { ok: true, newName: nextName };
+  const nextMap = { ...all };
+  if (isRename && editorState.originalName) {
+    delete nextMap[editorState.originalName];
+  }
+  nextMap[editorState.name] = newEntry;
+
+  savingInFlight = true;
+  try {
+    await storageSetWorkspaces(nextMap);
+  } finally {
+    savingInFlight = false;
+  }
+
+  editorState.originalName = editorState.name;
+  editorState.loadedSavedAt = newSavedAt;
+  setDirty(false);
+  setUrlWorkspaceName(editorState.name);
+  renderFromState();
+
+  return { ok: true };
+}
+
+/**
+ * Discard in-memory changes and reload from storage.
+ */
+async function discardChanges() {
+  closeAllPopovers();
+  clearExternalChangeBanner();
+  await loadFromStorage(editorState.originalName);
+  flashStatus('Changes discarded.', 'success');
 }
 
 /**
@@ -306,31 +423,24 @@ function attachTabEndDropZone(zoneEl, listType, groupIdx) {
   });
 }
 
-async function commitTabMove(dstListType, dstGroupIdx, dstInsertIdxRaw) {
+function commitTabMove(dstListType, dstGroupIdx, dstInsertIdxRaw) {
   const src = {
     listType: dragState.sourceListType,
     groupIdx: dragState.sourceGroupIdxForTab,
     tabIdx: dragState.sourceTabIdx,
   };
-  const res = await saveWorkspace({
-    mutator: (entry) => {
-      const payload = entry.payload || (entry.payload = {});
-      const srcList = getTabList(payload, src.listType, src.groupIdx);
-      const dstList = getTabList(payload, dstListType, dstGroupIdx);
-      if (!srcList || !dstList) return false;
-      if (src.tabIdx < 0 || src.tabIdx >= srcList.length) return false;
+  applyMutation((payload) => {
+    const srcList = getTabList(payload, src.listType, src.groupIdx);
+    const dstList = getTabList(payload, dstListType, dstGroupIdx);
+    if (!srcList || !dstList) return false;
+    if (src.tabIdx < 0 || src.tabIdx >= srcList.length) return false;
 
-      let dstInsertIdx = Math.min(dstInsertIdxRaw, dstList.length);
-      const sameList = (srcList === dstList);
-      const [moved] = srcList.splice(src.tabIdx, 1);
-      if (sameList && src.tabIdx < dstInsertIdx) dstInsertIdx -= 1;
-      dstList.splice(dstInsertIdx, 0, moved);
-    }
+    let dstInsertIdx = Math.min(dstInsertIdxRaw, dstList.length);
+    const sameList = (srcList === dstList);
+    const [moved] = srcList.splice(src.tabIdx, 1);
+    if (sameList && src.tabIdx < dstInsertIdx) dstInsertIdx -= 1;
+    dstList.splice(dstInsertIdx, 0, moved);
   });
-  if (!res.ok) {
-    flashStatus(res.error || 'Move failed.', 'error', 4000);
-    if (res.stale) loadAndRender();
-  }
 }
 
 function attachGroupDnD(cardEl, groupIdx) {
@@ -358,7 +468,7 @@ function attachGroupDnD(cardEl, groupIdx) {
     cardEl.classList.add(placement === 'before' ? 'tz-drop-before' : 'tz-drop-after');
   });
 
-  cardEl.addEventListener('drop', async (e) => {
+  cardEl.addEventListener('drop', (e) => {
     if (dragState.type !== 'group') return;
     e.preventDefault();
     e.stopPropagation();
@@ -367,18 +477,12 @@ function attachGroupDnD(cardEl, groupIdx) {
     const sourceIdx = dragState.sourceGroupIdx;
     if (sourceIdx < insertIdx) insertIdx -= 1;
     clearDropIndicators();
-    const res = await saveWorkspace({
-      mutator: (entry) => {
-        const groups = entry.payload && entry.payload.allTabGroups;
-        if (!groups || !groups[sourceIdx]) return false;
-        const [moved] = groups.splice(sourceIdx, 1);
-        groups.splice(Math.min(insertIdx, groups.length), 0, moved);
-      }
+    applyMutation((payload) => {
+      const groups = payload.allTabGroups;
+      if (!groups || !groups[sourceIdx]) return false;
+      const [moved] = groups.splice(sourceIdx, 1);
+      groups.splice(Math.min(insertIdx, groups.length), 0, moved);
     });
-    if (!res.ok) {
-      flashStatus(res.error || 'Reorder failed.', 'error', 4000);
-      if (res.stale) loadAndRender();
-    }
   });
 }
 
@@ -504,26 +608,18 @@ function renderTabRow(tab, listType, groupIdx, tabIdx) {
     ? tab.visibilityMode
     : VISIBILITY_MODES.PUSH;
   visSelect.addEventListener('click', (e) => e.stopPropagation());
-  visSelect.addEventListener('change', async (e) => {
+  visSelect.addEventListener('change', (e) => {
     e.stopPropagation();
     const newMode = visSelect.value;
-    const res = await saveWorkspace({
-      mutator: (entry) => {
-        const list = getTabList(entry.payload || {}, listType, groupIdx);
-        if (!list || !list[tabIdx]) return false;
-        if (newMode === VISIBILITY_MODES.PUSH) {
-          delete list[tabIdx].visibilityMode;
-        } else {
-          list[tabIdx].visibilityMode = newMode;
-        }
+    applyMutation((payload) => {
+      const list = getTabList(payload, listType, groupIdx);
+      if (!list || !list[tabIdx]) return false;
+      if (newMode === VISIBILITY_MODES.PUSH) {
+        delete list[tabIdx].visibilityMode;
+      } else {
+        list[tabIdx].visibilityMode = newMode;
       }
     });
-    if (!res.ok) {
-      flashStatus(res.error || 'Save failed.', 'error', 4000);
-      if (res.stale) loadAndRender();
-    } else {
-      flashStatus('Visibility updated.', 'success');
-    }
   });
 
   const actions = document.createElement('div');
@@ -548,19 +644,11 @@ function renderTabRow(tab, listType, groupIdx, tabIdx) {
           return false;
         }
         if (next === (tab.url || '')) return true;
-        const res = await saveWorkspace({
-          mutator: (entry) => {
-            const list = getTabList(entry.payload || {}, listType, groupIdx);
-            if (!list || !list[tabIdx]) return false;
-            list[tabIdx].url = next;
-          }
+        applyMutation((payload) => {
+          const list = getTabList(payload, listType, groupIdx);
+          if (!list || !list[tabIdx]) return false;
+          list[tabIdx].url = next;
         });
-        if (!res.ok) {
-          flashStatus(res.error || 'Save failed.', 'error', 4000);
-          if (res.stale) loadAndRender();
-          return false;
-        }
-        flashStatus('URL updated.', 'success');
         return true;
       }
     });
@@ -574,20 +662,12 @@ function renderTabRow(tab, listType, groupIdx, tabIdx) {
   delBtn.innerHTML = '&#128465;'; // 🗑
   delBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    inlineConfirm(delBtn, 'Delete?', async () => {
-      const res = await saveWorkspace({
-        mutator: (entry) => {
-          const list = getTabList(entry.payload || {}, listType, groupIdx);
-          if (!list || !list[tabIdx]) return false;
-          list.splice(tabIdx, 1);
-        }
+    inlineConfirm(delBtn, 'Delete?', () => {
+      applyMutation((payload) => {
+        const list = getTabList(payload, listType, groupIdx);
+        if (!list || !list[tabIdx]) return false;
+        list.splice(tabIdx, 1);
       });
-      if (!res.ok) {
-        flashStatus(res.error || 'Delete failed.', 'error', 4000);
-        if (res.stale) loadAndRender();
-      } else {
-        flashStatus('Tab deleted.', 'success');
-      }
     });
   });
 
@@ -688,21 +768,13 @@ function renderGroupCard(group, groupIndex) {
   colorBtn.setAttribute('aria-label', 'Change group color');
   colorBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    openColorPicker(colorBtn, group.color || 'grey', async (newColor) => {
-      const res = await saveWorkspace({
-        mutator: (entry) => {
-          const g = entry.payload && entry.payload.allTabGroups && entry.payload.allTabGroups[groupIndex];
-          if (!g) return false;
-          if (g.color === newColor) return false;
-          g.color = newColor;
-        }
+    openColorPicker(colorBtn, group.color || 'grey', (newColor) => {
+      applyMutation((payload) => {
+        const g = payload.allTabGroups && payload.allTabGroups[groupIndex];
+        if (!g) return false;
+        if (g.color === newColor) return false;
+        g.color = newColor;
       });
-      if (!res.ok) {
-        flashStatus(res.error || 'Save failed.', 'error', 4000);
-        if (res.stale) loadAndRender();
-      } else {
-        flashStatus('Color updated.', 'success');
-      }
     });
   });
 
@@ -722,23 +794,12 @@ function renderGroupCard(group, groupIndex) {
           flashStatus('Group title cannot be empty.', 'error');
           return false;
         }
-        if (next === (group.title || '')) {
-          // no-op, just close
-          return true;
-        }
-        const res = await saveWorkspace({
-          mutator: (entry) => {
-            const g = entry.payload && entry.payload.allTabGroups && entry.payload.allTabGroups[groupIndex];
-            if (!g) return false;
-            g.title = next;
-          }
+        if (next === (group.title || '')) return true;
+        applyMutation((payload) => {
+          const g = payload.allTabGroups && payload.allTabGroups[groupIndex];
+          if (!g) return false;
+          g.title = next;
         });
-        if (!res.ok) {
-          flashStatus(res.error || 'Save failed.', 'error', 4000);
-          if (res.stale) loadAndRender();
-          return false;
-        }
-        flashStatus('Group renamed.', 'success');
         return true;
       }
     });
@@ -758,20 +819,12 @@ function renderGroupCard(group, groupIndex) {
   groupDelBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     const question = count > 0 ? `Delete group + ${count} tab${count === 1 ? '' : 's'}?` : 'Delete group?';
-    inlineConfirm(groupDelBtn, question, async () => {
-      const res = await saveWorkspace({
-        mutator: (entry) => {
-          const groups = entry.payload && entry.payload.allTabGroups;
-          if (!groups || !groups[groupIndex]) return false;
-          groups.splice(groupIndex, 1);
-        }
+    inlineConfirm(groupDelBtn, question, () => {
+      applyMutation((payload) => {
+        const groups = payload.allTabGroups;
+        if (!groups || !groups[groupIndex]) return false;
+        groups.splice(groupIndex, 1);
       });
-      if (!res.ok) {
-        flashStatus(res.error || 'Delete failed.', 'error', 4000);
-        if (res.stale) loadAndRender();
-      } else {
-        flashStatus('Group deleted.', 'success');
-      }
     });
   });
 
@@ -865,31 +918,18 @@ function showAddGroupForm(rowEl) {
 
   const restore = () => populateAddGroupRow(rowEl);
 
-  const submit = async () => {
+  const submit = () => {
     const title = String(input.value || '').trim();
     if (!title) {
       flashStatus('Group title cannot be empty.', 'error');
       input.focus();
       return;
     }
-    save.disabled = true;
-    cancel.disabled = true;
-    const res = await saveWorkspace({
-      mutator: (entry) => {
-        const payload = entry.payload || (entry.payload = {});
-        const groups = payload.allTabGroups || (payload.allTabGroups = []);
-        groups.push({ title, color: 'grey', tabs: [] });
-      }
+    applyMutation((payload) => {
+      const groups = payload.allTabGroups || (payload.allTabGroups = []);
+      groups.push({ title, color: 'grey', tabs: [] });
     });
-    if (!res.ok) {
-      flashStatus(res.error || 'Add failed.', 'error', 4000);
-      if (res.stale) loadAndRender();
-      save.disabled = false;
-      cancel.disabled = false;
-      return;
-    }
-    flashStatus('Group added.', 'success');
-    // The storage onChanged listener will trigger a full re-render.
+    // renderFromState rebuilds the groups list, replacing the form with a fresh "+ New group" row.
   };
 
   input.addEventListener('keydown', (e) => {
@@ -906,12 +946,13 @@ function showAddGroupForm(rowEl) {
   input.focus();
 }
 
-function renderHeader(name, entry) {
+function renderHeader() {
+  const name = editorState.name || '';
   els.wsName.textContent = name;
   els.wsName.title = 'Click to rename workspace';
   els.wsName.classList.add('editable');
-  document.title = `Bodhi Bar — ${name}`;
-  const ts = entry && entry.savedAt ? new Date(entry.savedAt) : null;
+  syncDirtyUi();
+  const ts = editorState.loadedSavedAt ? new Date(editorState.loadedSavedAt) : null;
   if (ts && !isNaN(ts.getTime())) {
     els.wsMeta.textContent = `saved ${ts.toLocaleString()}`;
   } else {
@@ -922,8 +963,9 @@ function renderHeader(name, entry) {
 function attachWorkspaceNameRename() {
   els.wsName.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (!editorState.name) return;
     startInlineEdit(els.wsName, {
-      initialValue: currentWorkspaceName,
+      initialValue: editorState.name,
       maxLength: PRESET_NAME_MAX_LEN,
       inputClass: 'ws-name-input',
       onCommit: async (raw) => {
@@ -932,14 +974,16 @@ function attachWorkspaceNameRename() {
           flashStatus('Workspace name cannot be empty.', 'error');
           return false;
         }
-        if (next === currentWorkspaceName) return true;
-        const res = await saveWorkspace({ renameTo: next, mutator: () => {} });
-        if (!res.ok) {
-          flashStatus(res.error || 'Rename failed.', 'error', 4000);
-          if (res.stale) loadAndRender();
+        if (next === editorState.name) return true;
+        // Async collision check against storage (excluding originalName).
+        const all = await storageGetWorkspaces();
+        if (all[next] && next !== editorState.originalName) {
+          flashStatus(`Workspace "${next}" already exists.`, 'error');
           return false;
         }
-        flashStatus('Workspace renamed.', 'success');
+        editorState.name = next;
+        setDirty(true);
+        renderFromState();
         return true;
       }
     });
@@ -948,11 +992,13 @@ function attachWorkspaceNameRename() {
 
 function renderNotFound(name) {
   els.wsName.textContent = name || '(no workspace)';
+  els.wsName.classList.remove('editable');
   els.wsMeta.textContent = '';
   els.pinnedSection.hidden = true;
   els.groupsList.innerHTML = '';
   if (els.overridesList) els.overridesList.innerHTML = '';
   if (els.overridesCount) els.overridesCount.textContent = '';
+  syncDirtyUi();
   setStatus(`Workspace "${name}" not found. Open the popover to manage workspaces.`, 'error');
 }
 
@@ -1019,21 +1065,12 @@ function renderOverrideRow(host, css) {
   delBtn.innerHTML = '&#128465;'; // 🗑
   delBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    inlineConfirm(delBtn, 'Delete?', async () => {
-      const res = await saveWorkspace({
-        mutator: (entry) => {
-          const payload = entry.payload || {};
-          const overrides = payload.siteOverrides || {};
-          if (!(host in overrides)) return false;
-          delete overrides[host];
-        }
+    inlineConfirm(delBtn, 'Delete?', () => {
+      applyMutation((payload) => {
+        const overrides = payload.siteOverrides || {};
+        if (!(host in overrides)) return false;
+        delete overrides[host];
       });
-      if (!res.ok) {
-        flashStatus(res.error || 'Delete failed.', 'error', 4000);
-        if (res.stale) loadAndRender();
-      } else {
-        flashStatus('Override deleted.', 'success');
-      }
     });
   });
 
@@ -1090,7 +1127,7 @@ function showOverrideEditor(rowEl, hostInitial, cssInitial) {
   cancel.className = 'inline-confirm-btn no';
   cancel.textContent = 'Cancel';
 
-  const submit = async () => {
+  const submit = () => {
     const host = hostInput.value.trim().toLowerCase();
     const css = cssArea.value;
 
@@ -1100,52 +1137,36 @@ function showOverrideEditor(rowEl, hostInitial, cssInitial) {
       return;
     }
 
-    save.disabled = true;
-    cancel.disabled = true;
-    const res = await saveWorkspace({
-      mutator: (entry) => {
-        const payload = entry.payload || (entry.payload = {});
-        const overrides = payload.siteOverrides || (payload.siteOverrides = {});
-        if (isAdd && (host in overrides)) {
-          throw new Error(`Override for "${host}" already exists.`);
-        }
-        const trimmedCss = String(css || '').trim();
-        if (!trimmedCss) {
-          delete overrides[host];
-        } else {
-          overrides[host] = css;
-        }
+    let conflict = false;
+    applyMutation((payload) => {
+      const overrides = payload.siteOverrides || (payload.siteOverrides = {});
+      if (isAdd && (host in overrides)) { conflict = true; return false; }
+      const trimmedCss = String(css || '').trim();
+      if (!trimmedCss) {
+        delete overrides[host];
+      } else {
+        overrides[host] = css;
       }
     });
-    if (!res.ok) {
-      flashStatus(res.error || 'Save failed.', 'error', 4000);
-      if (res.stale) loadAndRender();
-      save.disabled = false;
-      cancel.disabled = false;
-      return;
+    if (conflict) {
+      flashStatus(`Override for "${host}" already exists.`, 'error', 4000);
     }
-    flashStatus(isAdd ? 'Override added.' : 'Override saved.', 'success');
-    // storage onChanged → loadAndRender will rebuild the section
   };
 
   cancel.addEventListener('click', (e) => {
     e.stopPropagation();
-    loadAndRender();
+    renderFromState();
   });
   save.addEventListener('click', (e) => {
     e.stopPropagation();
-    submit().catch((err) => {
-      flashStatus(err && err.message ? err.message : 'Save failed.', 'error', 4000);
-      save.disabled = false;
-      cancel.disabled = false;
-    });
+    submit();
   });
 
   hostInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { e.preventDefault(); loadAndRender(); }
+    if (e.key === 'Escape') { e.preventDefault(); renderFromState(); }
   });
   cssArea.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { e.preventDefault(); loadAndRender(); }
+    if (e.key === 'Escape') { e.preventDefault(); renderFromState(); }
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); submit(); }
   });
 
@@ -1168,37 +1189,117 @@ function startAddOverride() {
   showOverrideEditor(li, '', '');
 }
 
-async function loadAndRender() {
-  const name = currentWorkspaceName || readWorkspaceNameFromUrl();
-  if (!currentWorkspaceName) currentWorkspaceName = name;
-
-  if (!name) {
-    renderNotFound('');
+/**
+ * Pure render function — uses editorState only. Never reads storage.
+ */
+function renderFromState() {
+  if (!editorState.payload) {
+    renderNotFound(editorState.name || readWorkspaceNameFromUrl() || '');
     return;
   }
+  renderHeader();
+  renderOverrides(editorState.payload.siteOverrides || {});
+  renderPinned(editorState.payload.pinnedTabs || []);
+  renderGroups(editorState.payload.allTabGroups || []);
+}
 
-  const all = await storageGetWorkspaces();
-  const entry = all[name];
-  if (!entry) {
-    renderNotFound(name);
+// --- Save / Discard handlers ----------------------------------------------
+
+function showConflictPicker(conflict, onDiscard, onForce) {
+  const banner = document.createElement('div');
+  banner.className = 'conflict-banner';
+  banner.dataset.banner = 'conflict';
+
+  const msg = document.createElement('span');
+  msg.className = 'conflict-msg';
+  msg.textContent = conflict === 'deleted'
+    ? 'Original workspace was deleted externally. Save will recreate it under the current name. Discard reloads the empty editor.'
+    : 'Workspace was modified externally. Choose how to resolve:';
+
+  const discard = document.createElement('button');
+  discard.type = 'button';
+  discard.className = 'inline-confirm-btn no';
+  discard.textContent = 'Discard my changes';
+  discard.addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    banner.remove();
+    if (onDiscard) await onDiscard();
+  });
+
+  const force = document.createElement('button');
+  force.type = 'button';
+  force.className = 'inline-confirm-btn yes';
+  force.textContent = 'Force overwrite';
+  force.addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    banner.remove();
+    if (onForce) await onForce();
+  });
+
+  banner.appendChild(msg);
+  banner.appendChild(discard);
+  banner.appendChild(force);
+  if (els.banners) els.banners.innerHTML = '';
+  if (els.banners) els.banners.appendChild(banner);
+}
+
+function clearExternalChangeBanner() {
+  if (els.banners) {
+    const b = els.banners.querySelector('[data-banner="external"]');
+    if (b) b.remove();
+  }
+}
+
+function showExternalChangeBanner() {
+  if (!els.banners) return;
+  if (els.banners.querySelector('[data-banner="external"]')) return;
+  const banner = document.createElement('div');
+  banner.className = 'external-banner';
+  banner.dataset.banner = 'external';
+  banner.textContent = 'Workspace was modified externally. Discard your changes to reload, or Save to overwrite.';
+  els.banners.appendChild(banner);
+}
+
+async function handleSaveClick() {
+  if (!editorState.dirty || !editorState.payload) return;
+  const res = await commitSave();
+  if (res.ok) {
+    flashStatus('Saved.', 'success');
     return;
   }
+  if (res.conflict === 'rename') {
+    flashStatus(res.error, 'error', 4000);
+    return;
+  }
+  if (res.conflict === 'modified' || res.conflict === 'deleted') {
+    showConflictPicker(
+      res.conflict,
+      async () => { await discardChanges(); },
+      async () => {
+        const forced = await commitSave({ force: true });
+        if (forced.ok) flashStatus('Saved (overwrite).', 'success');
+        else flashStatus(forced.error || 'Save failed.', 'error', 4000);
+      }
+    );
+    return;
+  }
+  flashStatus(res.error || 'Save failed.', 'error', 4000);
+}
 
-  loadedSavedAt = entry.savedAt;
-
-  const payload = entry.payload || {};
-  renderHeader(name, entry);
-  renderOverrides(payload.siteOverrides || {});
-  renderPinned(payload.pinnedTabs || []);
-  renderGroups(payload.allTabGroups || []);
-  // Keep status messages alive across re-renders unless empty
+async function handleDiscardClick() {
+  if (!editorState.dirty) return;
+  await discardChanges();
 }
 
 function init() {
   els.status = document.getElementById('editor-status');
   els.wsName = document.getElementById('ws-name');
   els.wsMeta = document.getElementById('ws-meta');
+  els.dirtyDot = document.getElementById('ws-dirty-dot');
   els.toolbar = document.getElementById('ws-toolbar');
+  els.banners = document.getElementById('editor-banners');
+  els.saveBtn = document.getElementById('ws-save-btn');
+  els.discardBtn = document.getElementById('ws-discard-btn');
   els.pinnedSection = document.getElementById('pinned-section');
   els.pinnedList = document.getElementById('pinned-list');
   els.groupsSection = document.getElementById('groups-section');
@@ -1214,27 +1315,43 @@ function init() {
       startAddOverride();
     });
   }
+  if (els.saveBtn) els.saveBtn.addEventListener('click', (e) => { e.stopPropagation(); handleSaveClick(); });
+  if (els.discardBtn) {
+    els.discardBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      inlineConfirm(els.discardBtn, 'Discard?', () => handleDiscardClick());
+    });
+  }
 
-  currentWorkspaceName = readWorkspaceNameFromUrl();
   attachWorkspaceNameRename();
-
-  loadAndRender();
+  loadFromStorage(readWorkspaceNameFromUrl());
 
   if (chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'local') return;
       if (!changes[STORAGE_KEY_WORKSPACES]) return;
-      if (suppressNextReload) {
-        suppressNextReload = false;
-        loadAndRender();
-        return;
-      }
-      loadAndRender();
+      if (savingInFlight) return;
+      handleExternalStorageChange(changes[STORAGE_KEY_WORKSPACES].newValue || {});
     });
   }
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeAllPopovers();
+    if (e.key === 'Escape') {
+      closeAllPopovers();
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      handleSaveClick();
+    }
+  });
+
+  window.addEventListener('beforeunload', (e) => {
+    if (editorState.dirty) {
+      e.preventDefault();
+      // Modern browsers ignore custom messages but require returnValue set.
+      e.returnValue = '';
+      return '';
+    }
   });
 
   // Global cleanup: clear drop indicators and reset drag state when a
@@ -1244,6 +1361,32 @@ function init() {
     document.querySelectorAll('.tz-dragging').forEach((el) => el.classList.remove('tz-dragging'));
     dragReset();
   });
+}
+
+/**
+ * Decide what to do when storage changes externally:
+ *  - If we have no editor state yet, just (re)load.
+ *  - If not dirty: silently reload (keeps editor in sync).
+ *  - If dirty: keep our edits, but check whether *our* entry changed
+ *    under us — if so, surface a banner so the user can decide.
+ */
+function handleExternalStorageChange(newMap) {
+  if (!editorState.payload) {
+    loadFromStorage(editorState.originalName || readWorkspaceNameFromUrl());
+    return;
+  }
+  if (!editorState.dirty) {
+    loadFromStorage(editorState.originalName);
+    return;
+  }
+  const ourEntry = editorState.originalName ? newMap[editorState.originalName] : null;
+  if (!ourEntry) {
+    showExternalChangeBanner();
+    return;
+  }
+  if (ourEntry.savedAt !== editorState.loadedSavedAt) {
+    showExternalChangeBanner();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

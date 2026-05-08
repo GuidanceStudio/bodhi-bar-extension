@@ -183,3 +183,51 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 **Notes:** Override "rinomina hostname" non supportata direttamente: l'utente fa delete del vecchio + add del nuovo. È il pattern più sicuro perché evita ambiguità con duplicati/conflitti.
 
 **Done when:** L'utente può cambiare il visibility mode di ogni tab nel workspace e gestire la lista completa di site overrides (host + CSS) salvati nel workspace; al restore, gli overrides modificati si propagano correttamente.
+
+---
+
+## M12 — Switch a save esplicito (refactor da autosave a manual save) ✅
+
+**Why:** L'editor oggi salva automaticamente ogni singola mutazione. Non c'è feedback chiaro sul "punto di salvataggio" e l'utente non può sperimentare modifiche senza impegnarsi. Si vuole un modello più tipico da editor: muta in memoria, vedi l'effetto, poi clicchi Save quando ti piace (o Discard per buttare via tutto).
+
+**Approach:** Introdurre `editorState` modulare (deep copy del payload + savedAt + name iniziali, caricato a `init`). Tutti i mutator esistenti (rename WS/group, color, DnD, delete, add group, edit URL, visibility, site override) cambiano `editorState` direttamente e chiamano un re-render locale (`renderFromState()`), senza scrivere su storage. Flag `dirty` settato true ad ogni mutazione. Toolbar header (`#ws-toolbar`, già nell'HTML) ospita due bottoni: **Save** (disabled se non dirty) e **Discard** (disabled se non dirty, conferma inline). Indicatore visuale dirty: `●` accanto al nome workspace. Save: legge fresh `entry.savedAt` da storage; se diverso da `loadedSavedAt` → mostra errore "Workspace modificato esternamente" + due bottoni inline (**Discard mie modifiche** = reload da storage; **Forza overwrite** = scrivi comunque). Su save ok: `loadedSavedAt = next.savedAt`, `dirty = false`. Cmd/Ctrl+S → trigger Save. `beforeunload` listener avverte se `dirty`. Storage onChanged listener: se non dirty → reload trasparente; se dirty → mostra banner "Modifiche esterne disponibili (Discard per ricaricare)" senza forzare reload.
+
+**Tasks:**
+- [x] Introdurre `editorState = { originalName, name, loadedSavedAt, payload, dirty }` come stato modulare
+- [x] Sostituire tutte le chiamate `saveWorkspace(...)` in editor.js con `applyMutation(mutator)` che muta `editorState.payload` e setta `dirty = true`
+- [x] `renderFromState()` rebuilda l'UI dal `editorState` (no più read da storage durante editing)
+- [x] Bottoni **Save** + **Discard** nella toolbar header con stato disabled coerente
+- [x] Indicatore dirty `●` davanti al nome workspace + asterisco nel `<title>`
+- [x] Save handler con concurrency check: se `entry.savedAt !== loadedSavedAt` → mostra picker inline "Discard mie modifiche" / "Forza overwrite"
+- [x] Discard handler: conferma inline, poi reload da storage in `editorState`, render
+- [x] Cmd/Ctrl+S keybinding → Save (preventDefault del browser)
+- [x] `beforeunload` warning se `dirty`
+- [x] Storage onChanged: reload trasparente se non dirty; banner se dirty
+- [x] Adeguare la rinomina workspace inline: cambia solo `editorState.name` (con check storage async); Save scrive con la nuova chiave (delete vecchia + set nuova) atomicamente
+- [x] Helper `commitSave({force?})`: returns `{ ok }` o `{ ok: false, conflict: 'deleted'|'modified'|'rename' }`
+- [x] `savingInFlight` flag per ignorare l'eco del proprio storage write
+- [ ] Verifica manuale (utente): mutate senza save → reload editor → modifiche perse; Save persiste; Discard ripristina; due editor → secondo Save mostra conflict picker; Cmd+S funziona; beforeunload avverte
+- [x] Commit & push
+
+**Notes:** Refactor invasivo ma circoscritto a `editor.js`. Il pattern `saveWorkspace` come helper di scrittura su storage rimane (Save lo chiama una volta sola). I site overrides editor (M11) avevano già un proprio Save/Cancel locale: in questo modello quei bottoni diventano "applica al state" (no più storage write); il Save globale committa. Stessa logica per il form "+ New group" di M10.
+
+**Done when:** L'utente vede chiaramente quando ha modifiche non salvate, può salvarle con Save (o Cmd/Ctrl+S) o scartarle con Discard, e viene avvertito se chiude la tab con modifiche pendenti.
+
+---
+
+## M13 — Aggiunta nuovi tab (pinned + gruppi)
+
+**Why:** L'editor permette di rimuovere tab ma non di aggiungerne. Senza questa capacità un utente che parte da un gruppo vuoto (creato in M10) deve uscire dall'editor, ricreare il setup nel browser e risalvare. Con l'add diretto l'editor diventa autosufficiente.
+
+**Approach:** Riusare l'elemento `.tab-drop-end` già in coda a ogni `.group-tabs` e `.tab-list`. Default mode: cliccabile come "+ Add tab"; durante un drag attivo continua a funzionare come drop zone (drag e click sono gesti distinti, non collidono). Click → form inline con input URL + Add/Cancel, validazione via `isValidWebUrl` (helper M10). Append `{ url, muted: false }` al list dell'editorState (M12); il commit definitivo passa dal Save globale di M12. Title non richiesto — al primo save da un browser il `t.title` reale verrà catturato via `buildExportPayload` (M7). Nell'editor il fallback è già hostname.
+
+**Tasks:**
+- [ ] Estendere `.tab-drop-end` con label "+ Add tab" sempre visibile (anche con tab presenti)
+- [ ] Click su drop-end (fuori da drag attivo) apre form inline con input URL + Add/Cancel
+- [ ] Validazione URL via `isValidWebUrl` (riusa helper M10)
+- [ ] Mutator (via `applyMutation` di M12): append `{ url, muted: false }` al list (group tabs o pinnedTabs)
+- [ ] Esc cancella, Enter salva (stesso pattern di "+ New group")
+- [ ] Verifica manuale (utente): aggiunta tab in gruppo esistente / in gruppo vuoto / in pinned; URL invalido rifiutato; drag&drop continua a funzionare sulla stessa zona; Save persiste, Discard rimuove
+- [ ] Commit & push
+
+**Done when:** L'utente può aggiungere un nuovo tab a un qualsiasi gruppo (incluso un gruppo vuoto appena creato) o alla sezione pinned, fornendo solo l'URL; l'aggiunta entra nel dirty state e viene persistita al click su Save.
