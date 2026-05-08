@@ -496,3 +496,154 @@ a { color: #8ab4f8; }
   flex: 1;
   font-size: 13px;
 }
+
+/* Visibility mode select */
+
+.tab-vis-select {
+  flex-shrink: 0;
+  background: var(--panel-bg);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.tab-vis-select:hover {
+  border-color: rgba(255,255,255,0.2);
+}
+
+/* Site overrides section */
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.section-header-row .section-title {
+  margin: 0;
+}
+
+.section-count {
+  color: var(--muted);
+  font-weight: normal;
+  text-transform: none;
+  font-size: 11px;
+  letter-spacing: 0;
+  margin-left: 4px;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.1s, color 0.1s, background 0.1s;
+}
+
+.btn-ghost:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(0, 120, 212, 0.08);
+}
+
+.overrides-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.override-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+}
+
+.override-row.editing {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 10px;
+}
+
+.override-host {
+  font-weight: 600;
+  font-size: 12px;
+  flex-shrink: 0;
+  min-width: 140px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.override-preview {
+  flex: 1;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.override-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.override-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.override-host-input {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.override-host-input[readonly] {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.override-css-input {
+  background: var(--panel-bg-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  resize: vertical;
+  outline: none;
+  width: 100%;
+}
+
+.override-css-input:focus {
+  border-color: var(--accent);
+}
+
+.override-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
