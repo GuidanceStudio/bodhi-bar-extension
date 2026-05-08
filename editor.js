@@ -10,6 +10,8 @@
  *     helper with savedAt concurrency check.
  * M9: HTML5 drag & drop — reorder groups, reorder tabs within a list,
  *     move tabs across groups (and to/from pinned).
+ * M10: structural CRUD — add a new group, delete groups, delete tabs,
+ *     edit a tab's URL inline (with WEB_URL_RE validation).
  */
 
 const els = {};
@@ -390,6 +392,74 @@ function stopGroupContentsDragOver(cardEl) {
   }, true);
 }
 
+// --- Inline confirm helper -------------------------------------------------
+
+/**
+ * Replace a trigger element with an inline "question? Yes No" confirm
+ * row. `onConfirm` runs on Yes; the trigger is restored on No or after
+ * onConfirm completes (caller typically triggers a re-render that
+ * recreates the row anyway).
+ */
+function inlineConfirm(triggerEl, question, onConfirm) {
+  const wrap = document.createElement('span');
+  wrap.className = 'inline-confirm';
+
+  const q = document.createElement('span');
+  q.className = 'inline-confirm-q';
+  q.textContent = question;
+
+  const yes = document.createElement('button');
+  yes.type = 'button';
+  yes.className = 'inline-confirm-btn yes';
+  yes.textContent = 'Yes';
+  yes.draggable = false;
+
+  const no = document.createElement('button');
+  no.type = 'button';
+  no.className = 'inline-confirm-btn no';
+  no.textContent = 'No';
+  no.draggable = false;
+
+  const restore = () => {
+    if (wrap.parentNode) wrap.parentNode.replaceChild(triggerEl, wrap);
+  };
+
+  yes.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    yes.disabled = true;
+    no.disabled = true;
+    try {
+      await onConfirm();
+    } catch (err) {
+      flashStatus('Action failed.', 'error');
+      restore();
+    }
+  });
+
+  no.addEventListener('click', (e) => {
+    e.stopPropagation();
+    restore();
+  });
+
+  wrap.appendChild(q);
+  wrap.appendChild(yes);
+  wrap.appendChild(no);
+
+  triggerEl.parentNode.replaceChild(wrap, triggerEl);
+}
+
+function isValidWebUrl(url) {
+  try {
+    if (!url || typeof url !== 'string') return false;
+    const trimmed = url.trim();
+    if (!WEB_URL_RE.test(trimmed)) return false;
+    new URL(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function renderTabRow(tab, listType, groupIdx, tabIdx) {
   const li = document.createElement('li');
   li.className = 'tab-row';
@@ -413,8 +483,77 @@ function renderTabRow(tab, listType, groupIdx, tabIdx) {
   label.appendChild(titleEl);
   label.appendChild(hostEl);
 
+  const actions = document.createElement('div');
+  actions.className = 'tab-actions';
+
+  const editUrlBtn = document.createElement('button');
+  editUrlBtn.type = 'button';
+  editUrlBtn.className = 'tab-action-btn edit';
+  editUrlBtn.title = 'Edit URL';
+  editUrlBtn.draggable = false;
+  editUrlBtn.innerHTML = '&#9999;'; // ✏
+  editUrlBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startInlineEdit(hostEl, {
+      initialValue: tab.url || '',
+      maxLength: 2000,
+      inputClass: 'tab-url-input',
+      onCommit: async (raw) => {
+        const next = String(raw || '').trim();
+        if (!isValidWebUrl(next)) {
+          flashStatus('URL must start with http:// or https://', 'error', 4000);
+          return false;
+        }
+        if (next === (tab.url || '')) return true;
+        const res = await saveWorkspace({
+          mutator: (entry) => {
+            const list = getTabList(entry.payload || {}, listType, groupIdx);
+            if (!list || !list[tabIdx]) return false;
+            list[tabIdx].url = next;
+          }
+        });
+        if (!res.ok) {
+          flashStatus(res.error || 'Save failed.', 'error', 4000);
+          if (res.stale) loadAndRender();
+          return false;
+        }
+        flashStatus('URL updated.', 'success');
+        return true;
+      }
+    });
+  });
+
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.className = 'tab-action-btn delete';
+  delBtn.title = 'Delete tab';
+  delBtn.draggable = false;
+  delBtn.innerHTML = '&#128465;'; // 🗑
+  delBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    inlineConfirm(delBtn, 'Delete?', async () => {
+      const res = await saveWorkspace({
+        mutator: (entry) => {
+          const list = getTabList(entry.payload || {}, listType, groupIdx);
+          if (!list || !list[tabIdx]) return false;
+          list.splice(tabIdx, 1);
+        }
+      });
+      if (!res.ok) {
+        flashStatus(res.error || 'Delete failed.', 'error', 4000);
+        if (res.stale) loadAndRender();
+      } else {
+        flashStatus('Tab deleted.', 'success');
+      }
+    });
+  });
+
+  actions.appendChild(editUrlBtn);
+  actions.appendChild(delBtn);
+
   li.appendChild(dot);
   li.appendChild(label);
+  li.appendChild(actions);
 
   attachTabDnD(li, listType, groupIdx, tabIdx);
   return li;
@@ -566,9 +705,36 @@ function renderGroupCard(group, groupIndex) {
   const count = (group.tabs && group.tabs.length) || 0;
   metaEl.textContent = `${count} tab${count === 1 ? '' : 's'}`;
 
+  const groupDelBtn = document.createElement('button');
+  groupDelBtn.type = 'button';
+  groupDelBtn.className = 'group-action-btn delete';
+  groupDelBtn.title = 'Delete group';
+  groupDelBtn.draggable = false;
+  groupDelBtn.innerHTML = '&#128465;'; // 🗑
+  groupDelBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const question = count > 0 ? `Delete group + ${count} tab${count === 1 ? '' : 's'}?` : 'Delete group?';
+    inlineConfirm(groupDelBtn, question, async () => {
+      const res = await saveWorkspace({
+        mutator: (entry) => {
+          const groups = entry.payload && entry.payload.allTabGroups;
+          if (!groups || !groups[groupIndex]) return false;
+          groups.splice(groupIndex, 1);
+        }
+      });
+      if (!res.ok) {
+        flashStatus(res.error || 'Delete failed.', 'error', 4000);
+        if (res.stale) loadAndRender();
+      } else {
+        flashStatus('Group deleted.', 'success');
+      }
+    });
+  });
+
   header.appendChild(colorBtn);
   header.appendChild(titleEl);
   header.appendChild(metaEl);
+  header.appendChild(groupDelBtn);
 
   const tabsUl = document.createElement('ul');
   tabsUl.className = 'group-tabs';
@@ -597,11 +763,103 @@ function renderGroups(groups) {
     empty.className = 'empty-note';
     empty.textContent = 'No groups in this workspace.';
     els.groupsList.appendChild(empty);
-    return;
+  } else {
+    for (let i = 0; i < groups.length; i++) {
+      els.groupsList.appendChild(renderGroupCard(groups[i], i));
+    }
   }
-  for (let i = 0; i < groups.length; i++) {
-    els.groupsList.appendChild(renderGroupCard(groups[i], i));
-  }
+  els.groupsList.appendChild(buildAddGroupRow());
+}
+
+function populateAddGroupRow(li) {
+  li.innerHTML = '';
+  li.className = 'add-group-row';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'add-group-btn';
+  btn.textContent = '+ New group';
+  btn.draggable = false;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showAddGroupForm(li);
+  });
+
+  li.appendChild(btn);
+}
+
+function buildAddGroupRow() {
+  const li = document.createElement('li');
+  populateAddGroupRow(li);
+  return li;
+}
+
+function showAddGroupForm(rowEl) {
+  rowEl.innerHTML = '';
+
+  const form = document.createElement('div');
+  form.className = 'add-group-form';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'Group title';
+  input.className = 'inline-edit-input';
+  input.maxLength = 60;
+  input.draggable = false;
+
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'inline-confirm-btn yes';
+  save.textContent = 'Add';
+  save.draggable = false;
+
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'inline-confirm-btn no';
+  cancel.textContent = 'Cancel';
+  cancel.draggable = false;
+
+  const restore = () => populateAddGroupRow(rowEl);
+
+  const submit = async () => {
+    const title = String(input.value || '').trim();
+    if (!title) {
+      flashStatus('Group title cannot be empty.', 'error');
+      input.focus();
+      return;
+    }
+    save.disabled = true;
+    cancel.disabled = true;
+    const res = await saveWorkspace({
+      mutator: (entry) => {
+        const payload = entry.payload || (entry.payload = {});
+        const groups = payload.allTabGroups || (payload.allTabGroups = []);
+        groups.push({ title, color: 'grey', tabs: [] });
+      }
+    });
+    if (!res.ok) {
+      flashStatus(res.error || 'Add failed.', 'error', 4000);
+      if (res.stale) loadAndRender();
+      save.disabled = false;
+      cancel.disabled = false;
+      return;
+    }
+    flashStatus('Group added.', 'success');
+    // The storage onChanged listener will trigger a full re-render.
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); restore(); }
+  });
+  save.addEventListener('click', (e) => { e.stopPropagation(); submit(); });
+  cancel.addEventListener('click', (e) => { e.stopPropagation(); restore(); });
+
+  form.appendChild(input);
+  form.appendChild(save);
+  form.appendChild(cancel);
+  rowEl.appendChild(form);
+  input.focus();
 }
 
 function renderHeader(name, entry) {

@@ -369,3 +369,130 @@ a { color: #8ab4f8; }
 .group-card[draggable="true"]:active {
   cursor: grabbing;
 }
+
+/* Tab actions (delete, edit URL) */
+
+.tab-actions {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.tab-row:hover .tab-actions,
+.tab-row:focus-within .tab-actions {
+  opacity: 1;
+}
+
+.tab-action-btn,
+.group-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.tab-action-btn:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+.tab-action-btn.delete:hover { color: var(--danger); }
+.group-action-btn:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+.group-action-btn.delete:hover { color: var(--danger); }
+
+.inline-edit-input.tab-url-input {
+  flex: 1;
+  font-size: 11px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  min-width: 200px;
+}
+
+/* Inline confirm */
+
+.inline-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+.inline-confirm-q {
+  color: var(--danger);
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.inline-confirm-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.inline-confirm-btn.yes {
+  background: var(--danger);
+  color: var(--text);
+}
+
+.inline-confirm-btn.yes:hover { background: #f56565; }
+
+.inline-confirm-btn.no {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+}
+
+.inline-confirm-btn.no:hover { background: rgba(255,255,255,0.16); }
+
+.inline-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Add group row + form */
+
+.add-group-row {
+  list-style: none;
+  margin-top: 4px;
+}
+
+.add-group-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  color: var(--muted);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.add-group-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(0, 120, 212, 0.08);
+}
+
+.add-group-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: var(--panel-bg);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.add-group-form .inline-edit-input {
+  flex: 1;
+  font-size: 13px;
+}
