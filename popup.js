@@ -768,7 +768,19 @@ function renderWorkspacesList(workspacesMap) {
       renderWorkspacesList(cur);
     });
 
+    const editIcon = document.createElement('span');
+    editIcon.className = 'workspace-action-icon edit';
+    editIcon.innerHTML = '&#9999;&#65039;'; // ✏️
+    editIcon.title = 'Edit workspace contents';
+    editIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const url = chrome.runtime.getURL('editor.html') + '?ws=' + encodeURIComponent(name);
+      chrome.tabs.create({ url });
+      window.close();
+    });
+
     actions.appendChild(restoreIcon);
+    actions.appendChild(editIcon);
     actions.appendChild(renameIcon);
     actions.appendChild(exportIcon);
     actions.appendChild(delIcon);
