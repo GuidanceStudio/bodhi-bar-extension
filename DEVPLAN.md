@@ -162,19 +162,24 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 
 ---
 
-## M11 — Visibility mode per tab + site overrides
+## M11 — Visibility mode per tab + site overrides ✅
 
 **Why:** Visibility mode e site overrides sono parte del payload del workspace ma oggi non si possono editare se non sul workspace caricato. Esporli nell'editor permette di tunare lo snapshot prima di restorarlo, senza dover ripassare dal browser.
 
-**Approach:** Su ogni tab row, select 3-way (push/overlay/hidden) accanto all'URL — valore corrente da `tab.visibilityMode || PUSH`. Salvataggio: se = PUSH, omettere il campo (coerente con `buildExportPayload:676`); altrimenti scrivere il valore. Per site overrides: nuovo pannello collapsibile in cima all'editor (sopra Pinned), titolo "Site overrides", lista `[hostname → CSS preview]` con icone edit/delete e bottone "+ Add". Click edit → textarea full-width per CSS (riusa stile di `popup.js:cssEditorInput`). Add → input host + textarea CSS. Tutte le mutazioni passano da `saveWorkspace`.
+**Approach:** Su ogni tab row, `<select>` 3-way (push/overlay/hidden) tra label e actions — valore corrente da `tab.visibilityMode || PUSH`. Su save: se = PUSH, `delete list[i].visibilityMode` (coerente con `buildExportPayload:676`); altrimenti assegna. Pannello "Site overrides" sopra Pinned, sempre visibile: header con count + bottone "+ Add", lista `[host → CSS preview]` con icone ✎/🗑. Editor di una row: textarea CSS + input host (readonly in edit, editabile in add). Validazione hostname tramite regex `^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$`. Mutazioni via `saveWorkspace`. Cancel/Esc → loadAndRender ricarica.
 
 **Tasks:**
-- [ ] Select visibility mode per tab + handler save (omettere se = PUSH)
-- [ ] Pannello "Site overrides" collapsibile sopra Pinned
-- [ ] Lista host→CSS con preview troncata + icone edit/delete inline
-- [ ] Form add: input host + textarea CSS + validazione (host non vuoto, non duplicato)
-- [ ] Editor inline CSS via textarea (Enter su Ctrl+Enter salva, Esc annulla)
-- [ ] Verificare manualmente: cambio visibility mode persiste; add/edit/delete site override persistono; payload restorato applica gli overrides correttamente
-- [ ] Commit & push
+- [x] Select visibility mode per tab + handler save (omette campo se = PUSH)
+- [x] Sezione "Site overrides" sopra Pinned con header + count + "+ Add"
+- [x] Lista host→CSS con preview troncata (60 char) + icone edit/delete
+- [x] Form add: input host + textarea CSS + check duplicato (throw → catch → flash error)
+- [x] Form edit: hostname readonly + textarea CSS (cambio hostname = delete+add manuale)
+- [x] Validazione hostname (`isValidHost`) per add
+- [x] Hotkey Ctrl+Enter (Cmd+Enter) per save da textarea, Esc per cancel
+- [x] Update README con descrizione completa dell'editor
+- [ ] Verifica manuale (utente): cambio visibility mode → riapri WS, valore persiste; add override → appare in lista; edit override → CSS aggiornato; delete override → sparisce; restore del WS applica gli overrides modificati
+- [x] Commit & push
+
+**Notes:** Override "rinomina hostname" non supportata direttamente: l'utente fa delete del vecchio + add del nuovo. È il pattern più sicuro perché evita ambiguità con duplicati/conflitti.
 
 **Done when:** L'utente può cambiare il visibility mode di ogni tab nel workspace e gestire la lista completa di site overrides (host + CSS) salvati nel workspace; al restore, gli overrides modificati si propagano correttamente.

@@ -58,7 +58,7 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
   - **Save current**: Click the blue button to save your current workspace with a custom name.
   - **Actions**: Each workspace shows a row with its name and five flat action icons:
     - **Restore**: Instantly recreate the saved workspace (opens all pinned tabs and recreates all tab groups with their original titles and colors).
-    - **Edit**: Open the saved workspace in a full-page editor (read-only tree view in current version; in-place editing of names, colors, structure, visibility modes, and site overrides lands in subsequent milestones).
+    - **Edit**: Open the saved workspace in a full-page editor. Supports renaming the workspace and groups, changing group colors, drag-and-drop reordering of groups and tabs (including pinned), creating new groups, deleting tabs/groups, editing tab URLs, changing per-tab visibility mode (push/overlay/hidden), and managing per-host CSS overrides saved with the workspace.
     - **Rename**: Give the workspace a new name.
     - **Export**: Download the workspace as a JSON file for backup or sharing.
     - **Delete**: Remove the workspace from storage.

@@ -12,6 +12,9 @@
  *     move tabs across groups (and to/from pinned).
  * M10: structural CRUD — add a new group, delete groups, delete tabs,
  *     edit a tab's URL inline (with WEB_URL_RE validation).
+ * M11: per-tab visibility mode select (push/overlay/hidden) and a
+ *     site-overrides panel for editing host → CSS pairs in
+ *     payload.siteOverrides.
  */
 
 const els = {};
@@ -483,6 +486,46 @@ function renderTabRow(tab, listType, groupIdx, tabIdx) {
   label.appendChild(titleEl);
   label.appendChild(hostEl);
 
+  const visSelect = document.createElement('select');
+  visSelect.className = 'tab-vis-select';
+  visSelect.title = 'Bar visibility for this tab';
+  visSelect.draggable = false;
+  for (const [label, value] of [
+    ['push', VISIBILITY_MODES.PUSH],
+    ['overlay', VISIBILITY_MODES.OVERLAY],
+    ['hidden', VISIBILITY_MODES.HIDDEN],
+  ]) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    visSelect.appendChild(opt);
+  }
+  visSelect.value = (tab.visibilityMode && Object.values(VISIBILITY_MODES).includes(tab.visibilityMode))
+    ? tab.visibilityMode
+    : VISIBILITY_MODES.PUSH;
+  visSelect.addEventListener('click', (e) => e.stopPropagation());
+  visSelect.addEventListener('change', async (e) => {
+    e.stopPropagation();
+    const newMode = visSelect.value;
+    const res = await saveWorkspace({
+      mutator: (entry) => {
+        const list = getTabList(entry.payload || {}, listType, groupIdx);
+        if (!list || !list[tabIdx]) return false;
+        if (newMode === VISIBILITY_MODES.PUSH) {
+          delete list[tabIdx].visibilityMode;
+        } else {
+          list[tabIdx].visibilityMode = newMode;
+        }
+      }
+    });
+    if (!res.ok) {
+      flashStatus(res.error || 'Save failed.', 'error', 4000);
+      if (res.stale) loadAndRender();
+    } else {
+      flashStatus('Visibility updated.', 'success');
+    }
+  });
+
   const actions = document.createElement('div');
   actions.className = 'tab-actions';
 
@@ -553,6 +596,7 @@ function renderTabRow(tab, listType, groupIdx, tabIdx) {
 
   li.appendChild(dot);
   li.appendChild(label);
+  li.appendChild(visSelect);
   li.appendChild(actions);
 
   attachTabDnD(li, listType, groupIdx, tabIdx);
@@ -907,7 +951,221 @@ function renderNotFound(name) {
   els.wsMeta.textContent = '';
   els.pinnedSection.hidden = true;
   els.groupsList.innerHTML = '';
+  if (els.overridesList) els.overridesList.innerHTML = '';
+  if (els.overridesCount) els.overridesCount.textContent = '';
   setStatus(`Workspace "${name}" not found. Open the popover to manage workspaces.`, 'error');
+}
+
+function buildOverridePreview(css) {
+  const trimmed = String(css || '').replace(/\s+/g, ' ').trim();
+  if (!trimmed) return '(empty)';
+  return trimmed.length > 60 ? trimmed.slice(0, 60) + '…' : trimmed;
+}
+
+function renderOverrides(siteOverrides) {
+  const overrides = siteOverrides || {};
+  const hosts = Object.keys(overrides).sort();
+
+  if (els.overridesCount) {
+    els.overridesCount.textContent = hosts.length ? `(${hosts.length})` : '';
+  }
+
+  els.overridesList.innerHTML = '';
+
+  if (!hosts.length) {
+    const empty = document.createElement('li');
+    empty.className = 'empty-note';
+    empty.textContent = 'No site overrides defined for this workspace.';
+    els.overridesList.appendChild(empty);
+    return;
+  }
+
+  for (const host of hosts) {
+    els.overridesList.appendChild(renderOverrideRow(host, overrides[host]));
+  }
+}
+
+function renderOverrideRow(host, css) {
+  const li = document.createElement('li');
+  li.className = 'override-row';
+
+  const hostEl = document.createElement('div');
+  hostEl.className = 'override-host';
+  hostEl.textContent = host;
+  hostEl.title = host;
+
+  const previewEl = document.createElement('div');
+  previewEl.className = 'override-preview';
+  previewEl.textContent = buildOverridePreview(css);
+  previewEl.title = css || '';
+
+  const actions = document.createElement('div');
+  actions.className = 'override-actions';
+
+  const editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.className = 'tab-action-btn edit';
+  editBtn.title = 'Edit CSS';
+  editBtn.innerHTML = '&#9999;'; // ✏
+  editBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showOverrideEditor(li, host, css);
+  });
+
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.className = 'tab-action-btn delete';
+  delBtn.title = 'Delete override';
+  delBtn.innerHTML = '&#128465;'; // 🗑
+  delBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    inlineConfirm(delBtn, 'Delete?', async () => {
+      const res = await saveWorkspace({
+        mutator: (entry) => {
+          const payload = entry.payload || {};
+          const overrides = payload.siteOverrides || {};
+          if (!(host in overrides)) return false;
+          delete overrides[host];
+        }
+      });
+      if (!res.ok) {
+        flashStatus(res.error || 'Delete failed.', 'error', 4000);
+        if (res.stale) loadAndRender();
+      } else {
+        flashStatus('Override deleted.', 'success');
+      }
+    });
+  });
+
+  actions.appendChild(editBtn);
+  actions.appendChild(delBtn);
+
+  li.appendChild(hostEl);
+  li.appendChild(previewEl);
+  li.appendChild(actions);
+  return li;
+}
+
+function isValidHost(s) {
+  if (!s || typeof s !== 'string') return false;
+  const t = s.trim();
+  if (!t) return false;
+  // Hostname-ish: letters/digits, dots, hyphens. No protocol/path.
+  return /^[a-z0-9]([a-z0-9.\-]*[a-z0-9])?$/i.test(t);
+}
+
+function showOverrideEditor(rowEl, hostInitial, cssInitial) {
+  const isAdd = !hostInitial;
+  rowEl.className = 'override-row editing';
+  rowEl.innerHTML = '';
+
+  const form = document.createElement('div');
+  form.className = 'override-form';
+
+  const hostInput = document.createElement('input');
+  hostInput.type = 'text';
+  hostInput.className = 'inline-edit-input override-host-input';
+  hostInput.placeholder = 'hostname (e.g. github.com)';
+  hostInput.value = hostInitial || '';
+  hostInput.draggable = false;
+  if (!isAdd) hostInput.readOnly = true;
+
+  const cssArea = document.createElement('textarea');
+  cssArea.className = 'override-css-input';
+  cssArea.placeholder = '/* CSS for this host */';
+  cssArea.value = cssInitial || '';
+  cssArea.draggable = false;
+  cssArea.rows = 6;
+
+  const btnRow = document.createElement('div');
+  btnRow.className = 'override-form-actions';
+
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'inline-confirm-btn yes';
+  save.textContent = isAdd ? 'Add' : 'Save';
+
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'inline-confirm-btn no';
+  cancel.textContent = 'Cancel';
+
+  const submit = async () => {
+    const host = hostInput.value.trim().toLowerCase();
+    const css = cssArea.value;
+
+    if (isAdd && !isValidHost(host)) {
+      flashStatus('Invalid hostname.', 'error');
+      hostInput.focus();
+      return;
+    }
+
+    save.disabled = true;
+    cancel.disabled = true;
+    const res = await saveWorkspace({
+      mutator: (entry) => {
+        const payload = entry.payload || (entry.payload = {});
+        const overrides = payload.siteOverrides || (payload.siteOverrides = {});
+        if (isAdd && (host in overrides)) {
+          throw new Error(`Override for "${host}" already exists.`);
+        }
+        const trimmedCss = String(css || '').trim();
+        if (!trimmedCss) {
+          delete overrides[host];
+        } else {
+          overrides[host] = css;
+        }
+      }
+    });
+    if (!res.ok) {
+      flashStatus(res.error || 'Save failed.', 'error', 4000);
+      if (res.stale) loadAndRender();
+      save.disabled = false;
+      cancel.disabled = false;
+      return;
+    }
+    flashStatus(isAdd ? 'Override added.' : 'Override saved.', 'success');
+    // storage onChanged → loadAndRender will rebuild the section
+  };
+
+  cancel.addEventListener('click', (e) => {
+    e.stopPropagation();
+    loadAndRender();
+  });
+  save.addEventListener('click', (e) => {
+    e.stopPropagation();
+    submit().catch((err) => {
+      flashStatus(err && err.message ? err.message : 'Save failed.', 'error', 4000);
+      save.disabled = false;
+      cancel.disabled = false;
+    });
+  });
+
+  hostInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); loadAndRender(); }
+  });
+  cssArea.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); loadAndRender(); }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); submit(); }
+  });
+
+  btnRow.appendChild(save);
+  btnRow.appendChild(cancel);
+  form.appendChild(hostInput);
+  form.appendChild(cssArea);
+  form.appendChild(btnRow);
+  rowEl.appendChild(form);
+
+  if (isAdd) hostInput.focus();
+  else cssArea.focus();
+}
+
+function startAddOverride() {
+  // Add a fresh row at the top in editing mode.
+  const li = document.createElement('li');
+  li.className = 'override-row editing';
+  els.overridesList.insertBefore(li, els.overridesList.firstChild);
+  showOverrideEditor(li, '', '');
 }
 
 async function loadAndRender() {
@@ -930,6 +1188,7 @@ async function loadAndRender() {
 
   const payload = entry.payload || {};
   renderHeader(name, entry);
+  renderOverrides(payload.siteOverrides || {});
   renderPinned(payload.pinnedTabs || []);
   renderGroups(payload.allTabGroups || []);
   // Keep status messages alive across re-renders unless empty
@@ -944,6 +1203,17 @@ function init() {
   els.pinnedList = document.getElementById('pinned-list');
   els.groupsSection = document.getElementById('groups-section');
   els.groupsList = document.getElementById('groups-list');
+  els.overridesSection = document.getElementById('overrides-section');
+  els.overridesList = document.getElementById('overrides-list');
+  els.overridesCount = document.getElementById('overrides-count');
+  els.overridesAddBtn = document.getElementById('overrides-add-btn');
+
+  if (els.overridesAddBtn) {
+    els.overridesAddBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startAddOverride();
+    });
+  }
 
   currentWorkspaceName = readWorkspaceNameFromUrl();
   attachWorkspaceNameRename();
