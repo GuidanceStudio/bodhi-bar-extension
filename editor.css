@@ -421,25 +421,48 @@ a { color: #8ab4f8; }
 
 .tab-drop-end {
   list-style: none;
-  min-height: 18px;
-  border: 1px dashed transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.10);
   border-radius: 4px;
   font-size: 11px;
   color: var(--muted);
   text-align: center;
-  padding: 2px 6px;
+  padding: 4px 6px;
   margin-top: 2px;
-  transition: border-color 0.1s, background 0.1s;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s, color 0.1s;
 }
 
-.tab-drop-end:empty {
-  min-height: 6px;
-  padding: 0;
+.tab-drop-end:hover:not(.adding) {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(0, 120, 212, 0.08);
 }
 
 .tab-drop-end.tz-drop-into {
   border-color: var(--accent);
   background: rgba(0, 120, 212, 0.12);
+  color: var(--text);
+}
+
+.tab-drop-end.adding {
+  cursor: default;
+  border-color: var(--accent);
+  background: var(--panel-bg);
+  text-align: left;
+  padding: 6px 8px;
+}
+
+.add-tab-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.add-tab-input {
+  flex: 1;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  min-width: 120px;
 }
 
 .tab-row[draggable="true"],

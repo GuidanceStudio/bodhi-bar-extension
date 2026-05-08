@@ -215,19 +215,20 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 
 ---
 
-## M13 — Aggiunta nuovi tab (pinned + gruppi)
+## M13 — Aggiunta nuovi tab (pinned + gruppi) ✅
 
 **Why:** L'editor permette di rimuovere tab ma non di aggiungerne. Senza questa capacità un utente che parte da un gruppo vuoto (creato in M10) deve uscire dall'editor, ricreare il setup nel browser e risalvare. Con l'add diretto l'editor diventa autosufficiente.
 
 **Approach:** Riusare l'elemento `.tab-drop-end` già in coda a ogni `.group-tabs` e `.tab-list`. Default mode: cliccabile come "+ Add tab"; durante un drag attivo continua a funzionare come drop zone (drag e click sono gesti distinti, non collidono). Click → form inline con input URL + Add/Cancel, validazione via `isValidWebUrl` (helper M10). Append `{ url, muted: false }` al list dell'editorState (M12); il commit definitivo passa dal Save globale di M12. Title non richiesto — al primo save da un browser il `t.title` reale verrà catturato via `buildExportPayload` (M7). Nell'editor il fallback è già hostname.
 
 **Tasks:**
-- [ ] Estendere `.tab-drop-end` con label "+ Add tab" sempre visibile (anche con tab presenti)
-- [ ] Click su drop-end (fuori da drag attivo) apre form inline con input URL + Add/Cancel
-- [ ] Validazione URL via `isValidWebUrl` (riusa helper M10)
-- [ ] Mutator (via `applyMutation` di M12): append `{ url, muted: false }` al list (group tabs o pinnedTabs)
-- [ ] Esc cancella, Enter salva (stesso pattern di "+ New group")
+- [x] Estendere `.tab-drop-end` con label "+ Add tab" sempre visibile (anche con tab presenti)
+- [x] Click su drop-end (fuori da drag attivo) apre form inline con input URL + Add/Cancel
+- [x] Validazione URL via `isValidWebUrl` (riusa helper M10)
+- [x] Mutator (via `applyMutation` di M12): append `{ url, muted: false }` al list (group tabs o pinnedTabs)
+- [x] Esc cancella, Enter salva (stesso pattern di "+ New group")
+- [x] Guardia "adding" che disabilita drop sulla zone mentre il form è aperto
 - [ ] Verifica manuale (utente): aggiunta tab in gruppo esistente / in gruppo vuoto / in pinned; URL invalido rifiutato; drag&drop continua a funzionare sulla stessa zona; Save persiste, Discard rimuove
-- [ ] Commit & push
+- [x] Commit & push
 
 **Done when:** L'utente può aggiungere un nuovo tab a un qualsiasi gruppo (incluso un gruppo vuoto appena creato) o alla sezione pinned, fornendo solo l'URL; l'aggiunta entra nel dirty state e viene persistita al click su Save.
