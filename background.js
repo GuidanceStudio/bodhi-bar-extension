@@ -671,6 +671,9 @@ async function buildExportPayload() {
       muted: !!(t.mutedInfo && t.mutedInfo.muted)
     };
 
+    const title = (t.title || '').trim();
+    if (title) item.title = title;
+
     // Add visibility mode if it exists and is not the default PUSH
     const mode = modeMap[String(t.id)];
     if (mode && mode !== VISIBILITY_MODES.PUSH) {

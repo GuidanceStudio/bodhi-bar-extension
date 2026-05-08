@@ -111,6 +111,7 @@ a.export-link {
 }
 
 .workspace-action-icon.restore { color: #4ade80; }      /* Green */
+.workspace-action-icon.edit    { color: #fbbf24; }      /* Amber */
 .workspace-action-icon.rename { color: #60a5fa; }       /* Blue */
 .workspace-action-icon.export { color: #a78bfa; }        /* Purple */
 .workspace-action-icon.delete { color: #f87171; }       /* Red */

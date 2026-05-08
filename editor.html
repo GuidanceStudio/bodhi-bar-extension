@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Bodhi Bar — Workspace Editor</title>
+  <link rel="stylesheet" href="editor.css" />
+</head>
+<body>
+  <main id="editor-root" class="editor-root">
+    <header class="editor-header">
+      <div class="editor-title-row">
+        <h1 id="ws-name" class="ws-name">Loading…</h1>
+        <span id="ws-meta" class="ws-meta"></span>
+      </div>
+      <div id="ws-toolbar" class="ws-toolbar"></div>
+    </header>
+
+    <div id="editor-status" class="editor-status" role="status" aria-live="polite"></div>
+
+    <section id="pinned-section" class="ws-section" hidden>
+      <h2 class="section-title">Pinned</h2>
+      <ul id="pinned-list" class="tab-list"></ul>
+    </section>
+
+    <section id="groups-section" class="ws-section">
+      <h2 class="section-title">Groups</h2>
+      <ul id="groups-list" class="groups-list"></ul>
+    </section>
+  </main>
+
+  <script src="constants.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>
