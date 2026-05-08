@@ -142,19 +142,21 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 
 ---
 
-## M10 — CRUD struttura (create/delete groups, delete tabs, edit URL)
+## M10 — CRUD struttura (create/delete groups, delete tabs, edit URL) ✅
 
 **Why:** Completa il CRUD strutturale: l'editor diventa autosufficiente per costruire un workspace come l'utente lo vuole, partendo da uno snapshot e raffinandolo. Edit URL è essenziale per correggere link sbagliati senza dover ricreare il workspace dal browser.
 
-**Approach:** Bottone "+ New group" in fondo alla lista gruppi: apre input inline per title, default color = `grey`, lista tab vuota. Icona 🗑 su gruppo header e su ogni tab, con conferma inline (riusa pattern `popup.js:withConfirmation`). Click su URL tab → input inline, validazione: deve matchare `WEB_URL_RE` (da `constants.js`). Salvataggio via `saveWorkspace`.
+**Approach:** Bottone "+ New group" in fondo alla lista gruppi: click → form inline (input title + Add/Cancel), default color = `grey`, lista tab vuota. Icone 🗑 + ✎ su tab row (visibili on hover/focus). Icona 🗑 su group header. Helper `inlineConfirm(triggerEl, question, onConfirm)` riusabile: sostituisce il bottone con "Question? Yes No" inline. Edit URL inline: click sull'icona ✎ del tab → l'host span viene rimpiazzato da input, validazione via `WEB_URL_RE` da `constants.js`. Group delete chiede conferma con conteggio tab. Tutto via `saveWorkspace`.
 
 **Tasks:**
-- [ ] Bottone "+ New group" + handler che inserisce gruppo vuoto nel payload
-- [ ] Icona 🗑 su tab row con conferma inline + delete dalla lista del gruppo
-- [ ] Icona 🗑 su group header con conferma inline + delete del gruppo (warn se non vuoto)
-- [ ] Edit URL inline su tab row (input + Enter/Esc + validazione `WEB_URL_RE`)
-- [ ] Verificare manualmente: tutte le operazioni persistono; gruppi vuoti renderizzano correttamente; URL invalido dà errore
-- [ ] Commit & push
+- [x] Bottone "+ New group" + form inline con Add/Cancel + insert nel payload
+- [x] Icona 🗑 su tab row con `inlineConfirm` + delete dalla lista
+- [x] Icona ✎ su tab row + edit URL inline con validazione `WEB_URL_RE`
+- [x] Icona 🗑 su group header con conferma che mostra count dei tab dentro
+- [x] Helper `inlineConfirm` riusabile (anche per M11 site overrides)
+- [x] Helper `isValidWebUrl` per validazione URL
+- [ ] Verifica manuale (utente): create group → appare in coda; delete tab → sparisce; delete group con N tab → conferma corretta; URL valido salva, URL invalido (es. `ftp://`) viene rifiutato
+- [x] Commit & push
 
 **Done when:** L'utente può creare nuovi gruppi vuoti, eliminare gruppi (anche con tab dentro, con conferma), eliminare singoli tab e modificare l'URL di un tab esistente con validazione.
 
