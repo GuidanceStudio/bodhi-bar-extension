@@ -62,7 +62,7 @@ function makeElement(tag = 'div') {
   };
 }
 
-function makeDocument() {
+function makeDocument(readyState = 'complete') {
   const registry = new Map();
   const head = makeElement('head');
   const body = makeElement('body');
@@ -71,7 +71,7 @@ function makeDocument() {
     head,
     body,
     documentElement,
-    readyState: 'complete',
+    readyState,
     _registry: registry,
     getElementById(id) { return registry.get(id) || null; },
     createElement(tag) { return makeElement(tag); },
@@ -120,7 +120,11 @@ function makeChrome(initialData = {}) {
  * @param {object} [opts] - { storage, windowProps }
  */
 function load(files, exportNames, opts = {}) {
-  const document = makeDocument();
+  // Pages whose source auto-runs on load (e.g. popup.js) register a
+  // DOMContentLoaded listener when readyState is 'loading'; our no-op
+  // addEventListener then never fires it, so the module's functions can be
+  // tested in isolation without triggering its bootstrap.
+  const document = makeDocument(opts.readyState || 'complete');
   const counters = { raf: 0, dispatched: 0, timeout: 0 };
   const window = {
     currentVisibilityMode: null,

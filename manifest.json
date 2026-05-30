@@ -7,7 +7,6 @@
   "permissions": [
     "tabs",
     "tabGroups",
-    "scripting",
     "windows",
     "storage",
     "downloads"
@@ -40,12 +39,6 @@
   "background": {
     "service_worker": "background.js"
   },
-  "web_accessible_resources": [
-    {
-      "resources": ["site_overrides.js"],
-      "matches": ["<all_urls>"]
-    }
-  ],
   "icons": {
     "128": "icon128.png"
   }

@@ -30,25 +30,10 @@ const NAV_LEVELS = {
 const TZ_BAR_ID = 'ungroup-automatic-tab-bar';
 const TZ_PORT_NAME = 'TZ_UI_PORT';
 const TZ_HANDSHAKE_MSG = { action: '__TZ_HANDSHAKE__' };
-const TZ_SHIFT_ATTR = 'data-tz-top-shifted';
-const TZ_SAFE_STYLE_ATTR = 'data-tz-safe-areas';
-const TZ_MAX_SHIFT_TARGETS = 6;
-const TZ_CLIP_ATTR = 'data-tz-safe-bottom-clipper';
 
 const POPOVER_SECTION_GAP_PX = 6;
 
-// --- Visibility Modes ---
-const VISIBILITY_MODES = {
-  PUSH: 'push',
-  OVERLAY: 'overlay',
-  HIDDEN: 'hidden'
-};
-
 // --- Storage Keys ---
-const STORAGE_KEY_VISIBILITY_MODE = 'tz_visibility_mode';
-const STORAGE_KEY_VISIBILITY_RULES = 'tz_visibility_rules';
-const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
-const STORAGE_KEY_OVERRIDES = 'tz_site_overrides';
 const STORAGE_KEY_WORKSPACES = 'tz_workspaces_v1';
 const STORAGE_KEY_PINNED_BY_TAB = 'tz_pinned_by_tab';
 const STORAGE_KEY_GROUP_META = 'tz_group_meta';
@@ -67,16 +52,6 @@ const SYSTEM_PREFIXES = [
 ];
 
 // --- Shared Utility Functions ---
-
-/**
- * Convert a glob pattern (with * wildcards) to a RegExp.
- * Used for URL matching in visibility rules.
- */
-function globToRegex(glob) {
-  const escaped = glob.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = escaped.replace(/\*/g, '.*');
-  return new RegExp(`^${pattern}$`, 'i');
-}
 
 /**
  * Per-tab pin state. A tab is pinned only if explicitly stored `true`;

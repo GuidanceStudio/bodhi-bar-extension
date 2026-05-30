@@ -12,9 +12,8 @@
  *     move tabs across groups (and to/from pinned).
  * M10: structural CRUD — add a new group, delete groups, delete tabs,
  *     edit a tab's URL inline (with WEB_URL_RE validation).
- * M11: per-tab visibility mode select (push/overlay/hidden) and a
- *     site-overrides panel for editing host → CSS pairs in
- *     payload.siteOverrides.
+ * M11: (removed in M16) per-tab visibility mode select and site-overrides
+ *     panel — the visibility-mode and site-override features no longer exist.
  * M12: switch from autosave to explicit Save/Discard. Mutations now
  *     update an in-memory editorState; the user commits to storage
  *     by clicking Save (or Cmd/Ctrl+S). Concurrency conflicts surface
@@ -661,38 +660,6 @@ function renderTabRow(tab, listType, groupIdx, tabIdx) {
   label.appendChild(titleEl);
   label.appendChild(hostEl);
 
-  const visSelect = document.createElement('select');
-  visSelect.className = 'tab-vis-select';
-  visSelect.title = 'Bar visibility for this tab';
-  visSelect.draggable = false;
-  for (const [label, value] of [
-    ['push', VISIBILITY_MODES.PUSH],
-    ['overlay', VISIBILITY_MODES.OVERLAY],
-    ['hidden', VISIBILITY_MODES.HIDDEN],
-  ]) {
-    const opt = document.createElement('option');
-    opt.value = value;
-    opt.textContent = label;
-    visSelect.appendChild(opt);
-  }
-  visSelect.value = (tab.visibilityMode && Object.values(VISIBILITY_MODES).includes(tab.visibilityMode))
-    ? tab.visibilityMode
-    : VISIBILITY_MODES.PUSH;
-  visSelect.addEventListener('click', (e) => e.stopPropagation());
-  visSelect.addEventListener('change', (e) => {
-    e.stopPropagation();
-    const newMode = visSelect.value;
-    applyMutation((payload) => {
-      const list = getTabList(payload, listType, groupIdx);
-      if (!list || !list[tabIdx]) return false;
-      if (newMode === VISIBILITY_MODES.PUSH) {
-        delete list[tabIdx].visibilityMode;
-      } else {
-        list[tabIdx].visibilityMode = newMode;
-      }
-    });
-  });
-
   const actions = document.createElement('div');
   actions.className = 'tab-actions';
 
@@ -747,7 +714,6 @@ function renderTabRow(tab, listType, groupIdx, tabIdx) {
 
   li.appendChild(dot);
   li.appendChild(label);
-  li.appendChild(visSelect);
   li.appendChild(actions);
 
   attachTabDnD(li, listType, groupIdx, tabIdx);
@@ -1067,197 +1033,8 @@ function renderNotFound(name) {
   els.wsMeta.textContent = '';
   els.pinnedSection.hidden = true;
   els.groupsList.innerHTML = '';
-  if (els.overridesList) els.overridesList.innerHTML = '';
-  if (els.overridesCount) els.overridesCount.textContent = '';
   syncDirtyUi();
   setStatus(`Workspace "${name}" not found. Open the popover to manage workspaces.`, 'error');
-}
-
-function buildOverridePreview(css) {
-  const trimmed = String(css || '').replace(/\s+/g, ' ').trim();
-  if (!trimmed) return '(empty)';
-  return trimmed.length > 60 ? trimmed.slice(0, 60) + '…' : trimmed;
-}
-
-function renderOverrides(siteOverrides) {
-  const overrides = siteOverrides || {};
-  const hosts = Object.keys(overrides).sort();
-
-  if (els.overridesCount) {
-    els.overridesCount.textContent = hosts.length ? `(${hosts.length})` : '';
-  }
-
-  els.overridesList.innerHTML = '';
-
-  if (!hosts.length) {
-    const empty = document.createElement('li');
-    empty.className = 'empty-note';
-    empty.textContent = 'No site overrides defined for this workspace.';
-    els.overridesList.appendChild(empty);
-    return;
-  }
-
-  for (const host of hosts) {
-    els.overridesList.appendChild(renderOverrideRow(host, overrides[host]));
-  }
-}
-
-function renderOverrideRow(host, css) {
-  const li = document.createElement('li');
-  li.className = 'override-row';
-
-  const hostEl = document.createElement('div');
-  hostEl.className = 'override-host';
-  hostEl.textContent = host;
-  hostEl.title = host;
-
-  const previewEl = document.createElement('div');
-  previewEl.className = 'override-preview';
-  previewEl.textContent = buildOverridePreview(css);
-  previewEl.title = css || '';
-
-  const actions = document.createElement('div');
-  actions.className = 'override-actions';
-
-  const editBtn = document.createElement('button');
-  editBtn.type = 'button';
-  editBtn.className = 'tab-action-btn edit';
-  editBtn.title = 'Edit CSS';
-  editBtn.innerHTML = '&#9999;'; // ✏
-  editBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    showOverrideEditor(li, host, css);
-  });
-
-  const delBtn = document.createElement('button');
-  delBtn.type = 'button';
-  delBtn.className = 'tab-action-btn delete';
-  delBtn.title = 'Delete override';
-  delBtn.innerHTML = '&#128465;'; // 🗑
-  delBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    inlineConfirm(delBtn, 'Delete?', () => {
-      applyMutation((payload) => {
-        const overrides = payload.siteOverrides || {};
-        if (!(host in overrides)) return false;
-        delete overrides[host];
-      });
-    });
-  });
-
-  actions.appendChild(editBtn);
-  actions.appendChild(delBtn);
-
-  li.appendChild(hostEl);
-  li.appendChild(previewEl);
-  li.appendChild(actions);
-  return li;
-}
-
-function isValidHost(s) {
-  if (!s || typeof s !== 'string') return false;
-  const t = s.trim();
-  if (!t) return false;
-  // Hostname-ish: letters/digits, dots, hyphens. No protocol/path.
-  return /^[a-z0-9]([a-z0-9.\-]*[a-z0-9])?$/i.test(t);
-}
-
-function showOverrideEditor(rowEl, hostInitial, cssInitial) {
-  const isAdd = !hostInitial;
-  rowEl.className = 'override-row editing';
-  rowEl.innerHTML = '';
-
-  const form = document.createElement('div');
-  form.className = 'override-form';
-
-  const hostInput = document.createElement('input');
-  hostInput.type = 'text';
-  hostInput.className = 'inline-edit-input override-host-input';
-  hostInput.placeholder = 'hostname (e.g. github.com)';
-  hostInput.value = hostInitial || '';
-  hostInput.draggable = false;
-  if (!isAdd) hostInput.readOnly = true;
-
-  const cssArea = document.createElement('textarea');
-  cssArea.className = 'override-css-input';
-  cssArea.placeholder = '/* CSS for this host */';
-  cssArea.value = cssInitial || '';
-  cssArea.draggable = false;
-  cssArea.rows = 6;
-
-  const btnRow = document.createElement('div');
-  btnRow.className = 'override-form-actions';
-
-  const save = document.createElement('button');
-  save.type = 'button';
-  save.className = 'inline-confirm-btn yes';
-  save.textContent = isAdd ? 'Add' : 'Save';
-
-  const cancel = document.createElement('button');
-  cancel.type = 'button';
-  cancel.className = 'inline-confirm-btn no';
-  cancel.textContent = 'Cancel';
-
-  const submit = () => {
-    const host = hostInput.value.trim().toLowerCase();
-    const css = cssArea.value;
-
-    if (isAdd && !isValidHost(host)) {
-      flashStatus('Invalid hostname.', 'error');
-      hostInput.focus();
-      return;
-    }
-
-    let conflict = false;
-    applyMutation((payload) => {
-      const overrides = payload.siteOverrides || (payload.siteOverrides = {});
-      if (isAdd && (host in overrides)) { conflict = true; return false; }
-      const trimmedCss = String(css || '').trim();
-      if (!trimmedCss) {
-        delete overrides[host];
-      } else {
-        overrides[host] = css;
-      }
-    });
-    if (conflict) {
-      flashStatus(`Override for "${host}" already exists.`, 'error', 4000);
-    }
-  };
-
-  cancel.addEventListener('click', (e) => {
-    e.stopPropagation();
-    renderFromState();
-  });
-  save.addEventListener('click', (e) => {
-    e.stopPropagation();
-    submit();
-  });
-
-  hostInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { e.preventDefault(); renderFromState(); }
-  });
-  cssArea.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { e.preventDefault(); renderFromState(); }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); submit(); }
-  });
-
-  btnRow.appendChild(save);
-  btnRow.appendChild(cancel);
-  form.appendChild(hostInput);
-  form.appendChild(cssArea);
-  form.appendChild(btnRow);
-  rowEl.appendChild(form);
-
-  if (isAdd) hostInput.focus();
-  else cssArea.focus();
-}
-
-function startAddOverride() {
-  // Add a fresh row at the top in editing mode.
-  const li = document.createElement('li');
-  li.className = 'override-row editing';
-  els.overridesList.insertBefore(li, els.overridesList.firstChild);
-  showOverrideEditor(li, '', '');
 }
 
 /**
@@ -1269,7 +1046,6 @@ function renderFromState() {
     return;
   }
   renderHeader();
-  renderOverrides(editorState.payload.siteOverrides || {});
   renderPinned(editorState.payload.pinnedTabs || []);
   renderGroups(editorState.payload.allTabGroups || []);
 }
@@ -1375,17 +1151,7 @@ function init() {
   els.pinnedList = document.getElementById('pinned-list');
   els.groupsSection = document.getElementById('groups-section');
   els.groupsList = document.getElementById('groups-list');
-  els.overridesSection = document.getElementById('overrides-section');
-  els.overridesList = document.getElementById('overrides-list');
-  els.overridesCount = document.getElementById('overrides-count');
-  els.overridesAddBtn = document.getElementById('overrides-add-btn');
 
-  if (els.overridesAddBtn) {
-    els.overridesAddBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      startAddOverride();
-    });
-  }
   if (els.saveBtn) els.saveBtn.addEventListener('click', (e) => { e.stopPropagation(); handleSaveClick(); });
   if (els.discardBtn) {
     els.discardBtn.addEventListener('click', (e) => {

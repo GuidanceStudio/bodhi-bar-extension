@@ -155,85 +155,7 @@
     return `${Math.round(v * 1000) / 1000}px`;
   }
 
-  function ensureSizingStyle() {
-    // Don't inject sizing style until mode is determined, or if not PUSH
-    if (!window.currentVisibilityMode || window.currentVisibilityMode !== VISIBILITY_MODES.PUSH) {
-      // Remove existing style if present
-      const existing = document.head?.querySelector('style[data-tz-px-zoom]');
-      if (existing) existing.remove();
-      return;
-    }
-
-    if (document.head?.querySelector('style[data-tz-px-zoom]')) return;
-
-    const style = document.createElement('style');
-    style.setAttribute('data-tz-px-zoom', 'true');
-    style.textContent = `
-      :root{
-        --tz-tab-w: ${BASE.TAB_W}px;
-        --tz-h: ${BASE.BAR_H}px;
-        --tz-font: ${BASE.FONT_PX}px;
-        --tz-fav: ${BASE.FAV_PX}px;
-        --tz-pad-x: ${BASE.PAD_X}px;
-        --tz-gap-x: ${BASE.GAP_X}px;
-        --tz-plus-w: ${BASE.PLUS_W}px;
-        --tz-sep-w: ${BASE.SEP_W}px;
-        --tz-sep-mx: ${BASE.SEP_MX}px;
-        --tz-icon-gap: ${BASE.ICON_GAP}px;
-        --tz-ind-h: ${BASE.INDICATOR_H}px;
-        --tz-group-min-pad-x: ${BASE.GROUP_MIN_PAD_X}px;
-        --tz-lvl2-fav: ${BASE.LVL2_FAV_PX}px;
-        --tz-lvl2-fav-ml: ${BASE.LVL2_FAV_ML}px;
-        --tz-search-icon: 32px;
-        --tz-search-w: 38px;
-        --tz-search-exp-w: 260px;
-        --tz-search-mt: -4px;
-        --tz-act-h: 18px;
-        --tz-btn-sm: 18px;
-        --tz-btn-sm-font: 16px;
-        --tz-search-diff: 10px;
-        --tz-gap-sm: 6px;
-        --tz-gap-xs: 2px;
-        --tz-gap-md: ${BASE.GAP_MD}px;
-        --tz-gap-lg: ${BASE.GAP_LG}px;
-        --tz-popover-pad: 6px;
-        --tz-popover-swatch: 10px;
-        --tz-popover-preview: 12px;
-        --tz-favicon-sm: 16px;
-        --tz-search-icn-y: 4px;
-        --tz-search-pad-y: ${BASE.SEARCH_PAD_Y}px;
-        --tz-search-mb: ${BASE.SEARCH_MB}px;
-        --tz-popover-w: ${BASE.POPOVER_W}px;
-        --tz-popover-max-h: ${BASE.POPOVER_MAX_H}px;
-        --tz-popover-radius: ${BASE.POPOVER_RADIUS}px;
-        --tz-popover-font: ${BASE.POPOVER_FONT}px;
-        --tz-input-radius: ${BASE.INPUT_RADIUS}px;
-        --tz-input-pad-y: ${BASE.INPUT_PAD_Y}px;
-        --tz-input-pad-x: ${BASE.INPUT_PAD_X}px;
-        --tz-group-item-pad: ${BASE.GROUP_ITEM_PAD}px;
-        --tz-swatch-radius: ${BASE.SWATCH_RADIUS}px;
-        --tz-search-radius: ${BASE.SEARCH_RADIUS}px;
-        --tz-search-font: ${BASE.SEARCH_FONT}px;
-        --tz-search-input-pad-r: ${BASE.SEARCH_INPUT_PAD_R}px;
-        --tz-clear-font: ${BASE.CLEAR_FONT}px;
-        --tz-clear-pad-y: ${BASE.CLEAR_PAD_Y}px;
-        --tz-clear-pad-x: ${BASE.CLEAR_PAD_X}px;
-        --tz-clear-radius: ${BASE.CLEAR_RADIUS}px;
-        --tz-tab-actions-gap: ${BASE.TAB_ACTIONS_GAP}px;
-        --tz-trigger-ml: ${BASE.TRIGGER_ML}px;
-        --tz-menu-btn-font: ${BASE.MENU_BTN_FONT}px;
-        --tz-popover-icon-w: ${BASE.POPOVER_ICON_W}px;
-        --tz-popover-icon-font: ${BASE.POPOVER_ICON_FONT}px;
-        --tz-fav-wrap-radius: ${BASE.FAV_WRAP_RADIUS}px;
-      }
-    `;
-    document.head?.appendChild(style);
-  }
-
   function applyZoomCompensatedMetrics(force = false) {
-    // Don't apply metrics until visibility mode is determined by boot()
-    if (window.currentVisibilityMode === null) return;
-    ensureSizingStyle();
     maybeRecaptureBaseDPR();
 
     const scale = getZoomScale();
@@ -320,7 +242,6 @@
   scheduleMetricsUpdate();
 
   window.__tzZoomMetrics = {
-    ensureSizingStyle,
     applyZoomCompensatedMetrics,
     scheduleMetricsUpdate,
     captureBaseDPR,

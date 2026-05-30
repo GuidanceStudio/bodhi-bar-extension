@@ -75,7 +75,6 @@ function normalizeImportedWorkspaceJson(raw) {
 
   const pinnedTabs = payload.pinnedTabs;
   const allTabGroups = payload.allTabGroups;
-  const siteOverrides = payload.siteOverrides; // Optional
 
   if (pinnedTabs != null && !Array.isArray(pinnedTabs)) {
     return { ok: false, error: 'Invalid payload: "pinnedTabs" must be an array.' };
@@ -83,14 +82,8 @@ function normalizeImportedWorkspaceJson(raw) {
   if (allTabGroups != null && !Array.isArray(allTabGroups)) {
     return { ok: false, error: 'Invalid payload: "allTabGroups" must be an array.' };
   }
-  if (siteOverrides != null && !isPlainObject(siteOverrides)) {
-    return { ok: false, error: 'Invalid payload: "siteOverrides" must be an object.' };
-  }
-  
-  const visibilityRules = payload.visibilityRules; // Optional
-  if (visibilityRules != null && !Array.isArray(visibilityRules)) {
-    return { ok: false, error: 'Invalid payload: "visibilityRules" must be an array.' };
-  }
+  // Legacy payloads may carry siteOverrides / visibilityRules; those features
+  // were removed, so they are accepted and ignored (not validated).
 
   const name = (typeof raw.name === 'string') ? sanitizeWorkspaceName(raw.name) : '';
   return { ok: true, name, payload };
@@ -114,18 +107,6 @@ function storageSetWorkspaces(map) {
 
 
 
-async function migrateHiddenSitesToRules() {
-  const oldData = await storageGet('tz_default_hidden_sites');
-  const oldSites = oldData?.['tz_default_hidden_sites'] || [];
-  
-  if (oldSites.length > 0) {
-    const rules = oldSites.map(site => ({ pattern: site, mode: VISIBILITY_MODES.HIDDEN }));
-    await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
-    await chrome.storage.local.remove('tz_default_hidden_sites');
-    console.log('Bodhi Bar: Migrated hidden sites to visibility rules.');
-  }
-}
-
 function runtimeSendMessage(msg) {
   return new Promise((resolve) => {
     try {
@@ -141,36 +122,6 @@ function runtimeSendMessage(msg) {
   });
 }
 
-function getHostname(url) {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return null;
-  }
-}
-
-async function getMatchingRule(url) {
-  if (!url) return null;
-  const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
-  const rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-  const matches = rules.filter(r => globToRegex(r.pattern).test(url));
-  matches.sort((a, b) => b.pattern.length - a.pattern.length);
-  return matches[0] || null;
-}
-
-async function saveRule(oldPattern, newPattern, mode) {
-  const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
-  let rules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-  if (oldPattern) {
-    rules = rules.filter(r => r.pattern !== oldPattern);
-  }
-  if (newPattern) {
-    rules = rules.filter(r => r.pattern !== newPattern);
-    rules.push({ pattern: newPattern, mode });
-  }
-  await storageSet({ [STORAGE_KEY_VISIBILITY_RULES]: rules });
-}
-
 function applyMessageStyle(el, type) {
   el.className = 'msg-box';
   if (type === 'success') {
@@ -180,34 +131,6 @@ function applyMessageStyle(el, type) {
   } else {
     el.classList.add('msg-info');
   }
-}
-
-function showToggleMessage(text) {
-  const id = 'toggle-msg';
-  const message = String(text || '').trim();
-  if (!message) return null;
-
-  const existing = document.getElementById(id);
-  if (existing) {
-    existing.textContent = message;
-    existing.style.display = '';
-    return existing;
-  }
-
-  const msg = document.createElement('div');
-  msg.id = id;
-  msg.textContent = message;
-  applyMessageStyle(msg, 'info');
-  msg.style.maxWidth = '320px';
-
-  const select = document.getElementById('visibilityModeSelect');
-  if (select && select.parentNode) {
-    if (select.nextSibling) select.parentNode.insertBefore(msg, select.nextSibling);
-    else select.parentNode.appendChild(msg);
-  } else {
-    document.body.appendChild(msg);
-  }
-  return msg;
 }
 
 function showInlineMessage(text, isSuccess) {
@@ -623,12 +546,6 @@ function renderWorkspacesList(workspacesMap) {
 
       showWorkspacesMessage('Restoring workspace...');
       try {
-        if (payload.siteOverrides) {
-          const currentOverrides = await storageGet(STORAGE_KEY_OVERRIDES);
-          const merged = { ...(currentOverrides?.[STORAGE_KEY_OVERRIDES] || {}), ...payload.siteOverrides };
-          await storageSet({ [STORAGE_KEY_OVERRIDES]: merged });
-        }
-
         const res = await runtimeSendMessage({ action: 'APPLY_WORKSPACE', payload });
         if (!res?.ok) {
           showWorkspacesMessage(res?.error || 'Restore failed.', 'error');
@@ -826,22 +743,6 @@ function initImportMode() {
   document.body.appendChild(container);
 }
 
-async function getModeForTab(tabId, url) {
-  // 1. Check Explicit Tab Override
-  const modeData = await storageGet(STORAGE_KEY_VISIBILITY_MODE);
-  const tabModes = modeData?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-  if (tabId && tabModes[String(tabId)]) {
-    return tabModes[String(tabId)];
-  }
-
-  // 2. Check Rules (longest pattern wins)
-  const rule = await getMatchingRule(url);
-  if (rule) return rule.mode;
-
-  // 3. Default
-  return VISIBILITY_MODES.PUSH;
-}
-
 async function initWorkspacesSection() {
   const createBtn = document.getElementById('createWorkspace');
   const titleRow = document.querySelector('.workspaces-title-row');
@@ -861,16 +762,6 @@ async function initWorkspacesSection() {
         resetSaveUI();
         return;
       }
-
-      // Capture current site overrides and visibility rules
-      const [overridesData, rulesData] = await Promise.all([
-        storageGet(STORAGE_KEY_OVERRIDES),
-        storageGet(STORAGE_KEY_VISIBILITY_RULES)
-      ]);
-      const currentOverrides = overridesData?.[STORAGE_KEY_OVERRIDES] || {};
-      const currentRules = rulesData?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-      exp.payload.siteOverrides = currentOverrides;
-      exp.payload.visibilityRules = currentRules;
 
       workspaces[name] = { name, createdAt: Date.now(), payload: exp.payload };
       await storageSetWorkspaces(workspaces);
@@ -965,313 +856,12 @@ async function initWorkspacesSection() {
   renderWorkspacesList(workspaces);
 }
 
-async function initDomainRulesSection(hostname, tabId, url, select) {
-  const rulesSection = document.getElementById('domain-rules-section');
-  const rulesListEl = document.getElementById('activeRulesList');
-  const btnAddRule = document.getElementById('btnAddRule');
-  const btnEditCss = document.getElementById('btnEditCss');
-  const cssEditorContainer = document.getElementById('cssEditorContainer');
-  const cssEditorInput = document.getElementById('cssEditorInput');
-  const btnSaveCss = document.getElementById('btnSaveCss');
-  const domainBadge = document.getElementById('currentDomain');
-
-  if (!rulesSection) return;
-
-  rulesSection.style.display = 'block';
-  if (domainBadge) domainBadge.textContent = hostname;
-
-  // CSS Override Logic
-  const loadCss = async () => {
-    if (!cssEditorInput) return;
-    const data = await storageGet(STORAGE_KEY_OVERRIDES);
-    const overrides = data?.[STORAGE_KEY_OVERRIDES] || {};
-    const css = overrides[hostname] || '';
-    cssEditorInput.value = css;
-    if (btnEditCss) {
-      if (css) {
-        btnEditCss.classList.add('active');
-        btnEditCss.style.color = 'var(--accent)';
-      } else {
-        btnEditCss.classList.remove('active');
-        btnEditCss.style.color = '';
-      }
-    }
-  };
-  await loadCss();
-
-  if (btnEditCss) {
-    btnEditCss.onclick = () => {
-      const isHidden = cssEditorContainer.style.display === 'none';
-      cssEditorContainer.style.display = isHidden ? 'block' : 'none';
-      if (isHidden) cssEditorInput.focus();
-    };
-  }
-
-  if (btnSaveCss) {
-    btnSaveCss.onclick = async () => {
-      const css = cssEditorInput.value;
-      const data = await storageGet(STORAGE_KEY_OVERRIDES);
-      const overrides = data?.[STORAGE_KEY_OVERRIDES] || {};
-
-      if (css.trim()) {
-        overrides[hostname] = css;
-      } else {
-        delete overrides[hostname];
-      }
-
-      await storageSet({ [STORAGE_KEY_OVERRIDES]: overrides });
-      await loadCss();
-
-      try {
-        await chrome.tabs.sendMessage(tabId, { action: 'REFRESH_BAR' });
-      } catch (e) {}
-
-      const originalText = btnSaveCss.textContent;
-      btnSaveCss.textContent = 'Saved!';
-      setTimeout(() => {
-        btnSaveCss.textContent = originalText;
-        cssEditorContainer.style.display = 'none';
-      }, 800);
-    };
-  }
-
-  // Rules Logic
-  const modeLabels = { push: 'PUSH', overlay: 'OVER', hidden: 'HIDE' };
-
-  const createRowUI = (rule, isNew, onSave, onDelete, onCancel) => {
-    const row = document.createElement('div');
-    row.className = 'rule-row';
-
-    const currentMode = rule.mode || 'push';
-
-    const viewDiv = document.createElement('div');
-    viewDiv.style.display = isNew ? 'none' : 'flex';
-    viewDiv.style.flex = '1';
-    viewDiv.style.alignItems = 'center';
-    viewDiv.style.gap = '6px';
-    viewDiv.style.minWidth = '0';
-
-    const badge = document.createElement('span');
-    badge.className = `mode-badge mode-${currentMode}`;
-    badge.textContent = modeLabels[currentMode] || 'PUSH';
-
-    const patternSpan = document.createElement('span');
-    patternSpan.className = 'pattern-display';
-    patternSpan.textContent = rule.pattern;
-    patternSpan.title = rule.pattern;
-
-    const viewActions = document.createElement('div');
-    viewActions.className = 'rule-actions';
-    const btnEdit = document.createElement('button');
-    btnEdit.className = 'btn-icon';
-    btnEdit.innerHTML = '&#9997;';
-    const btnDel = document.createElement('button');
-    btnDel.className = 'btn-icon delete';
-    btnDel.innerHTML = '&#128465;';
-
-    viewActions.appendChild(btnEdit);
-    viewActions.appendChild(btnDel);
-    viewDiv.appendChild(badge);
-    viewDiv.appendChild(patternSpan);
-    viewDiv.appendChild(viewActions);
-
-    const editDiv = document.createElement('div');
-    editDiv.style.display = isNew ? 'flex' : 'none';
-    editDiv.style.flex = '1';
-    editDiv.style.alignItems = 'center';
-    editDiv.style.gap = '2px';
-    editDiv.style.minWidth = '0';
-
-    const modeSelect = document.createElement('select');
-    modeSelect.className = 'edit-mode-select';
-    ['push', 'overlay', 'hidden'].forEach(m => {
-      const opt = document.createElement('option');
-      opt.value = m;
-      opt.textContent = modeLabels[m];
-      if (m === currentMode) opt.selected = true;
-      modeSelect.appendChild(opt);
-    });
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'pattern-input';
-    input.value = rule.pattern;
-    input.spellcheck = false;
-
-    const editActions = document.createElement('div');
-    editActions.className = 'rule-actions';
-    const btnSave = document.createElement('button');
-    btnSave.className = 'btn-icon success';
-    btnSave.innerHTML = '&#10003;';
-    const btnCancel = document.createElement('button');
-    btnCancel.className = 'btn-icon';
-    btnCancel.innerHTML = '&#10005;';
-
-    editActions.appendChild(btnSave);
-    editActions.appendChild(btnCancel);
-    editDiv.appendChild(modeSelect);
-    editDiv.appendChild(input);
-    editDiv.appendChild(editActions);
-
-    const toggle = (e) => {
-      viewDiv.style.display = e ? 'none' : 'flex';
-      editDiv.style.display = e ? 'flex' : 'none';
-      if (e) input.focus();
-    };
-
-    btnEdit.onclick = () => toggle(true);
-    btnCancel.onclick = () => {
-      if (isNew) onCancel(row);
-      else {
-        input.value = rule.pattern;
-        modeSelect.value = rule.mode || 'push';
-        toggle(false);
-      }
-    };
-    btnSave.onclick = () => onSave(rule.pattern, input.value.trim(), modeSelect.value);
-    btnDel.onclick = () => {
-      // Inline confirmation instead of native confirm()
-      viewDiv.style.display = 'none';
-      editDiv.style.display = 'none';
-
-      const confirmDiv = document.createElement('div');
-      confirmDiv.className = 'rule-actions';
-      confirmDiv.style.flex = '1';
-      confirmDiv.style.gap = '6px';
-
-      const label = document.createElement('span');
-      label.textContent = 'Delete?';
-      label.style.fontSize = '11px';
-      label.style.fontWeight = 'bold';
-      label.style.color = '#f87171';
-
-      const yes = document.createElement('button');
-      yes.textContent = 'Yes';
-      yes.className = 'btn-icon delete';
-      yes.style.fontSize = '10px';
-
-      const no = document.createElement('button');
-      no.textContent = 'No';
-      no.className = 'btn-icon';
-      no.style.fontSize = '10px';
-
-      yes.onclick = () => { confirmDiv.remove(); onDelete(rule.pattern); };
-      no.onclick = () => { confirmDiv.remove(); viewDiv.style.display = 'flex'; };
-
-      confirmDiv.appendChild(label);
-      confirmDiv.appendChild(yes);
-      confirmDiv.appendChild(no);
-      row.appendChild(confirmDiv);
-    };
-
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') btnSave.click();
-      if (e.key === 'Escape') btnCancel.click();
-    });
-
-    row.appendChild(viewDiv);
-    row.appendChild(editDiv);
-    return row;
-  };
-
-  const refreshList = async () => {
-    const data = await storageGet(STORAGE_KEY_VISIBILITY_RULES);
-    const allRules = data?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-
-    // Show rules that match the current URL OR belong to this hostname (approx).
-    // This ensures that if you add a rule for a specific path that isn't current, it still shows up.
-    const coreHost = hostname.replace(/^www\./, '');
-    const matching = allRules.filter(r =>
-      globToRegex(r.pattern).test(url) || r.pattern.includes(hostname) || r.pattern.includes(coreHost)
-    );
-
-    matching.sort((a, b) => b.pattern.length - a.pattern.length);
-
-    rulesListEl.innerHTML = '';
-    matching.forEach((r, idx) => {
-      const row = createRowUI(r, false,
-        async (oldP, newP, m) => { await saveRule(oldP, newP, m); refreshList(); },
-        async (p) => { await saveRule(p, null, null); refreshList(); }
-      );
-      if (idx === 0) row.classList.add('winning');
-      rulesListEl.appendChild(row);
-    });
-  };
-
-  await refreshList();
-
-  btnAddRule.onclick = () => {
-    const tempPattern = '*' + hostname + '/*';
-    const row = createRowUI({ pattern: tempPattern, mode: select.value }, true,
-      async (oldP, newP, m) => { await saveRule(null, newP, m); refreshList(); },
-      () => {},
-      (r) => r.remove()
-    );
-    rulesListEl.appendChild(row);
-    row.querySelector('input').focus();
-  };
-}
-
 function initPopup() {
   if (window.location.search.includes('mode=import')) {
     initImportMode();
     return;
   }
-
-  const select = document.getElementById('visibilityModeSelect');
-  if (!select) return;
-
-  select.disabled = true;
-  select.value = 'push';
-
-  try {
-    if (!chrome.tabs?.query) {
-      showToggleMessage('Bodhi Bar is not available on this page.');
-      return;
-    }
-
-    chrome.tabs.query({ active: true, lastFocusedWindow: true }, async (tabs) => {
-      const tab = (tabs && tabs[0]) ? tabs[0] : null;
-      const url = tab?.url || tab?.pendingUrl || '';
-      const hostname = getHostname(url);
-      const tabId = tab?.id;
-
-      await initWorkspacesSection();
-
-      if (!tab || isSystemPage(String(url || ''))) {
-        select.style.display = 'none';
-        showToggleMessage('Bodhi Bar is not available on system pages.');
-        return;
-      }
-
-      // Migrate legacy hidden-sites list to visibility rules BEFORE reading the mode,
-      // so getModeForTab sees the migrated rules and matches what the content script applies.
-      await migrateHiddenSitesToRules();
-
-      const currentMode = await getModeForTab(tabId, url);
-      select.value = currentMode;
-      select.disabled = false;
-
-      if (hostname) {
-        await initDomainRulesSection(hostname, tabId, url, select);
-      }
-
-      select.onchange = async () => {
-        const newMode = select.value;
-        const data = await storageGet(STORAGE_KEY_VISIBILITY_MODE);
-        const map = data?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-        map[String(tabId)] = newMode;
-        await storageSet({ [STORAGE_KEY_VISIBILITY_MODE]: map });
-
-        try {
-          await chrome.tabs.sendMessage(tabId, { action: 'SET_VISIBILITY_MODE', mode: newMode });
-          await runtimeSendMessage({ action: 'REFRESH_TAB', tabId });
-        } catch (e) {}
-      };
-    });
-  } catch {
-    if (select) select.style.display = 'none';
-  }
+  initWorkspacesSection();
 }
 
 if (document.readyState === 'loading') {

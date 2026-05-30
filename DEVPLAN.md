@@ -297,20 +297,25 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M16 — Rimozione rules, site overrides e pulizia UI (popup + editor) con retro-compat
+## M16 — Rimozione rules, site overrides e pulizia UI (popup + editor) con retro-compat ✅
 
 **Why:** Eliminato PUSH, le URL rules e i site overrides CSS non hanno più scopo. Vanno rimossi da storage, popup ed editor, mantenendo la retro-compatibilità sui workspace già salvati.
 
 **Approach:** `site_overrides.js` rimosso (file + entry in `manifest.json` web-accessible + injection in `background.js`). In `popup.js`/`popup.html` si elimina la sezione regole per dominio (`initDomainRulesSection`, `getMatchingRule`, dropdown push/overlay/hidden). In `editor.js` (M11) si rimuovono il `<select>` visibility-mode per-tab e il pannello "Site overrides". **Retro-compat:** al restore/import, i campi `visibilityMode` e `siteOverrides` nei workspace salvati vengono **letti e ignorati** (nessun crash); `buildExportPayload` smette di scriverli. Chiave `STORAGE_KEY_OVERRIDES` rimossa dai punti d'uso.
 
+**Esecuzione (IDD + regressione):** rimozione strutturale ampia (9 file). Si è anche completata la rimozione dei simboli shim lasciati da M14 — `VISIBILITY_MODES`, `STORAGE_KEY_VISIBILITY_MODE/RULES/HIDDEN_BY_TAB/OVERRIDES`, `globToRegex`, `window.currentVisibilityMode`, `setVisibilityMode`, gli attrs push-only — dopo aver pulito `zoom.js` (rimossa `ensureSizingStyle` PUSH-only; le CSS var arrivano comunque da `applyZoomCompensatedMetrics`). Permesso `scripting` rimosso dal manifest (serviva solo all'injection). Test di regressione retro-compat su `normalizeImportedWorkspaceJson` (`tests/workspace-retrocompat.test.js`): un workspace legacy con `siteOverrides`/`visibilityRules`/`visibilityMode` viene accettato e i campi ignorati. Verifica: sintassi di tutti i file + grep-guard zero-orfani + 7/7 test verdi.
+
+**Deferred (fuori scope core, annotato):** i sender `REFRESH_BAR` (`broadcastRefresh`/`broadcastRefreshWithRetry`/`REFRESH_TAB` in `background.js`, e il send in `popup.js`) erano consumati **solo** da `site_overrides.js`; ora sono no-op guardati da try/catch (la barra si ri-renderizza via port/eventi, mai dipesa da `REFRESH_BAR` lato content). Lasciati invariati per non toccare codice deep-wired; rimozione rinviata.
+
 **Tasks:**
-- [ ] Rimuovere `site_overrides.js`; togliere entry da `manifest.json` (web-accessible resources) e l'injection in `background.js`
-- [ ] `popup.js`/`popup.html`: rimuovere sezione regole per dominio + dropdown mode + helper `getMatchingRule`/`initDomainRulesSection`
-- [ ] `editor.js`: rimuovere `<select>` visibility per-tab e pannello "Site overrides" (form add/edit, validazione host)
-- [ ] `editor.js`/`background.js`: `buildExportPayload` smette di emettere `visibilityMode`/`siteOverrides`; restore/import ignorano i campi legacy senza errori
-- [ ] `constants.js`: rimuovere `STORAGE_KEY_OVERRIDES` dai punti d'uso
-- [ ] `README.md`: aggiornare la descrizione (niente più mode/regole/overrides; modello foglia + pin)
+- [x] Rimuovere `site_overrides.js`; togliere entry da `manifest.json` (web-accessible resources) e l'injection in `background.js`
+- [x] `popup.js`/`popup.html`: rimuovere sezione regole per dominio + dropdown mode + helper `getMatchingRule`/`saveRule`/`getModeForTab`/`initDomainRulesSection`/`migrateHiddenSitesToRules`/`showToggleMessage`/`getHostname`
+- [x] `editor.js`: rimuovere `<select>` visibility per-tab e pannello "Site overrides" (form add/edit, validazione host); pulite anche le regole CSS morte in `editor.css`
+- [x] `editor.js`/`background.js`: `buildExportPayload` smette di emettere `visibilityMode`/`siteOverrides`; restore/import ignorano i campi legacy senza errori
+- [x] `constants.js`: rimossi `STORAGE_KEY_OVERRIDES`, `VISIBILITY_MODES`, `STORAGE_KEY_VISIBILITY_MODE/RULES/HIDDEN_BY_TAB`, `globToRegex`, attrs push-only; `zoom.js`/`page-shift.js` ripuliti dallo shim
+- [x] Test di regressione retro-compat (`tests/workspace-retrocompat.test.js`)
+- [x] `README.md`: aggiornata la descrizione (niente più mode/regole/overrides; modello foglia + pin)
 - [ ] Verifica manuale (utente): restore di un workspace vecchio (con `visibilityMode`/`siteOverrides`) funziona senza errori e ignora quei campi; popup ed editor non mostrano più mode/regole/overrides
-- [ ] Commit & push
+- [x] Commit & push
 
 **Done when:** URL rules e site overrides sono rimossi da codice, storage e UI; i workspace salvati in precedenza si restorano senza errori ignorando i campi obsoleti.

@@ -7,43 +7,8 @@
 </head>
 <body>
   <div class="container">
-    
-    <!-- 1. Main Visibility Control -->
-    <div class="panel">
-      <div class="control-group">
-        <label for="visibilityModeSelect">Bar Visibility</label>
-        <select id="visibilityModeSelect" disabled>
-          <option value="push">Push content (Default)</option>
-          <option value="overlay">Overlay content</option>
-          <option value="hidden">Hidden</option>
-        </select>
-      </div>
 
-      <!-- Domain Rules Section -->
-      <div id="domain-rules-section" class="domain-rules-section" style="display:none;">
-        <div class="section-header">
-          <span>Rules for <span id="currentDomain" class="domain-badge">site</span></span>
-          <div style="display:flex; gap:4px;">
-            <button id="btnEditCss" class="btn-icon" title="Edit CSS Override">{}</button>
-            <button id="btnAddRule" class="btn-icon add" title="Add rule">+</button>
-          </div>
-        </div>
-        
-        <!-- CSS Editor (Hidden by default) -->
-        <div id="cssEditorContainer" style="display:none; margin-bottom: 8px;">
-          <textarea id="cssEditorInput" class="css-editor" placeholder="/* CSS for this domain (PUSH mode only) */&#10;#masthead { transform: translateY(var(--tz-h)); }"></textarea>
-          <div class="rule-actions" style="justify-content: flex-end; margin-top: 4px;">
-            <button id="btnSaveCss" class="btn small">Save CSS</button>
-          </div>
-        </div>
-
-        <div id="activeRulesList" class="active-rules-list">
-          <!-- Rows injected by JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- 2. Workspaces Section -->
+    <!-- Workspaces Section -->
     <section id="workspaces-section" aria-labelledby="workspaces-heading" class="workspaces-section">
       <div class="workspaces-header">
         <div class="workspaces-title-row">
