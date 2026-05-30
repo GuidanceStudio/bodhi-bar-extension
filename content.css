@@ -918,13 +918,22 @@
    peeks the full bar open; pinning (.tz-pinned) locks it open for that tab. */
 #ungroup-automatic-tab-bar:not(.tz-pinned):not(:hover){
   width:auto !important;
+  height:auto !important;
   overflow:hidden !important;
-  border-bottom-right-radius: 3px !important;
+  background:transparent !important;  /* no dark box behind the leaf */
+  border-bottom:none !important;
+  border-radius:0 !important;
+  padding:2px !important;             /* small gap from the page corner */
 }
 
 /* When collapsed, hide everything except the leaf chip. */
 #ungroup-automatic-tab-bar:not(.tz-pinned):not(:hover) > *:not(.tz-leaf){
   display:none !important;
+}
+
+/* Collapsed: the leaf hugs the corner — drop its in-bar spacing. */
+#ungroup-automatic-tab-bar:not(.tz-pinned):not(:hover) .tz-leaf{
+  margin:0 !important;
 }
 
 /* Global icon hover: lighten icons across the bar (all levels) */

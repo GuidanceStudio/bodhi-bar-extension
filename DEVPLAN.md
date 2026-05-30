@@ -361,3 +361,18 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Un doppio-click sulla foglia nasconde completamente la barra per quella tab; il popup offre un toggle per nascondere/mostrare e il "Mostra" la riattiva live senza reload.
+
+---
+
+## M19 — Rifinitura estetica foglia collassata ✅
+
+**Why:** Da collassata la foglia mostra ancora il box scuro della barra e ha un margine ampio dall'angolo. Vogliamo la foglia che "galleggia" pulita vicino all'angolo in alto a sinistra.
+
+**Approach:** Solo CSS, scoped allo stato collassato (`:not(.tz-pinned):not(:hover)`), così l'espanso resta invariato (fondo scuro per leggibilità). Sfondo trasparente + niente `border-bottom` + `height:auto` + piccolo `padding` (2px) per un margine minimo dall'angolo; reset dei margini della `.tz-leaf` in stato collassato. Nessun test (cosmetico).
+
+**Tasks:**
+- [x] `content.css`: stato collassato → `background:transparent`, `border-bottom:none`, `height:auto`, `padding:2px`; `.tz-leaf` margini azzerati da collassata
+- [ ] Verifica manuale (utente): da collassata solo la foglia, trasparente, vicino all'angolo; espansa invariata
+- [x] Commit & push
+
+**Done when:** Da collassata la barra non mostra più il box scuro e la foglia sta vicina all'angolo in alto a sinistra; lo stato espanso/pinnato è invariato.
