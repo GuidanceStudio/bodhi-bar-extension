@@ -145,6 +145,19 @@ Our codebase is organized into specialized components:
 3. Select our source folder
 4. Refresh normal websites to activate
 
+## Tests
+Unit tests run on Node's built-in test runner — no dependencies to install:
+
+```
+npm test
+```
+
+Because the content scripts are plain browser globals (no module system), the
+harness in `tests/helpers/harness.js` loads the real source files into a `vm`
+sandbox with a mocked `chrome` API and a minimal DOM, then exposes the
+requested top-level symbols for assertions. Test files live in `tests/` and are
+named `*.test.js`.
+
 ## Troubleshooting
 ### Service Worker "Inactive"
 - Verify no import errors exist

@@ -7,13 +7,8 @@
 function ensureBar() {
   // Add safe reference to zoom functions
   const zoomUtils = window.__tzZoomMetrics || {};
-  const { ensureSizingStyle, applyZoomCompensatedMetrics } = zoomUtils;
-  
+  const { applyZoomCompensatedMetrics } = zoomUtils;
 
-  // Only call ensureSizingStyle in PUSH mode (it may add padding-related CSS)
-  if (typeof ensureSizingStyle === 'function' && window.currentVisibilityMode === VISIBILITY_MODES.PUSH) {
-    ensureSizingStyle();
-  }
   if (typeof applyZoomCompensatedMetrics === 'function') {
     applyZoomCompensatedMetrics(true);
   }
@@ -79,36 +74,12 @@ function syncMinimizeButtonUI() {
   const bar = document.getElementById(TZ_BAR_ID);
   if (!bar) return;
   const btn = bar.querySelector('.tz-minimize-btn');
-  
-  // If we are in PUSH mode but the button exists, we should probably refresh the bar
-  // or just hide it. For consistency with the render functions:
-  const mode = window.currentVisibilityMode || VISIBILITY_MODES.PUSH;
-  if (mode === VISIBILITY_MODES.PUSH && btn) {
-    btn.style.display = 'none';
-    return;
-  }
-  
   if (!btn) return;
   btn.style.display = '';
 
   const minimized = bar.classList.contains('tz-minimized');
-
-  if (mode === VISIBILITY_MODES.HIDDEN) {
-    btn.textContent = '+';
-    btn.title = 'Show bar (currently hidden)';
-  } else if (mode === VISIBILITY_MODES.OVERLAY) {
-    if (minimized) {
-      btn.textContent = '›';
-      btn.title = 'Expand bar (Overlay mode)';
-    } else {
-      btn.textContent = '‹';
-      btn.title = 'Minimize bar (Overlay mode)';
-    }
-  } else {
-    // PUSH mode (button should be hidden already)
-    btn.textContent = '◻';
-    btn.title = 'Switch to Overlay mode';
-  }
+  btn.textContent = minimized ? '›' : '‹';
+  btn.title = minimized ? 'Expand bar' : 'Minimize bar';
 }
 
 function applyMinimizedState(tabId) {
@@ -121,53 +92,25 @@ function applyMinimizedState(tabId) {
 
 function applyVisibilityState(tabId) {
   if (tabId == null) return;
-  // window.currentVisibilityMode is always kept in sync by setVisibilityMode(),
-  // which is called before any code path that triggers applyVisibilityState.
-  // Avoid an extra async storage round-trip by using it directly.
-  const mode = window.currentVisibilityMode || VISIBILITY_MODES.PUSH;
-
   const bar = document.getElementById(TZ_BAR_ID);
-  if (bar) {
-    bar.classList.toggle('tz-mode-overlay', mode === VISIBILITY_MODES.OVERLAY);
-    bar.classList.toggle('tz-mode-push', mode === VISIBILITY_MODES.PUSH);
+  if (!bar) return;
 
-    if (mode === VISIBILITY_MODES.HIDDEN) {
-      bar.style.setProperty('display', 'none', 'important');
-      bar.classList.remove('tz-minimized');
-    } else {
-      bar.style.removeProperty('display');
+  bar.classList.add('tz-mode-overlay');
+  bar.style.removeProperty('display');
 
-      if (mode === VISIBILITY_MODES.OVERLAY) {
-        // Minimized state is per-tab and stored separately; still needs a storage read.
-        chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (minObj) => {
-          const minMap = minObj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
-          if (minMap[String(tabId)] === false) {
-            bar.classList.remove('tz-minimized');
-          } else {
-            bar.classList.add('tz-minimized');
-          }
-          syncMinimizeButtonUI();
-          if (typeof applyPageShift === 'function') applyPageShift();
-        });
-        return;
-      } else {
-        // PUSH mode: never minimized
-        bar.classList.remove('tz-minimized');
-        syncMinimizeButtonUI();
-      }
-    }
-  }
-  if (typeof applyPageShift === 'function') applyPageShift();
+  // Minimized state is per-tab and stored separately; needs a storage read.
+  chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (minObj) => {
+    const minMap = minObj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
+    // Default minimized; only expanded if the user explicitly stored false.
+    bar.classList.toggle('tz-minimized', minMap[String(tabId)] !== false);
+    syncMinimizeButtonUI();
+  });
 }
 
 function toggleMinimizedState(tabId) {
   if (tabId == null) return;
   const bar = document.getElementById(TZ_BAR_ID);
   if (!bar) return;
-
-  // Only allow minimizing in OVERLAY mode
-  const mode = window.currentVisibilityMode || VISIBILITY_MODES.PUSH;
-  if (mode !== VISIBILITY_MODES.OVERLAY) return;
 
   const next = !bar.classList.contains('tz-minimized');
   setBarMinimized(next);
