@@ -52,7 +52,6 @@
       MENU_BTN_FONT: 18,
       POPOVER_ICON_W: 10,
       POPOVER_ICON_FONT: 16,
-      MINIMIZED_W: 46,
       FAV_WRAP_RADIUS: 4
     };
   }
@@ -192,8 +191,6 @@
         --tz-act-h: 18px;
         --tz-btn-sm: 18px;
         --tz-btn-sm-font: 16px;
-        --tz-min-w: 28px;
-        --tz-min-font: 18px;
         --tz-search-diff: 10px;
         --tz-gap-sm: 6px;
         --tz-gap-xs: 2px;
@@ -227,7 +224,6 @@
         --tz-menu-btn-font: ${BASE.MENU_BTN_FONT}px;
         --tz-popover-icon-w: ${BASE.POPOVER_ICON_W}px;
         --tz-popover-icon-font: ${BASE.POPOVER_ICON_FONT}px;
-        --tz-minimized-w: ${BASE.MINIMIZED_W}px;
         --tz-fav-wrap-radius: ${BASE.FAV_WRAP_RADIUS}px;
       }
     `;
@@ -269,8 +265,6 @@
     root.style.setProperty('--tz-act-h', px(18, scale));
     root.style.setProperty('--tz-btn-sm', px(18, scale));
     root.style.setProperty('--tz-btn-sm-font', px(16, scale));
-    root.style.setProperty('--tz-min-w', px(28, scale));
-    root.style.setProperty('--tz-min-font', px(18, scale));
     root.style.setProperty('--tz-search-diff', px(10, scale));
     root.style.setProperty('--tz-gap-sm', px(6, scale));
     root.style.setProperty('--tz-gap-xs', px(2, scale));
@@ -305,7 +299,6 @@
     root.style.setProperty('--tz-menu-btn-font', px(BASE.MENU_BTN_FONT, scale));
     root.style.setProperty('--tz-popover-icon-w', px(BASE.POPOVER_ICON_W, scale));
     root.style.setProperty('--tz-popover-icon-font', px(BASE.POPOVER_ICON_FONT, scale));
-    root.style.setProperty('--tz-minimized-w', px(BASE.MINIMIZED_W, scale));
     root.style.setProperty('--tz-fav-wrap-radius', px(BASE.FAV_WRAP_RADIUS, scale));
 
     if (typeof applyPageShift === 'function') applyPageShift();

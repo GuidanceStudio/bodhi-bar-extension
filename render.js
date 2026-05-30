@@ -59,35 +59,25 @@ function renderDisconnectedBar(reason = 'Disconnected') {
   applyPageShift();
 }
 
-// Minimize button helpers (STORAGE_KEY_MINIMIZED_BY_TAB from constants.js)
+// Leaf / pin helpers (STORAGE_KEY_PINNED_BY_TAB from constants.js).
+// The bar is a collapsed leaf by default; hovering peeks it open (pure CSS)
+// and clicking the leaf pins it open for that tab.
 
-function setBarMinimized(minimized) {
+function setBarPinned(pinned) {
   const bar = document.getElementById(TZ_BAR_ID);
   if (!bar) return;
-  if (minimized) bar.classList.add('tz-minimized');
-  else bar.classList.remove('tz-minimized');
-  syncMinimizeButtonUI();
-  if (typeof applyPageShift === 'function') applyPageShift();
+  bar.classList.toggle('tz-pinned', pinned);
+  syncLeafUI();
 }
 
-function syncMinimizeButtonUI() {
+function syncLeafUI() {
   const bar = document.getElementById(TZ_BAR_ID);
   if (!bar) return;
-  const btn = bar.querySelector('.tz-minimize-btn');
-  if (!btn) return;
-  btn.style.display = '';
-
-  const minimized = bar.classList.contains('tz-minimized');
-  btn.textContent = minimized ? '›' : '‹';
-  btn.title = minimized ? 'Expand bar' : 'Minimize bar';
-}
-
-function applyMinimizedState(tabId) {
-  if (tabId == null) return;
-  chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (obj) => {
-    const map = obj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
-    setBarMinimized(!!map[String(tabId)]);
-  });
+  const leaf = bar.querySelector('.tz-leaf');
+  if (!leaf) return;
+  const pinned = bar.classList.contains('tz-pinned');
+  leaf.classList.toggle('active', pinned);
+  leaf.title = pinned ? 'Unpin the bar' : 'Pin the bar open';
 }
 
 function applyVisibilityState(tabId) {
@@ -98,51 +88,41 @@ function applyVisibilityState(tabId) {
   bar.classList.add('tz-mode-overlay');
   bar.style.removeProperty('display');
 
-  // Minimized state is per-tab and stored separately; needs a storage read.
-  chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (minObj) => {
-    const minMap = minObj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
-    // Default minimized; only expanded if the user explicitly stored false.
-    bar.classList.toggle('tz-minimized', minMap[String(tabId)] !== false);
-    syncMinimizeButtonUI();
+  // Pin state is per-tab and stored separately; needs a storage read.
+  chrome.storage.local.get([STORAGE_KEY_PINNED_BY_TAB], (obj) => {
+    const map = obj?.[STORAGE_KEY_PINNED_BY_TAB] || {};
+    bar.classList.toggle('tz-pinned', isTabPinned(map, tabId));
+    syncLeafUI();
   });
 }
 
-function toggleMinimizedState(tabId) {
+function togglePinned(tabId) {
   if (tabId == null) return;
   const bar = document.getElementById(TZ_BAR_ID);
   if (!bar) return;
 
-  const next = !bar.classList.contains('tz-minimized');
-  setBarMinimized(next);
-
-  chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB], (obj) => {
-    const map = obj?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
-    if (next) delete map[String(tabId)];   // minimized = default, no need to store
-    else map[String(tabId)] = false;        // expanded = explicitly set
-    chrome.storage.local.set({ [STORAGE_KEY_MINIMIZED_BY_TAB]: map });
+  chrome.storage.local.get([STORAGE_KEY_PINNED_BY_TAB], (obj) => {
+    const map = obj?.[STORAGE_KEY_PINNED_BY_TAB] || {};
+    const next = nextPinnedMap(map, tabId);
+    setBarPinned(isTabPinned(next, tabId));
+    chrome.storage.local.set({ [STORAGE_KEY_PINNED_BY_TAB]: next });
   });
 }
 
-function createMinimizeButton(tabId) {
-  const btn = document.createElement('div');
-  btn.className = 'tz-minimize-btn';
+function createLeaf(tabId) {
+  const leaf = document.createElement('div');
+  leaf.className = 'tz-leaf';
+  leaf.setAttribute('role', 'button');
+  leaf.innerHTML = TZ_LEAF_SVG;
 
-  // Check current minimized state to set initial icon
-  const isMinimized = document.getElementById(TZ_BAR_ID)?.classList.contains('tz-minimized');
-  if (isMinimized) {
-    btn.textContent = '›'; // Expand icon
-    btn.title = 'Expand bar';
-  } else {
-    btn.textContent = '‹'; // Minimize icon
-    btn.title = 'Minimize bar';
-  }
-
-  btn.onclick = (e) => {
+  leaf.onclick = (e) => {
     e.stopPropagation();
-    toggleMinimizedState(tabId);
+    togglePinned(tabId);
   };
 
-  return btn;
+  // The active state and tooltip are set by syncLeafUI(), which always runs
+  // via applyVisibilityState() at the end of every render.
+  return leaf;
 }
 
 function createLevel2Favicon(tab, { interactive = true } = {}) {
@@ -224,10 +204,8 @@ function renderFakeTabBar(currentTabId, pinnedTabs, webTabs, systemTabs, isCurre
 
   bar.innerHTML = '';
 
-  // Show minimize button ONLY in OVERLAY mode
-  if (window.currentVisibilityMode === VISIBILITY_MODES.OVERLAY) {
-    bar.appendChild(createMinimizeButton(currentTabId));
-  }
+  // Leaf chip (top-left): hover peeks the bar open, click pins it open.
+  bar.appendChild(createLeaf(currentTabId));
 
   bar.appendChild(createSearchBar());
 
@@ -363,10 +341,8 @@ function renderNavigationBar(data, currentGroupTitle = 'Groups List') {
 
   bar.innerHTML = '';
 
-  // Show minimize button ONLY in OVERLAY mode
-  if (window.currentVisibilityMode === VISIBILITY_MODES.OVERLAY) {
-    bar.appendChild(createMinimizeButton(window.__tzCurrentTabId));
-  }
+  // Leaf chip (top-left): hover peeks the bar open, click pins it open.
+  bar.appendChild(createLeaf(window.__tzCurrentTabId));
 
   const backBtn = document.createElement('div');
   backBtn.className = 'tz-back-btn';

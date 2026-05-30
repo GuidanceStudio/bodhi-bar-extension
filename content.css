@@ -22,8 +22,6 @@
   --tz-act-h: 18px;
   --tz-btn-sm: 18px;
   --tz-btn-sm-font: 16px;
-  --tz-min-w: 28px;
-  --tz-min-font: 18px;
   --tz-search-diff: 10px;
   --tz-gap-sm: 6px;
   --tz-gap-xs: 2px;
@@ -718,32 +716,36 @@
 }
 
 /* ========================================
-   Minimize button
+   Leaf chip (collapse affordance + pin toggle)
    ======================================== */
-#ungroup-automatic-tab-bar .tz-minimize-btn{
+#ungroup-automatic-tab-bar .tz-leaf{
   all: initial;
   box-sizing:border-box;
   height:calc(var(--tz-h) - var(--tz-search-diff));
-  width:var(--tz-min-w);
+  width:calc(var(--tz-h) - var(--tz-search-diff));
   margin-left:var(--tz-gap-sm);
   margin-right:var(--tz-gap-xs);
+  padding:3px;
   display:flex;
   align-items:center;
   justify-content:center;
   cursor:pointer;
   user-select:none;
-  font-family:Arial, sans-serif;
-  font-size:var(--tz-min-font);
-  line-height:1;
-  color:#0078d4;
+  color:#5fae5f; /* leaf green */
   background:transparent;
-  border:none;
-  border-radius:0;
   flex:0 0 auto;
-  transition: color 120ms ease, opacity 120ms ease;
+  transition: color 120ms ease, opacity 120ms ease, transform 120ms ease;
 }
-#ungroup-automatic-tab-bar .tz-minimize-btn:hover{
-  color:#4aa3ff; /* lighter */
+#ungroup-automatic-tab-bar .tz-leaf svg{
+  display:block;
+  width:100%;
+  height:100%;
+}
+#ungroup-automatic-tab-bar .tz-leaf:hover{
+  color:#81c995; /* lighter */
+}
+#ungroup-automatic-tab-bar .tz-leaf.active{
+  color:#81c995; /* pinned open */
 }
 
 /* ========================================
@@ -906,27 +908,17 @@
   display: none !important;
 }
 
-/* Minimized bar: collapse to only the minimize button */
-#ungroup-automatic-tab-bar.tz-minimized{
+/* Collapsed leaf: the bar shows only the leaf chip by default. Hovering it
+   peeks the full bar open; pinning (.tz-pinned) locks it open for that tab. */
+#ungroup-automatic-tab-bar:not(.tz-pinned):not(:hover){
   width:auto !important;
-  max-width: var(--tz-minimized-w) !important;
   overflow:hidden !important;
   border-bottom-right-radius: 3px !important;
 }
 
-/* Hide everything except the minimize button */
-#ungroup-automatic-tab-bar.tz-minimized > *:not(.tz-minimize-btn){
+/* When collapsed, hide everything except the leaf chip. */
+#ungroup-automatic-tab-bar:not(.tz-pinned):not(:hover) > *:not(.tz-leaf){
   display:none !important;
-}
-
-/* Hide the minimize button when not in OVERLAY mode */
-#ungroup-automatic-tab-bar:not(.tz-mode-overlay) .tz-minimize-btn {
-  display: none !important;
-}
-
-/* Add class for PUSH mode */
-#ungroup-automatic-tab-bar.tz-mode-push {
-  /* Ensure bar is always visible in PUSH mode */
 }
 
 /* Global icon hover: lighten icons across the bar (all levels) */
@@ -939,7 +931,7 @@
 #ungroup-automatic-tab-bar .tz-close-x,
 #ungroup-automatic-tab-bar .tz-group-btn,
 #ungroup-automatic-tab-bar .tz-group-btn.tz-menu-btn,
-#ungroup-automatic-tab-bar .tz-minimize-btn{
+#ungroup-automatic-tab-bar .tz-leaf{
   transition: filter 120ms ease, opacity 120ms ease, color 120ms ease;
 }
 

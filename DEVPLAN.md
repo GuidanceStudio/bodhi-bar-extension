@@ -274,21 +274,24 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M15 — Estetica foglia + hover-expand + click-pin per-tab
+## M15 — Estetica foglia + hover-expand + click-pin per-tab ✅
 
 **Why:** È il cuore della nuova UX: barra sempre collassata a una foglia in alto a sinistra, che si espande on-hover e si fissa al click.
 
 **Approach:** Stato collassato `.tz-leaf` su `#ungroup-automatic-tab-bar`: mostra solo un chip con la fogliolina (riuso asset `icon128.png`/`logo.png` o SVG inline), nasconde gli altri figli (riadatta la regola `content.css:918`). `.tz-leaf:hover` espande al look overlay attuale (transizione su width/opacity dei figli) — quasi tutto CSS, nessuna macchina JS nuova. Click sulla foglia → toggle classe `.tz-pinned` che forza l'espanso a prescindere dall'hover. Persistenza per-tab: si **riusa la mappa esistente invertendone la semantica** — si rinomina `STORAGE_KEY_MINIMIZED_BY_TAB` → `STORAGE_KEY_PINNED_BY_TAB` (`tz_pinned_by_tab`), default unpinned (collassato). `toggleMinimizedState`/`applyMinimizedState` diventano `togglePinned`/`applyPinnedState`. Il vecchio bottone `.tz-minimize-btn` (`‹/›/+/◻`) viene sostituito dal chip-foglia come unico affordance (hover = peek, click = pin).
 
+**Esecuzione:** logica pura del pin in **TDD** (helper `isTabPinned`/`nextPinnedMap` in `constants.js`, test `tests/pin-state.test.js`); wiring DOM/CSS in IDD (verifica manuale). Il collasso usa `#bar:not(.tz-pinned):not(:hover)` (non un `.tz-leaf:hover` separato): hover **e** pin condividono lo stesso espanso. Default = collassato (assenza di classe), non serve una classe per lo stato base. Foglia = **SVG inline** (`TZ_LEAF_SVG`, `currentColor`), niente fetch. Niente `applyPinnedState`: il default-collassato si gestisce in `applyVisibilityState` (toggle `.tz-pinned` da `isTabPinned`). Pulite anche le var morte del vecchio minimize button (`--tz-min-w`, `--tz-min-font`, `--tz-minimized-w`, `BASE.MINIMIZED_W`).
+
 **Tasks:**
-- [ ] `content.css`: stato `.tz-leaf` (chip foglia in alto a sinistra) + `.tz-leaf:hover` espande all'overlay + transizioni
-- [ ] `content.css`: `.tz-pinned` forza l'espanso ignorando `:hover`
-- [ ] `render.js`: sostituire `.tz-minimize-btn` con il chip-foglia; click → `togglePinned(tabId)`
-- [ ] `render.js`: rinominare `toggleMinimizedState`→`togglePinned`, `applyMinimizedState`→`applyPinnedState`, `setBarMinimized` coerente; invertire default (collassato = assenza chiave)
-- [ ] `constants.js`: `STORAGE_KEY_MINIMIZED_BY_TAB` → `STORAGE_KEY_PINNED_BY_TAB` (`tz_pinned_by_tab`)
-- [ ] Asset foglia: usare `icon128.png`/`logo.png` o SVG inline per il chip
+- [x] `content.css`: stato `.tz-leaf` (chip foglia in alto a sinistra) + collasso `:not(.tz-pinned):not(:hover)` + transizioni
+- [x] `content.css`: `.tz-pinned` (e `:hover`) forzano l'espanso
+- [x] `render.js`: sostituire `.tz-minimize-btn` con il chip-foglia `createLeaf`; click → `togglePinned(tabId)`
+- [x] `render.js`: `toggleMinimizedState`→`togglePinned`, `setBarMinimized`→`setBarPinned`, `syncMinimizeButtonUI`→`syncLeafUI`; rimosso `applyMinimizedState` (morto); default invertito (collassato = assenza chiave)
+- [x] `constants.js`: `STORAGE_KEY_MINIMIZED_BY_TAB` → `STORAGE_KEY_PINNED_BY_TAB` (`tz_pinned_by_tab`); helper puri + `TZ_LEAF_SVG`
+- [x] Asset foglia: **SVG inline** `TZ_LEAF_SVG`
+- [x] Unit test pin-state (TDD: rosso→verde) + pulizia var CSS morte
 - [ ] Verifica manuale (utente): default = solo foglia; hover espande e ricollassa al leave; click pinna (resta espansa anche senza hover); click di nuovo unpin; il pin è per-tab e si resetta a tab chiusa
-- [ ] Commit & push
+- [x] Commit & push
 
 **Done when:** La barra è collassata a una foglia in alto a sinistra, si espande on-hover come overlay, e un click la fissa/sfissa per quella tab.
 

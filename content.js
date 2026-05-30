@@ -165,7 +165,7 @@ async function boot() {
     // Fetch Tab ID and the per-tab minimized state in parallel for speed.
     const [tabId, storageData] = await Promise.all([
       getThisTabId(),
-      chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB])
+      chrome.storage.local.get([STORAGE_KEY_PINNED_BY_TAB])
     ]);
 
     window.__tzZoomMetrics?.captureBaseDPR();
@@ -173,10 +173,10 @@ async function boot() {
     const bar = ensureBar();
     bar.classList.add('tz-mode-overlay');
 
-    // Apply minimized state immediately to avoid a flash.
-    // Default is minimized; only skip if the user explicitly expanded (stored false).
-    const minMap = storageData?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
-    if (minMap[String(tabId)] !== false) bar.classList.add('tz-minimized');
+    // Apply pin state immediately to avoid a flash.
+    // Default is unpinned (collapsed leaf); only pinned tabs expand on load.
+    const pinMap = storageData?.[STORAGE_KEY_PINNED_BY_TAB] || {};
+    if (isTabPinned(pinMap, tabId)) bar.classList.add('tz-pinned');
 
     window.__tzZoomMetrics?.applyZoomCompensatedMetrics(true);
 
