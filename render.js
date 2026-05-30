@@ -2,8 +2,6 @@
  * RENDER.JS - Bar rendering functions
  */
 
-// isInternalResize is declared in page-shift.js
-
 function ensureBar() {
   // Add safe reference to zoom functions
   const zoomUtils = window.__tzZoomMetrics || {};
@@ -28,8 +26,6 @@ function ensureBar() {
 }
 
 function updateDynamicLayout() {
-  if (isInternalResize) return;
-
   const bar = document.getElementById(TZ_BAR_ID);
   if (!bar || bar.style.display === 'none') return;
 
@@ -42,8 +38,6 @@ function updateDynamicLayout() {
     stickyPlus.style.display = hasScroll ? 'flex' : 'none';
     inlinePlus.style.display = hasScroll ? 'none' : 'flex';
   }
-
-  applyPageShift();
 }
 
 function renderDisconnectedBar(reason = 'Disconnected') {
@@ -55,8 +49,6 @@ function renderDisconnectedBar(reason = 'Disconnected') {
   msg.textContent = `Tab bar: ${reason} (click to retry)`;
   msg.onclick = () => requestTabList();
   bar.appendChild(msg);
-
-  applyPageShift();
 }
 
 // Leaf / pin helpers (STORAGE_KEY_PINNED_BY_TAB from constants.js).

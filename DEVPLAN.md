@@ -392,3 +392,20 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Niente più CSS/marker morti legati alla rework (o a feature rimosse in precedenza); UI viva invariata.
+
+---
+
+## M21 — Eliminazione di `page-shift.js` (interamente vestigiale) ✅
+
+**Why:** Dopo M14 `applyPageShift` era un no-op e `isInternalResize` non veniva mai più messo a `true` (costante `false`): l'intero `page-shift.js` era codice morto, e le sue chiamate/guardie erano rumore.
+
+**Approach:** Rimosse le 4 chiamate `applyPageShift()` (`render.js` ×2, `content.js`, `zoom.js`) e le 2 guardie su `isInternalResize` (`content.js` resize handler, `render.js updateDynamicLayout`, sempre nel ramo "non interno"). `page-shift.js` risultava vuoto → **file eliminato** e tolto dal manifest `content_scripts`. Rimosso `tests/page-shift.test.js` (l'invariante "no reflow" è ora banalmente vera: non esiste più codice di reflow). `content.css`/`editor.css` già puliti; costanti tutte ancora usate (`SYSTEM_PREFIXES` lo usa `isSystemPage`). Scelto di NON rinominare `.btn-icon`/`.rule-actions` (componenti vivi) né fare audit completo di `content.css` (rischio/poco valore).
+
+**Tasks:**
+- [x] Rimuovere chiamate `applyPageShift()` + guardie `isInternalResize`
+- [x] Eliminare `page-shift.js` + entry nel manifest + `tests/page-shift.test.js`
+- [x] README: rimosse le menzioni di `page-shift.js`
+- [x] Verifica: sintassi + manifest + grep-guard + 11/11 test verdi
+- [x] Commit & push
+
+**Done when:** `page-shift.js` non esiste più, nessun riferimento residuo, e l'estensione resta funzionante (la barra è overlay puro, mai reflow).
