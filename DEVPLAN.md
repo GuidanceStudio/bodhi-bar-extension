@@ -482,3 +482,20 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Il glide della foglia è simmetrico tra hover-in e hover-out (e pin/unpin), senza scatti.
+
+---
+
+## M26 — Foglia fuori dal flusso (position:absolute) per glide davvero smooth ✅
+
+**Why:** Anche con `translate3d`/`will-change` il movimento restava a scatti: la foglia, essendo flex-child di una barra con `overflow:hidden` che riflette (width + `display` dei figli) ad ogni hover, non riusciva a stare stabilmente su un layer GPU → il `transform` veniva ridipinto sul main thread insieme al reflow.
+
+**Approach (opzione 1, scelta dall'utente):** la foglia diventa `position:absolute` dentro la barra (`left:var(--tz-gap-sm)`, `top:calc(var(--tz-search-diff)/2)` per il centraggio verticale), quindi **fuori dal flusso flex**: il reflow della barra non tocca più il suo layer e il glide gira puro sul compositor. Per fare spazio al contenuto: var `--tz-leaf-zone` (ingombro foglia) usata come `padding-left` della barra (il contenuto flowed parte a destra della foglia) e come **larghezza fissa del collassato** (non `auto`, così `overflow:hidden` non clippa la foglia). Glide invariato: `translate3d(-4px,-3px,0)` ↔ `0`, easing ease-out 280ms.
+
+**Tasks:**
+- [x] `.tz-leaf` → `position:absolute` (left/top), rimossi i margini; `z-index:1`
+- [x] Barra: var `--tz-leaf-zone` + `padding-left` per liberare il contenuto; collassato `width:var(--tz-leaf-zone)`
+- [x] Verifica: braces + JS (`querySelector('.tz-leaf')`/click intatti) + 11/11 test
+- [ ] Verifica manuale (utente): glide finalmente smooth (foglia su layer indipendente); contenuto e click a posto
+- [x] Commit & push
+
+**Done when:** Il movimento della foglia è smooth perché animato su un layer indipendente dal layout/reflow della barra.

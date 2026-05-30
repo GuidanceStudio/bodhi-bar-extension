@@ -329,6 +329,9 @@
 #ungroup-automatic-tab-bar {
   all: initial;
   --tz-accent: #0078d4;   /* brand accent (cascades to the bar's descendants) */
+  /* Footprint reserved for the (absolutely-positioned) leaf chip, so the
+     flowed content starts to its right. */
+  --tz-leaf-zone: calc(var(--tz-gap-sm) + var(--tz-h) - var(--tz-search-diff) + var(--tz-gap-sm));
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
@@ -341,6 +344,7 @@
   z-index: 2147483647 !important;
   margin: 0 !important;
   padding: 0 !important;
+  padding-left: var(--tz-leaf-zone) !important; /* clear the absolute leaf */
   overflow: hidden !important;
   font-family: Arial, sans-serif !important;
   box-sizing: border-box !important;
@@ -715,10 +719,15 @@
 #ungroup-automatic-tab-bar .tz-leaf{
   all: initial;
   box-sizing:border-box;
+  /* Taken OUT of the flex flow: the leaf is absolutely positioned so the bar's
+     reflow (width change, content show/hide on hover) can't touch its layer.
+     This is what keeps the glide smooth — it animates purely on the compositor,
+     independent of any layout work happening in the bar. */
+  position:absolute;
+  left:var(--tz-gap-sm);
+  top:calc(var(--tz-search-diff) / 2);   /* vertically centered in the bar */
   height:calc(var(--tz-h) - var(--tz-search-diff));
   width:calc(var(--tz-h) - var(--tz-search-diff));
-  margin-left:var(--tz-gap-sm);
-  margin-right:var(--tz-gap-xs);
   padding:3px;
   display:flex;
   align-items:center;
@@ -727,10 +736,7 @@
   user-select:none;
   color:#5fae5f; /* leaf green */
   background:transparent;
-  flex:0 0 auto;
-  /* Force a GPU layer: the parent has overflow:hidden, which otherwise keeps
-     the leaf un-composited so the transform repaints each frame (janky). The
-     3D transform + will-change pin it on the compositor. */
+  z-index:1;                              /* above the (padded) content */
   transform: translate3d(0, 0, 0);
   will-change: transform;
   backface-visibility: hidden;
@@ -921,7 +927,7 @@
    transparent box. The leaf is nudged toward the corner via transform — see
    below — which animates symmetrically without touching layout. */
 #ungroup-automatic-tab-bar:not(.tz-pinned):not(:hover){
-  width:auto !important;
+  width:var(--tz-leaf-zone) !important;    /* fixed: just wraps the leaf (no clip) */
   overflow:hidden !important;
   background:transparent !important;       /* no dark box behind the leaf */
   border-bottom-color:transparent !important; /* keep 1px width, just hide it */
