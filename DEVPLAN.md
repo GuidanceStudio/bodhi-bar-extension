@@ -477,7 +477,8 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 **Tasks:**
 - [x] Barra: `transition` ridotta a `background-color`/`border-color`; rimossi override `height`/`padding` nel collasso
 - [x] Foglia: `transition transform 160ms`; collasso → `transform: translate(-4px,-3px)` invece di `margin:0`
-- [ ] Verifica manuale (utente): andata e ritorno della foglia identici (speculari), nessuno scatto
+- [x] Tuning (richiesta utente): glide più morbido e lento — `transform 240ms cubic-bezier(0.4,0,0.2,1)` + `will-change:transform`; fade barra 220ms
+- [ ] Verifica manuale (utente): andata e ritorno della foglia identici (speculari), movimento smooth
 - [x] Commit & push
 
 **Done when:** Il glide della foglia è simmetrico tra hover-in e hover-out (e pin/unpin), senza scatti.
