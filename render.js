@@ -85,7 +85,6 @@ function applyVisibilityState(tabId) {
   const bar = document.getElementById(TZ_BAR_ID);
   if (!bar) return;
 
-  bar.classList.add('tz-mode-overlay');
   bar.style.removeProperty('display');
 
   // Pin state is per-tab and stored separately; needs a storage read.

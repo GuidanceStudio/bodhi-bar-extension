@@ -376,3 +376,19 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Da collassata la barra non mostra più il box scuro e la foglia sta vicina all'angolo in alto a sinistra; lo stato espanso/pinnato è invariato.
+
+---
+
+## M20 — Pulizia CSS/marker morti residui ✅
+
+**Why:** Dopo M16/M18 sono rimaste regole CSS morte (UI rules/overrides rimossa) più alcune feature CSS pre-esistenti mai più usate, e un class-marker `tz-mode-overlay` aggiunto in JS ma senza regola né lettori.
+
+**Approach:** Cross-reference dei selettori con l'uso reale in tutti i `*.js`/`*.html` (no tests). `popup.css` riscritto tenendo solo le regole vive (container, workspaces, `.workspace-action-icon`, `.note`, `.std-input`, msg-box, `.control-group` [form import], `.panel`/`.vis-toggle`, `.btn-icon`+`.success`, `.rule-actions`, `.input-row` — questi ultimi tre ancora usati dai form inline rename/import/conferma). Rimossi: `#toggleBar`, `a.export-link`, `.presets-*`/`.preset-*`, `select#visibilityModeSelect`, `.workspace-row`/`-view-state`/`-actions-state`, `.gear-btn`, `#tz-rule-mode-select`, `.domain-rules-section`/`.section-header`/`.domain-badge`, `.active-rules-list`/`.rule-row`/`.mode-*`/`.pattern-*`/`.edit-mode-select`, `.btn-icon.add`/`.delete`, `details.advanced-section`/`.advanced-content`. Rimosse anche le 2 aggiunte di `tz-mode-overlay` in `content.js`/`render.js` (marker morto). `content.css`/`editor.css` già privi di selettori della rework.
+
+**Tasks:**
+- [x] `popup.css`: riscritto, sole regole vive
+- [x] `content.js`/`render.js`: rimosso `classList.add('tz-mode-overlay')` (marker senza CSS né lettori)
+- [x] Verifica: grep-guard zero-orfani + sintassi + 13/13 test verdi
+- [x] Commit & push
+
+**Done when:** Niente più CSS/marker morti legati alla rework (o a feature rimosse in precedenza); UI viva invariata.
