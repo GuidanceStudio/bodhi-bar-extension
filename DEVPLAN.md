@@ -499,3 +499,18 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Il movimento della foglia è smooth perché animato su un layer indipendente dal layout/reflow della barra.
+
+---
+
+## M27 — ROOT CAUSE: `.tz-leaf` nel blocco transition condiviso azzerava il transform ✅
+
+**Why:** Sintomo "due passi, non pixel per pixel" = il `transform` **non veniva interpolato affatto** (salto secco). Causa reale: `.tz-leaf` era incluso nel blocco condiviso "hover-brighten" con `transition: filter/opacity/color` (**senza `transform`**). Essendo **dopo** la regola base e a pari specificità, sovrascriveva la `transition` della foglia → il transform glide non era mai animato. Tutte le iterazioni precedenti (easing, durata, `translate3d`/`will-change`, abspos) erano ininfluenti perché la transizione del transform era cancellata da questa regola.
+
+**Approach:** Rimosso `.tz-leaf` dalla lista di selettori del blocco transition condiviso (la foglia ha già la sua transition completa, incl. `transform`). Aggiunto commento per evitare la regressione.
+
+**Tasks:**
+- [x] `content.css`: togliere `.tz-leaf` dal blocco `transition: filter/opacity/color` condiviso
+- [ ] Verifica manuale (utente): ora il glide è interpolato pixel-per-pixel (smooth), non a due step
+- [x] Commit & push
+
+**Done when:** La transizione `transform` della foglia non è più sovrascritta; il glide è realmente animato e fluido.

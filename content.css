@@ -954,10 +954,12 @@
 #ungroup-automatic-tab-bar .tz-back-btn .arrow,
 #ungroup-automatic-tab-bar .tz-close-x,
 #ungroup-automatic-tab-bar .tz-group-btn,
-#ungroup-automatic-tab-bar .tz-group-btn.tz-menu-btn,
-#ungroup-automatic-tab-bar .tz-leaf{
+#ungroup-automatic-tab-bar .tz-group-btn.tz-menu-btn{
   transition: filter 120ms ease, opacity 120ms ease, color 120ms ease;
 }
+/* NOTE: .tz-leaf intentionally NOT in the list above — it has its own
+   transition (incl. transform) and being here would override it, killing the
+   glide animation. */
 
 /* When hovering the clickable container, brighten the icon(s) inside */
 #ungroup-automatic-tab-bar .tz-tab-btn:hover .tab-favicon,
