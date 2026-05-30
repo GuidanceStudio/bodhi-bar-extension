@@ -465,3 +465,19 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Rimosse le duplicazioni CSS sicure e centralizzato il colore accent; il resto documentato come scelte consapevoli.
+
+---
+
+## M25 — Fix: glide della foglia simmetrico (transform invece di layout) ✅
+
+**Why:** La transizione di M23 animava `height`/`padding` della barra **insieme** ai cambi istantanei di `width`/`display` dei figli: il reflow non era simmetrico tra andata e ritorno → movimento "non speculare", fastidioso.
+
+**Approach:** Disaccoppiare il movimento della foglia dal layout. La barra ha ora **geometria identica** in collassato ed espanso (stessa `height`/`padding`/`margin`); il collassato cambia solo `background`/`border-color` (fade) e `width:auto` (istantaneo, non muove la foglia che è left-anchored). La foglia si sposta **solo via `transform: translate(-4px,-3px)`** in stato collassato, con `transition: transform 160ms` → animazione GPU, single-property, **perfettamente speculare** con lo stesso easing nei due versi. Rimosse le transition layout (`height`/`padding`/`margin`).
+
+**Tasks:**
+- [x] Barra: `transition` ridotta a `background-color`/`border-color`; rimossi override `height`/`padding` nel collasso
+- [x] Foglia: `transition transform 160ms`; collasso → `transform: translate(-4px,-3px)` invece di `margin:0`
+- [ ] Verifica manuale (utente): andata e ritorno della foglia identici (speculari), nessuno scatto
+- [x] Commit & push
+
+**Done when:** Il glide della foglia è simmetrico tra hover-in e hover-out (e pin/unpin), senza scatti.

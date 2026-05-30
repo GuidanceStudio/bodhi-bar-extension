@@ -344,8 +344,7 @@
   overflow: hidden !important;
   font-family: Arial, sans-serif !important;
   box-sizing: border-box !important;
-  transition: height 160ms ease, padding 160ms ease,
-              background-color 160ms ease, border-color 160ms ease !important;
+  transition: background-color 160ms ease, border-color 160ms ease !important;
 }
 
 /* ========================================
@@ -729,7 +728,7 @@
   color:#5fae5f; /* leaf green */
   background:transparent;
   flex:0 0 auto;
-  transition: color 120ms ease, opacity 120ms ease, transform 120ms ease, margin 160ms ease;
+  transition: color 120ms ease, opacity 120ms ease, transform 160ms ease;
 }
 #ungroup-automatic-tab-bar .tz-leaf svg{
   display:block;
@@ -911,16 +910,15 @@
 
 /* Collapsed leaf: the bar shows only the leaf chip by default. Hovering it
    peeks the full bar open; pinning (.tz-pinned) locks it open for that tab. */
+/* Collapsed: same geometry as expanded (so nothing reflows), just a
+   transparent box. The leaf is nudged toward the corner via transform — see
+   below — which animates symmetrically without touching layout. */
 #ungroup-automatic-tab-bar:not(.tz-pinned):not(:hover){
   width:auto !important;
-  /* Fixed height (not auto) so the expand/collapse is animatable. Fits the
-     leaf chip + the 2px padding below. */
-  height:calc(var(--tz-h) - var(--tz-search-diff) + 4px) !important;
   overflow:hidden !important;
   background:transparent !important;       /* no dark box behind the leaf */
   border-bottom-color:transparent !important; /* keep 1px width, just hide it */
   border-radius:0 !important;
-  padding:2px !important;                  /* small gap from the page corner */
 }
 
 /* When collapsed, hide everything except the leaf chip. */
@@ -928,9 +926,10 @@
   display:none !important;
 }
 
-/* Collapsed: the leaf hugs the corner — drop its in-bar spacing. */
+/* Collapsed: nudge the leaf toward the corner with a transform (no layout
+   change), so hover/leave glides it symmetrically. */
 #ungroup-automatic-tab-bar:not(.tz-pinned):not(:hover) .tz-leaf{
-  margin:0 !important;
+  transform: translate(-4px, -3px) !important;
 }
 
 /* Global icon hover: lighten icons across the bar (all levels) */
