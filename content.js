@@ -171,7 +171,6 @@ async function boot() {
     window.__tzZoomMetrics?.captureBaseDPR();
     safeConnectPort();
     const bar = ensureBar();
-    bar.classList.add('tz-mode-overlay');
 
     // Apply pin/hidden state immediately to avoid a flash.
     // Default is unpinned (collapsed leaf) and visible.
