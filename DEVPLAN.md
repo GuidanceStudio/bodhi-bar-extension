@@ -341,7 +341,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M18 — Doppio-click sulla foglia = nascondi del tutto (per-tab) + toggle nel popup
+## M18 — Doppio-click sulla foglia = nascondi del tutto (per-tab) + toggle nel popup ✅
 
 **Why:** Reintroduce un modo per azzerare del tutto il footprint della barra su una tab specifica (l'equivalente del vecchio "hidden", ma come gesto diretto). La foglia, una volta nascosta, non c'è più: la riattivazione avviene dal popup.
 
@@ -350,14 +350,14 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 **Esecuzione:** TDD sugli helper puri (`isTabHidden`/`nextHiddenMap`), poi IDD sul wiring DOM/popup/CSS (verifica manuale).
 
 **Tasks:**
-- [ ] `constants.js`: `STORAGE_KEY_HIDDEN_BY_TAB` (`tz_hidden_by_tab`) + helper puri `isTabHidden`/`nextHiddenMap`
-- [ ] Unit test helper hidden (TDD rosso→verde)
-- [ ] `render.js` `createLeaf`: timer 250ms su click (pin) + `dblclick` → `hideTab(tabId)` (set hidden true, applica `.tz-hidden`, persiste)
-- [ ] `content.css`: `#bar.tz-hidden { display:none !important }`
-- [ ] `content.js` boot: leggere `tz_hidden_by_tab` e applicare `.tz-hidden`; aggiungere `chrome.storage.onChanged` per sync live della tab corrente
-- [ ] `popup.html`/`popup.js`: toggle "Nascondi/Mostra barra su questa tab" (stato da `tz_hidden_by_tab`, disabilitato su system page)
-- [ ] `background.js onRemoved`: pulizia `tz_hidden_by_tab`
+- [x] `constants.js`: `STORAGE_KEY_HIDDEN_BY_TAB` (`tz_hidden_by_tab`) + helper puri `isTabHidden`/`nextHiddenMap`
+- [x] Unit test helper hidden (TDD rosso→verde) — `tests/hidden-state.test.js`
+- [x] `render.js` `createLeaf`: timer 250ms su click (pin) + `dblclick` → `hideTab(tabId)` (set hidden true, applica `.tz-hidden`, persiste)
+- [x] `content.css`: `#bar.tz-hidden { display:none !important }`
+- [x] `content.js` boot: leggere `tz_hidden_by_tab` e applicare `.tz-hidden`; aggiunto `chrome.storage.onChanged` per sync live (+ `requestTabList` al re-show)
+- [x] `popup.html`/`popup.js`/`popup.css`: toggle "Nascondi/Mostra barra su questa tab" (stato da `tz_hidden_by_tab`, disabilitato su system page)
+- [x] `background.js onRemoved`: pulizia `tz_hidden_by_tab` (insieme a `tz_pinned_by_tab`)
 - [ ] Verifica manuale (utente): doppio-click sulla foglia nasconde la barra; single-click pinna ancora; dal popup "Mostra" la fa riapparire live; stato per-tab si resetta a tab chiusa
-- [ ] Commit & push
+- [x] Commit & push
 
 **Done when:** Un doppio-click sulla foglia nasconde completamente la barra per quella tab; il popup offre un toggle per nascondere/mostrare e il "Mostra" la riattiva live senza reload.

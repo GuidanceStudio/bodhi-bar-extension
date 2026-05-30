@@ -32,14 +32,18 @@ function effectiveUrl(tab) {
 }
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  // Drop the per-tab pin state for the closed tab so the map doesn't grow.
+  // Drop the per-tab pin/hidden state for the closed tab so the maps don't grow.
   try {
-    chrome.storage.local.get([STORAGE_KEY_PINNED_BY_TAB], (obj) => {
-      const map = obj?.[STORAGE_KEY_PINNED_BY_TAB];
-      if (map && typeof map === 'object' && Object.prototype.hasOwnProperty.call(map, String(tabId))) {
-        delete map[String(tabId)];
-        chrome.storage.local.set({ [STORAGE_KEY_PINNED_BY_TAB]: map }, () => {});
+    chrome.storage.local.get([STORAGE_KEY_PINNED_BY_TAB, STORAGE_KEY_HIDDEN_BY_TAB], (obj) => {
+      const patch = {};
+      for (const key of [STORAGE_KEY_PINNED_BY_TAB, STORAGE_KEY_HIDDEN_BY_TAB]) {
+        const map = obj?.[key];
+        if (map && typeof map === 'object' && Object.prototype.hasOwnProperty.call(map, String(tabId))) {
+          delete map[String(tabId)];
+          patch[key] = map;
+        }
       }
+      if (Object.keys(patch).length) chrome.storage.local.set(patch, () => {});
     });
   } catch {
     // ignore

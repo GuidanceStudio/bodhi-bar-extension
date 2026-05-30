@@ -36,6 +36,7 @@ const POPOVER_SECTION_GAP_PX = 6;
 // --- Storage Keys ---
 const STORAGE_KEY_WORKSPACES = 'tz_workspaces_v1';
 const STORAGE_KEY_PINNED_BY_TAB = 'tz_pinned_by_tab';
+const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
 const STORAGE_KEY_GROUP_META = 'tz_group_meta';
 
 // Inline leaf glyph for the collapsed chip (the hover/click target).
@@ -71,6 +72,28 @@ function nextPinnedMap(map, tabId) {
   const key = String(tabId);
   if (next[key] === true) delete next[key];
   else next[key] = true;
+  return next;
+}
+
+/**
+ * Per-tab hidden state. A tab's bar is hidden only if explicitly stored `true`;
+ * the default (absent key) is visible. Set via double-click on the leaf and
+ * cleared from the popup toggle.
+ */
+function isTabHidden(map, tabId) {
+  return (map || {})[String(tabId)] === true;
+}
+
+/**
+ * Return a new hidden map with `tabId` set to `hidden`. Hiding stores `true`;
+ * showing deletes the key so the default (visible) costs no storage.
+ * Pure: the input map is not mutated.
+ */
+function nextHiddenMap(map, tabId, hidden) {
+  const next = { ...(map || {}) };
+  const key = String(tabId);
+  if (hidden) next[key] = true;
+  else delete next[key];
   return next;
 }
 

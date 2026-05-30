@@ -840,11 +840,45 @@ async function initWorkspacesSection() {
   renderWorkspacesList(workspaces);
 }
 
+async function initBarVisibilityToggle() {
+  const btn = document.getElementById('toggleHiddenBtn');
+  if (!btn || !chrome.tabs?.query) return;
+
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, async (tabs) => {
+    const tab = (tabs && tabs[0]) ? tabs[0] : null;
+    const url = tab?.url || tab?.pendingUrl || '';
+
+    if (!tab || isSystemPage(String(url || ''))) {
+      btn.disabled = true;
+      btn.textContent = 'Bar not available on this page';
+      return;
+    }
+
+    const tabId = tab.id;
+    const data = await storageGet(STORAGE_KEY_HIDDEN_BY_TAB);
+    let hidden = isTabHidden(data?.[STORAGE_KEY_HIDDEN_BY_TAB] || {}, tabId);
+
+    const sync = () => {
+      btn.disabled = false;
+      btn.textContent = hidden ? 'Show bar on this tab' : 'Hide bar on this tab';
+    };
+    sync();
+
+    btn.onclick = async () => {
+      hidden = !hidden;
+      const cur = (await storageGet(STORAGE_KEY_HIDDEN_BY_TAB))?.[STORAGE_KEY_HIDDEN_BY_TAB] || {};
+      await storageSet({ [STORAGE_KEY_HIDDEN_BY_TAB]: nextHiddenMap(cur, tabId, hidden) });
+      sync();
+    };
+  });
+}
+
 function initPopup() {
   if (window.location.search.includes('mode=import')) {
     initImportMode();
     return;
   }
+  initBarVisibilityToggle();
   initWorkspacesSection();
 }
 

@@ -908,6 +908,12 @@
   display: none !important;
 }
 
+/* Hidden for this tab (double-click the leaf): no footprint at all.
+   Re-shown from the extension popup. Wins over collapse/pin/hover. */
+#ungroup-automatic-tab-bar.tz-hidden{
+  display:none !important;
+}
+
 /* Collapsed leaf: the bar shows only the leaf chip by default. Hovering it
    peeks the full bar open; pinning (.tz-pinned) locks it open for that tab. */
 #ungroup-automatic-tab-bar:not(.tz-pinned):not(:hover){
