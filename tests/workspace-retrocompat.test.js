@@ -49,3 +49,35 @@ test('a current workspace without the removed fields is accepted', () => {
 
   assert.equal(res.ok, true, res.error || 'should be accepted');
 });
+
+// M17: be lenient — accept any version and ignore unknown fields, so older
+// AND newer workspace files stay compatible.
+
+test('a future version with unknown fields is accepted, extras preserved', () => {
+  const { normalizeImportedWorkspaceJson } = loadValidator();
+
+  const res = normalizeImportedWorkspaceJson({
+    wv: '9.9',
+    name: 'Future',
+    payload: { pinnedTabs: [], allTabGroups: [], somethingNew: { a: 1 } },
+  });
+
+  assert.equal(res.ok, true, res.error || 'future versions must be accepted');
+  assert.equal(res.payload.somethingNew.a, 1, 'unknown fields are passed through, not stripped');
+});
+
+test('a bare payload (no { wv, payload } wrapper) is accepted', () => {
+  const { normalizeImportedWorkspaceJson } = loadValidator();
+
+  const res = normalizeImportedWorkspaceJson({ pinnedTabs: [], allTabGroups: [] });
+
+  assert.equal(res.ok, true, res.error || 'bare payload should be accepted');
+  assert.ok(Array.isArray(res.payload.pinnedTabs));
+});
+
+test('a non-object (e.g. array or string) is still rejected', () => {
+  const { normalizeImportedWorkspaceJson } = loadValidator();
+
+  assert.equal(normalizeImportedWorkspaceJson('nope').ok, false);
+  assert.equal(normalizeImportedWorkspaceJson([1, 2, 3]).ok, false);
+});

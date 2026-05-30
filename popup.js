@@ -62,28 +62,12 @@ function isPlainObject(v) {
 function normalizeImportedWorkspaceJson(raw) {
   if (!isPlainObject(raw)) return { ok: false, error: 'Invalid JSON: expected an object.' };
 
-  const version = raw.wv || '1.0';
-  const SUPPORTED_VERSIONS = ['1.0'];
-  if (!SUPPORTED_VERSIONS.includes(version)) {
-    return { 
-      ok: false, 
-      error: `Unsupported workspace version: ${version}. Please update the extension.` 
-    };
-  }
-  const payload = raw.payload;
-  if (!isPlainObject(payload)) return { ok: false, error: 'Invalid workspace file: missing "payload" object.' };
-
-  const pinnedTabs = payload.pinnedTabs;
-  const allTabGroups = payload.allTabGroups;
-
-  if (pinnedTabs != null && !Array.isArray(pinnedTabs)) {
-    return { ok: false, error: 'Invalid payload: "pinnedTabs" must be an array.' };
-  }
-  if (allTabGroups != null && !Array.isArray(allTabGroups)) {
-    return { ok: false, error: 'Invalid payload: "allTabGroups" must be an array.' };
-  }
-  // Legacy payloads may carry siteOverrides / visibilityRules; those features
-  // were removed, so they are accepted and ignored (not validated).
+  // Be lenient on import: accept any version and pass unknown fields through
+  // untouched, so older AND newer workspace files stay compatible. Only the
+  // fields the restore code understands (pinnedTabs / allTabGroups) are used;
+  // those are guarded defensively at restore time, so no type checks here.
+  // A wrapped file is `{ wv, name, payload }`; a bare payload is also accepted.
+  const payload = isPlainObject(raw.payload) ? raw.payload : raw;
 
   const name = (typeof raw.name === 'string') ? sanitizeWorkspaceName(raw.name) : '';
   return { ok: true, name, payload };
