@@ -232,3 +232,82 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 - [x] Commit & push
 
 **Done when:** L'utente può aggiungere un nuovo tab a un qualsiasi gruppo (incluso un gruppo vuoto appena creato) o alla sezione pinned, fornendo solo l'URL; l'aggiunta entra nel dirty state e viene persistita al click su Save.
+
+---
+
+## Rework — Modello a stato singolo "foglia + hover-expand + click-pin"
+
+**Contesto.** Si elimina il concetto di mode multipli (`PUSH`/`OVERLAY`/`HIDDEN`). La barra ha **un solo rendering** ("floating overlay") con due stati per-tab:
+
+1. **Collassato (default)** — solo la **fogliolina in alto a sinistra**, footprint minimo. Sostituisce sia il vecchio `minimized` sia `HIDDEN`.
+2. **Hover** — passando sopra la foglia, la barra si espande all'attuale look overlay; transiente (esci col mouse → ricollassa).
+3. **Pin** — click sulla foglia fissa l'espanso ignorando l'hover; click di nuovo → unpin. Persistito **per-tab** (effimero, vive quanto la tab).
+
+Decisioni prese con l'utente: (a) `HIDDEN` eliminato del tutto — la foglia è sempre presente ovunque; (b) URL rules + site overrides CSS rimossi completamente (esistevano solo per `PUSH`); (c) pin **solo per-tab**, nessun auto-pin per-sito.
+
+**Trade-off accettato:** senza `PUSH` la pagina non viene più rifluita — la barra (quando espansa/pinnata) **copre** una striscia di contenuto in alto. È il compromesso classico dell'overlay, ora opt-in per-tab.
+
+Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `site_overrides.js` (rimosso), `render.js`, `content.css`, `popup.js`, `popup.html`, `editor.js`, `background.js`, `manifest.json`.
+
+---
+
+## M14 — Collasso dei mode in un solo comportamento ✅
+
+**Why:** Tre mode con override per-tab, regole per URL e priorità di risoluzione sono la radice della complessità. Prima di toccare l'estetica si riduce il modello a uno stato unico, così tutto il resto poggia su basi semplici.
+
+**Approach:** `content.js` boot smette di calcolare il mode via priorità (`STORAGE_KEY_VISIBILITY_MODE` → rules → default): la barra è sempre in floating overlay. `page-shift.js` viene svuotato di tutta la macchina `PUSH` (padding body, safe-areas CSS, header shifting, bottom clipper, `data-tz-*` attrs); `applyPageShift` resta come **no-op** (l'overlay non riflette mai la pagina) per non dover toccare tutti i call site. `applyVisibilityState`/`syncMinimizeButtonUI` semplificate al singolo caso (resta il vecchio bottone minimize fino a M15).
+
+**Sequencing (deciso in esecuzione):** `VISIBILITY_MODES` (`constants.js`) e `window.currentVisibilityMode` **NON** vengono rimossi in M14 — sono referenziati da 9 file (anche `zoom.js`, `popup.js`, `editor.js`, `site_overrides.js`). Rimuoverli ora renderebbe lo stato intermedio non caricabile (ReferenceError). Restano come **shim**: `currentVisibilityMode` fissato a `OVERLAY`, così i rami `=== OVERLAY` continuano a funzionare e i rami `=== PUSH/HIDDEN` diventano codice morto (mai presi). La rimozione vera dei simboli avviene in M16 insieme alla pulizia dei consumer UI.
+
+**Mode di esecuzione: IDD** (deviazione dal TDD richiesto). M14 è una deletion strutturale senza nuovo contratto di logica pura: la verifica vera è integrazione/manuale (la barra fa overlay senza shift su pagina reale). Si implementa, poi si coprono gli **invarianti** con unit test (harness Node `--test` + `vm`, zero dipendenze): `applyPageShift` non riflette mai la pagina e non schedula header-shift. Il valore TDD pieno è in M15 (mappa pin) e M16 (payload retro-compat).
+
+**Tasks:**
+- [x] `content.js`: rimuovere la risoluzione del mode al boot (rules/overrides/hidden); la barra è sempre floating overlay
+- [x] `page-shift.js`: rimuovere padding body, `ensureSafeAreasStyle`/`setInlineSafeAreasFallback`, header shifting, bottom clipper; `applyPageShift` → no-op
+- [x] `render.js`: semplificare `applyVisibilityState`/`syncMinimizeButtonUI` al singolo stato (no rami PUSH/HIDDEN)
+- [x] `constants.js`: `VISIBILITY_MODES` mantenuto come shim (rimozione in M16); rimossi solo gli attrs push-only ora inutilizzati se sicuro
+- [x] Harness di test zero-dep (`tests/helpers/harness.js`) + unit test invarianti `applyPageShift`
+- [ ] Verifica manuale (utente): su qualsiasi sito la barra appare in overlay senza spostare il contenuto; nessun errore in console
+- [x] Commit & push
+
+**Done when:** Esiste un solo comportamento di rendering (floating overlay): la macchina PUSH/HIDDEN è rimossa e `applyPageShift` non riflette più la pagina. `VISIBILITY_MODES` resta come shim (rimosso in M16); estetica invariata.
+
+---
+
+## M15 — Estetica foglia + hover-expand + click-pin per-tab
+
+**Why:** È il cuore della nuova UX: barra sempre collassata a una foglia in alto a sinistra, che si espande on-hover e si fissa al click.
+
+**Approach:** Stato collassato `.tz-leaf` su `#ungroup-automatic-tab-bar`: mostra solo un chip con la fogliolina (riuso asset `icon128.png`/`logo.png` o SVG inline), nasconde gli altri figli (riadatta la regola `content.css:918`). `.tz-leaf:hover` espande al look overlay attuale (transizione su width/opacity dei figli) — quasi tutto CSS, nessuna macchina JS nuova. Click sulla foglia → toggle classe `.tz-pinned` che forza l'espanso a prescindere dall'hover. Persistenza per-tab: si **riusa la mappa esistente invertendone la semantica** — si rinomina `STORAGE_KEY_MINIMIZED_BY_TAB` → `STORAGE_KEY_PINNED_BY_TAB` (`tz_pinned_by_tab`), default unpinned (collassato). `toggleMinimizedState`/`applyMinimizedState` diventano `togglePinned`/`applyPinnedState`. Il vecchio bottone `.tz-minimize-btn` (`‹/›/+/◻`) viene sostituito dal chip-foglia come unico affordance (hover = peek, click = pin).
+
+**Tasks:**
+- [ ] `content.css`: stato `.tz-leaf` (chip foglia in alto a sinistra) + `.tz-leaf:hover` espande all'overlay + transizioni
+- [ ] `content.css`: `.tz-pinned` forza l'espanso ignorando `:hover`
+- [ ] `render.js`: sostituire `.tz-minimize-btn` con il chip-foglia; click → `togglePinned(tabId)`
+- [ ] `render.js`: rinominare `toggleMinimizedState`→`togglePinned`, `applyMinimizedState`→`applyPinnedState`, `setBarMinimized` coerente; invertire default (collassato = assenza chiave)
+- [ ] `constants.js`: `STORAGE_KEY_MINIMIZED_BY_TAB` → `STORAGE_KEY_PINNED_BY_TAB` (`tz_pinned_by_tab`)
+- [ ] Asset foglia: usare `icon128.png`/`logo.png` o SVG inline per il chip
+- [ ] Verifica manuale (utente): default = solo foglia; hover espande e ricollassa al leave; click pinna (resta espansa anche senza hover); click di nuovo unpin; il pin è per-tab e si resetta a tab chiusa
+- [ ] Commit & push
+
+**Done when:** La barra è collassata a una foglia in alto a sinistra, si espande on-hover come overlay, e un click la fissa/sfissa per quella tab.
+
+---
+
+## M16 — Rimozione rules, site overrides e pulizia UI (popup + editor) con retro-compat
+
+**Why:** Eliminato PUSH, le URL rules e i site overrides CSS non hanno più scopo. Vanno rimossi da storage, popup ed editor, mantenendo la retro-compatibilità sui workspace già salvati.
+
+**Approach:** `site_overrides.js` rimosso (file + entry in `manifest.json` web-accessible + injection in `background.js`). In `popup.js`/`popup.html` si elimina la sezione regole per dominio (`initDomainRulesSection`, `getMatchingRule`, dropdown push/overlay/hidden). In `editor.js` (M11) si rimuovono il `<select>` visibility-mode per-tab e il pannello "Site overrides". **Retro-compat:** al restore/import, i campi `visibilityMode` e `siteOverrides` nei workspace salvati vengono **letti e ignorati** (nessun crash); `buildExportPayload` smette di scriverli. Chiave `STORAGE_KEY_OVERRIDES` rimossa dai punti d'uso.
+
+**Tasks:**
+- [ ] Rimuovere `site_overrides.js`; togliere entry da `manifest.json` (web-accessible resources) e l'injection in `background.js`
+- [ ] `popup.js`/`popup.html`: rimuovere sezione regole per dominio + dropdown mode + helper `getMatchingRule`/`initDomainRulesSection`
+- [ ] `editor.js`: rimuovere `<select>` visibility per-tab e pannello "Site overrides" (form add/edit, validazione host)
+- [ ] `editor.js`/`background.js`: `buildExportPayload` smette di emettere `visibilityMode`/`siteOverrides`; restore/import ignorano i campi legacy senza errori
+- [ ] `constants.js`: rimuovere `STORAGE_KEY_OVERRIDES` dai punti d'uso
+- [ ] `README.md`: aggiornare la descrizione (niente più mode/regole/overrides; modello foglia + pin)
+- [ ] Verifica manuale (utente): restore di un workspace vecchio (con `visibilityMode`/`siteOverrides`) funziona senza errori e ignora quei campi; popup ed editor non mostrano più mode/regole/overrides
+- [ ] Commit & push
+
+**Done when:** URL rules e site overrides sono rimossi da codice, storage e UI; i workspace salvati in precedenza si restorano senza errori ignorando i campi obsoleti.

@@ -161,93 +161,24 @@ async function boot() {
   _tzDidBoot = true;
 
   try {
-    // Fetch Tab ID and Storage Data in parallel for speed
+    // The bar is always a floating overlay now — there is no mode to resolve.
+    // Fetch Tab ID and the per-tab minimized state in parallel for speed.
     const [tabId, storageData] = await Promise.all([
       getThisTabId(),
-      chrome.storage.local.get([
-        STORAGE_KEY_VISIBILITY_MODE,
-        STORAGE_KEY_VISIBILITY_RULES,
-        'tz_default_hidden_sites',
-        STORAGE_KEY_MINIMIZED_BY_TAB
-      ])
+      chrome.storage.local.get([STORAGE_KEY_MINIMIZED_BY_TAB])
     ]);
-
-    let initialMode = null;
-
-    // 1. Check explicit per-tab visibility (Highest Priority)
-    if (tabId != null) {
-      const map = storageData?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-      if (map[String(tabId)]) {
-        initialMode = map[String(tabId)];
-      }
-    }
-
-    // 2. Check Visibility Patterns (if no explicit override)
-    if (!initialMode) {
-      const rules = storageData?.[STORAGE_KEY_VISIBILITY_RULES] || [];
-      const currentUrl = window.location.href;
-
-      // Find matching rules and sort by specificity (length)
-      const matches = rules.filter(rule => {
-        if (!rule.pattern || !rule.mode) return false;
-        return globToRegex(rule.pattern).test(currentUrl);
-      });
-      
-      matches.sort((a, b) => b.pattern.length - a.pattern.length);
-
-      if (matches.length > 0) {
-        initialMode = matches[0].mode;
-      }
-    }
-
-    // 3. Fallback to old "default hidden sites" (Legacy)
-    if (!initialMode) {
-      const hiddenSites = storageData?.['tz_default_hidden_sites'] || [];
-      const currentUrl = window.location.href;
-      if (hiddenSites.some(site => globToRegex(site).test(currentUrl))) {
-        initialMode = VISIBILITY_MODES.HIDDEN;
-      }
-    }
-
-    // 4. Default
-    if (!initialMode) {
-      initialMode = VISIBILITY_MODES.OVERLAY;
-    }
-
-    // Set the global mode
-    setVisibilityMode(initialMode);
-    const isHidden = (initialMode === VISIBILITY_MODES.HIDDEN);
 
     window.__tzZoomMetrics?.captureBaseDPR();
     safeConnectPort();
     const bar = ensureBar();
+    bar.classList.add('tz-mode-overlay');
 
-    // Apply CSS classes for the mode (Overlay vs Push)
-    bar.classList.toggle('tz-mode-overlay', initialMode === VISIBILITY_MODES.OVERLAY);
-    bar.classList.toggle('tz-mode-push', initialMode === VISIBILITY_MODES.PUSH);
+    // Apply minimized state immediately to avoid a flash.
+    // Default is minimized; only skip if the user explicitly expanded (stored false).
+    const minMap = storageData?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
+    if (minMap[String(tabId)] !== false) bar.classList.add('tz-minimized');
 
-    // In OVERLAY mode apply minimized state immediately to avoid flash.
-    // Default is minimized; only skip if user explicitly expanded (stored false).
-    if (initialMode === VISIBILITY_MODES.OVERLAY) {
-      const minMap = storageData?.[STORAGE_KEY_MINIMIZED_BY_TAB] || {};
-      if (minMap[String(tabId)] !== false) bar.classList.add('tz-minimized');
-    }
-
-    // Remove any stale PUSH padding style injected before mode was known
-    if (initialMode !== VISIBILITY_MODES.PUSH) {
-      const staleStyle = document.head?.querySelector('style[data-tz-px-zoom]');
-      if (staleStyle) staleStyle.remove();
-    }
-
-    if (isHidden) {
-      bar.style.setProperty('display', 'none', 'important');
-    }
-
-    // Apply metrics (which calls applyPageShift internally) now that mode is set
     window.__tzZoomMetrics?.applyZoomCompensatedMetrics(true);
-    
-    // Explicitly call applyPageShift once more to be safe
-    if (typeof applyPageShift === 'function') applyPageShift();
 
     requestTabList();
   } catch {
