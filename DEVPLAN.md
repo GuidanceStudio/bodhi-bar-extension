@@ -319,3 +319,45 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** URL rules e site overrides sono rimossi da codice, storage e UI; i workspace salvati in precedenza si restorano senza errori ignorando i campi obsoleti.
+
+---
+
+## M17 — Cleanup sender `REFRESH_BAR` orfani + import JSON tollerante ✅
+
+**Why:** Dopo M16 i broadcast `REFRESH_BAR`/`REFRESH_TAB` non hanno più alcun consumer lato content (erano consumati solo da `site_overrides.js`): sono no-op guardati che sporcano `background.js`. Inoltre l'import dei workspace fa controlli rigidi (versione `wv`, tipi di `pinnedTabs`/`allTabGroups`) che rifiutano file con "roba nuova": vogliamo invece **ignorare serenamente** i campi sconosciuti, così vecchi e futuri JSON restano compatibili.
+
+**Approach:** In `background.js` rimuovere l'intero chain di refresh-broadcast: `broadcastRefresh`, `broadcastRefreshWithRetry`, `scheduleUiRefresh` (+ 7 call site), le costanti `UI_REFRESH_RETRY_MS`/`UI_REFRESH_DEBOUNCE_MS`, la mappa `uiRefreshTimers`, e l'handler messaggio `REFRESH_TAB`. La barra continua ad aggiornarsi via focus/azioni utente (non è mai dipesa da `REFRESH_BAR` lato content). In `popup.js`, `normalizeImportedWorkspaceJson` diventa tollerante: richiede solo che il JSON sia un oggetto; accetta qualsiasi `wv`; usa `raw.payload` se è un oggetto, altrimenti tratta `raw` stesso come payload; nessun reject su campi extra o tipi (il restore in `background.js` già guarda con `Array.isArray`). Rimuovere `SUPPORTED_VERSIONS`/check di versione.
+
+**Esecuzione:** TDD sulla logica pura `normalizeImportedWorkspaceJson` (estende `tests/workspace-retrocompat.test.js`: versione futura + campi extra → accettati; non-oggetto → rifiutato; payload "bare" senza wrapper → accettato). Il cleanup di `background.js` è strutturale (verifica: sintassi + grep-guard, nessun ref orfano a `REFRESH_BAR`/`REFRESH_TAB`/`scheduleUiRefresh`).
+
+**Tasks:**
+- [x] `background.js`: rimuovere `broadcastRefresh`/`broadcastRefreshWithRetry`/`scheduleUiRefresh` + 7 call site + costanti `UI_REFRESH_*` + `uiRefreshTimers` + handler `REFRESH_TAB`
+- [x] `popup.js`: `normalizeImportedWorkspaceJson` tollerante (no version check, no type-reject, ignora campi sconosciuti); rimuovere `SUPPORTED_VERSIONS`
+- [x] Estendere i test (forward-compat: versione/campi nuovi ignorati; non-oggetto rifiutato; bare payload ok)
+- [x] Verifica: sintassi tutti i file + grep-guard + test verdi (10/10)
+- [x] Commit & push
+
+**Done when:** Nessun sender `REFRESH_BAR`/`REFRESH_TAB` resta in `background.js`; l'import accetta qualunque JSON workspace-shaped ignorando i campi che non conosce (vecchi e futuri file compatibili).
+
+---
+
+## M18 — Doppio-click sulla foglia = nascondi del tutto (per-tab) + toggle nel popup
+
+**Why:** Reintroduce un modo per azzerare del tutto il footprint della barra su una tab specifica (l'equivalente del vecchio "hidden", ma come gesto diretto). La foglia, una volta nascosta, non c'è più: la riattivazione avviene dal popup.
+
+**Approach:** **Gesto foglia:** single-click = pin (esistente), double-click = nascondi. Disambiguazione con timer ~250ms: al `click` parte un `setTimeout(togglePinned, 250)`; un `dblclick` fa `clearTimeout` ed esegue invece l'hide. **Stato hidden:** mappa per-tab effimera `tz_pinned`-style → nuova chiave `STORAGE_KEY_HIDDEN_BY_TAB` (`tz_hidden_by_tab`), default visibile. Classe `.tz-hidden` sulla barra con `display:none !important` (vince su collapse/pin). Helper puri `isTabHidden(map, tabId)` + `nextHiddenMap(map, tabId, hidden)` (set true / delete) in `constants.js`. **Boot:** `content.js` legge anche `tz_hidden_by_tab` e applica `.tz-hidden` (no flash). **Live:** `content.js` aggiunge un `chrome.storage.onChanged` che, al cambiare di `tz_hidden_by_tab` per la tab corrente, toggla `.tz-hidden` (così il "Mostra" dal popup funziona senza reload, dato che il listener messaggi è stato rimosso in M16). **Popup:** toggle sempre presente "Nascondi/Mostra barra su questa tab" (richiede di nuovo `chrome.tabs.query` per tab+stato; disabilitato sulle pagine di sistema). Scrive `tz_hidden_by_tab`. **Cleanup tab:** `background.js onRemoved` pulisce anche `tz_hidden_by_tab`.
+
+**Esecuzione:** TDD sugli helper puri (`isTabHidden`/`nextHiddenMap`), poi IDD sul wiring DOM/popup/CSS (verifica manuale).
+
+**Tasks:**
+- [ ] `constants.js`: `STORAGE_KEY_HIDDEN_BY_TAB` (`tz_hidden_by_tab`) + helper puri `isTabHidden`/`nextHiddenMap`
+- [ ] Unit test helper hidden (TDD rosso→verde)
+- [ ] `render.js` `createLeaf`: timer 250ms su click (pin) + `dblclick` → `hideTab(tabId)` (set hidden true, applica `.tz-hidden`, persiste)
+- [ ] `content.css`: `#bar.tz-hidden { display:none !important }`
+- [ ] `content.js` boot: leggere `tz_hidden_by_tab` e applicare `.tz-hidden`; aggiungere `chrome.storage.onChanged` per sync live della tab corrente
+- [ ] `popup.html`/`popup.js`: toggle "Nascondi/Mostra barra su questa tab" (stato da `tz_hidden_by_tab`, disabilitato su system page)
+- [ ] `background.js onRemoved`: pulizia `tz_hidden_by_tab`
+- [ ] Verifica manuale (utente): doppio-click sulla foglia nasconde la barra; single-click pinna ancora; dal popup "Mostra" la fa riapparire live; stato per-tab si resetta a tab chiusa
+- [ ] Commit & push
+
+**Done when:** Un doppio-click sulla foglia nasconde completamente la barra per quella tab; il popup offre un toggle per nascondere/mostrare e il "Mostra" la riattiva live senza reload.
