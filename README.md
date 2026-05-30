@@ -40,7 +40,7 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
   - This affects the browser's native tab strip (not just the in-page bar) and is skipped during the startup/session-restore grace period.
 - **Horizontal tab bar UI (in-page)**:
   - The UI is injected at the top of normal web pages as a floating overlay and provides quick access to your tabs without relying on the browser tab strip.
-  - **Leaf chip + hover + pin**: by default the bar is collapsed to a small **leaf** chip in the top-left corner. Hovering the leaf peeks the full bar open; clicking it **pins** the bar open for that tab. The pinned state is saved **per tab**. The page is never reflowed — the bar always floats over content.
+  - **Leaf chip + hover + pin + hide**: by default the bar is collapsed to a small **leaf** chip in the top-left corner. Hovering peeks the full bar open; single-click **pins** it open for that tab; **double-click hides** the bar entirely (re-show it from the popup toggle). These states are saved **per tab**. The page is never reflowed — the bar always floats over content.
   - Level 1: pinned favicons + ungrouped tabs (web + system separated by a divider)
   - “Groups” trigger to navigate into groups
 - **Group navigation (multi-level)**:
@@ -80,9 +80,10 @@ The Bodhi Bar always floats over the page as an overlay — it never pushes or r
 
 1. **Collapsed (default)**: only a small **leaf** chip is shown in the top-left corner. Minimal footprint.
 2. **Hover**: moving the pointer over the leaf peeks the full bar open; it collapses again when the pointer leaves.
-3. **Pinned**: clicking the leaf pins the bar open for that tab, so it stays expanded regardless of hover. Clicking again unpins it.
+3. **Pinned**: single-click the leaf to pin the bar open for that tab, so it stays expanded regardless of hover. Click again to unpin.
+4. **Hidden**: **double-click** the leaf to hide the bar entirely for that tab (zero footprint). Since the leaf is then gone, re-show it from the extension popup — it offers a **"Hide / Show bar on this tab"** toggle. The popup writes storage and the page reacts live (no reload).
 
-The pin state is stored **per tab** in `chrome.storage.local` (`tz_pinned_by_tab`); a tab is pinned only if explicitly stored, so the default is the collapsed leaf. When a tab closes, its entry is dropped.
+Pin and hidden states are stored **per tab** in `chrome.storage.local` (`tz_pinned_by_tab`, `tz_hidden_by_tab`); a tab is pinned/hidden only if explicitly stored, so the defaults are "collapsed leaf" and "visible". When a tab closes, its entries are dropped.
 
 > Note: earlier versions had three visibility modes (Push / Overlay / Hidden), per-URL rules and per-site CSS overrides. These were removed in favor of the single overlay + leaf/pin model. Workspaces saved by older versions still import correctly — the obsolete `visibilityMode` / `siteOverrides` / `visibilityRules` fields are simply ignored.
 
@@ -91,8 +92,10 @@ The pin state is stored **per tab** in `chrome.storage.local` (`tz_pinned_by_tab
 ## Technical Implementation Details (for Developers)
 *   **State Management**:
     *   `tz_pinned_by_tab` tracks the per-tab pin state (`{ [tabId]: true }`; absent = collapsed).
+    *   `tz_hidden_by_tab` tracks the per-tab hidden state (`{ [tabId]: true }`; absent = visible).
     *   `tz_group_meta` stores a `url → { title, color }` map written after each workspace restore, used to re-apply group metadata on the next startup.
-*   **Layout**: the bar is `position: fixed` and floats over the page. Collapsed/expanded is pure CSS: `#…:not(.tz-pinned):not(:hover)` shows only the leaf chip; `:hover` or `.tz-pinned` expands it. `page-shift.js` is now a no-op (`applyPageShift`) kept only so existing call sites stay valid.
+*   **Layout**: the bar is `position: fixed` and floats over the page. Collapsed/expanded is pure CSS: `#…:not(.tz-pinned):not(:hover)` shows only the leaf chip; `:hover` or `.tz-pinned` expands it; `.tz-hidden` hides it entirely. `page-shift.js` is now a no-op (`applyPageShift`) kept only so existing call sites stay valid.
+*   **Live popup→page sync**: `content.js` has no message listener; instead it watches `chrome.storage.onChanged` for `tz_hidden_by_tab` so the popup's show/hide toggle takes effect immediately.
 *   **Workspace file format**: Exported JSON includes a workspace version field (`wv`, currently `1.0`). Import validates the version and basic schema before saving; obsolete fields from older versions are accepted and ignored.
 
 ## Important
