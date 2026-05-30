@@ -50,8 +50,13 @@ const STORAGE_KEY_VISIBILITY_RULES = 'tz_visibility_rules';
 const STORAGE_KEY_HIDDEN_BY_TAB = 'tz_hidden_by_tab';
 const STORAGE_KEY_OVERRIDES = 'tz_site_overrides';
 const STORAGE_KEY_WORKSPACES = 'tz_workspaces_v1';
-const STORAGE_KEY_MINIMIZED_BY_TAB = 'tz_minimized_by_tab';
+const STORAGE_KEY_PINNED_BY_TAB = 'tz_pinned_by_tab';
 const STORAGE_KEY_GROUP_META = 'tz_group_meta';
+
+// Inline leaf glyph for the collapsed chip (the hover/click target).
+// Inline (not an <img>) so it inherits color via `currentColor` and stays
+// crisp at small sizes without an extra asset fetch.
+const TZ_LEAF_SVG = '<svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true" focusable="false"><path fill="currentColor" d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C3 8 17 8 17 8z"/></svg>';
 
 // --- System URL Prefixes ---
 const SYSTEM_PREFIXES = [
@@ -71,6 +76,27 @@ function globToRegex(glob) {
   const escaped = glob.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
   const pattern = escaped.replace(/\*/g, '.*');
   return new RegExp(`^${pattern}$`, 'i');
+}
+
+/**
+ * Per-tab pin state. A tab is pinned only if explicitly stored `true`;
+ * the default (absent key) is unpinned — the bar stays a collapsed leaf.
+ */
+function isTabPinned(map, tabId) {
+  return (map || {})[String(tabId)] === true;
+}
+
+/**
+ * Return a new pin map with `tabId` toggled. Pinned tabs store `true`;
+ * unpinning deletes the key so the default (unpinned) costs no storage.
+ * Pure: the input map is not mutated.
+ */
+function nextPinnedMap(map, tabId) {
+  const next = { ...(map || {}) };
+  const key = String(tabId);
+  if (next[key] === true) delete next[key];
+  else next[key] = true;
+  return next;
 }
 
 /**
