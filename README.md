@@ -39,8 +39,8 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
   - If the active tab belongs to a group, that group is kept expanded while all other groups are collapsed.
   - This affects the browser's native tab strip (not just the in-page bar) and is skipped during the startup/session-restore grace period.
 - **Horizontal tab bar UI (in-page)**:
-  - The UI is injected at the top of normal web pages and provides quick access to your tabs without relying on the browser tab strip.
-  - **Minimize/Expand**: In **Overlay** mode, click the small arrow icon at the far left to collapse the bar to a tiny control. This state is saved **per tab**. (Note: The minimize button is hidden in Push mode).
+  - The UI is injected at the top of normal web pages as a floating overlay and provides quick access to your tabs without relying on the browser tab strip.
+  - **Leaf chip + hover + pin**: by default the bar is collapsed to a small **leaf** chip in the top-left corner. Hovering the leaf peeks the full bar open; clicking it **pins** the bar open for that tab. The pinned state is saved **per tab**. The page is never reflowed — the bar always floats over content.
   - Level 1: pinned favicons + ungrouped tabs (web + system separated by a divider)
   - “Groups” trigger to navigate into groups
 - **Group navigation (multi-level)**:
@@ -58,15 +58,13 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
   - **Save current**: Click the blue button to save your current workspace with a custom name.
   - **Actions**: Each workspace shows a row with its name and five flat action icons:
     - **Restore**: Instantly recreate the saved workspace (opens all pinned tabs and recreates all tab groups with their original titles and colors).
-    - **Edit**: Open the saved workspace in a full-page editor. Supports renaming the workspace and groups, changing group colors, drag-and-drop reordering of groups and tabs (including pinned), creating new groups, adding and deleting tabs (in groups or pinned), editing tab URLs, changing per-tab visibility mode (push/overlay/hidden), and managing per-host CSS overrides saved with the workspace. Changes are buffered in memory; click **Save** (or Cmd/Ctrl+S) to persist, or **Discard** to revert. The editor warns before closing with unsaved changes and surfaces a conflict prompt if the workspace was modified externally.
+    - **Edit**: Open the saved workspace in a full-page editor. Supports renaming the workspace and groups, changing group colors, drag-and-drop reordering of groups and tabs (including pinned), creating new groups, adding and deleting tabs (in groups or pinned), and editing tab URLs. Changes are buffered in memory; click **Save** (or Cmd/Ctrl+S) to persist, or **Discard** to revert. The editor warns before closing with unsaved changes and surfaces a conflict prompt if the workspace was modified externally.
     - **Rename**: Give the workspace a new name.
     - **Export**: Download the workspace as a JSON file for backup or sharing.
     - **Delete**: Remove the workspace from storage.
   - **Import**: Restore workspaces from JSON files. If the imported workspace name already exists, Bodhi asks you to choose a different name.
   - **Versioning**: Exported files include a workspace version field (`wv`, currently `1.0`). Import validates the version to ensure compatibility.
   - **Group metadata persistence**: After every workspace restore, the extension persists a `url → { title, color }` map (`tz_group_meta`) so that on the next browser startup it can re-apply group titles and colors to session-restored groups (Brave does not persist extension-set metadata across restarts). Re-apply runs automatically ~10 s after startup, once session restore is complete. Note: the visual label in Brave's sidebar/Quick Access still requires a manual click on the group to repaint — this is a Brave rendering limitation not addressable via extension API.
-- **Smart Visibility Rules**: Create powerful rules to automatically set the bar mode (Push, Overlay, Hidden) based on URL patterns (e.g., `*google.com/*` or `*docs.google.com/spreadsheets/*`). Specific rules override generic ones.
-- **Custom CSS Overrides**: Add per-site CSS patches directly from the popup to fix layout issues on tricky sites (e.g., shifting fixed headers). These overrides are applied only in **Push** mode.
 - **Drag & drop reordering**:
   - Reorder pinned tabs among pinned tabs
   - Reorder ungrouped web tabs among web tabs, and system tabs among system tabs
@@ -74,49 +72,28 @@ Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical 
   - Reorder groups (Level 2)
 - **Zoom + layout resilience**:
   - Zoom-compensated sizing (keeps the bar usable across browser zoom levels)
-  - Automatic page “safe area” padding + header collision shifting for fixed/sticky headers
-  - Per-site overrides for known tricky layouts (e.g., YouTube header, Google Sheets bottom container)
+  - The bar floats as an overlay and never reflows the page
 
-## Visibility Control (Push / Overlay / Hidden)
+## Bar visibility: leaf + hover + pin
 
-The Bodhi Bar supports three visibility modes, togglable **per tab** via the extension's popup:
+The Bodhi Bar always floats over the page as an overlay — it never pushes or reflows page content. It has a single behavior with two states per tab:
 
-1. **Push (Default)**: The bar is fixed at the top and pushes the website content down so nothing is obscured. The minimize button is disabled in this mode to ensure layout stability.
-2. **Overlay**: The bar floats over the website content. In this mode, a **minimize button** (arrow icon) appears on the left, allowing you to collapse the bar into a small floating trigger.
-3. **Hidden**: The bar is completely removed from the DOM for that tab.
+1. **Collapsed (default)**: only a small **leaf** chip is shown in the top-left corner. Minimal footprint.
+2. **Hover**: moving the pointer over the leaf peeks the full bar open; it collapses again when the pointer leaves.
+3. **Pinned**: clicking the leaf pins the bar open for that tab, so it stays expanded regardless of hover. Clicking again unpins it.
 
-You can also configure **Smart Rules** in the popup to automate this behavior based on URL patterns.
+The pin state is stored **per tab** in `chrome.storage.local` (`tz_pinned_by_tab`); a tab is pinned only if explicitly stored, so the default is the collapsed leaf. When a tab closes, its entry is dropped.
 
-### Priority Logic:
-1.  **Explicit Toggle**: If you manually select a mode for a specific tab in the popup, that setting always wins for that tab session.
-2.  **Smart Rules**: If no manual toggle exists, the extension checks your saved rules. The most specific matching rule (longest pattern) determines the mode.
-3.  **Default**: If neither applies, the bar defaults to **Push** mode.
-
-### How it works:
-1.  **Extension Icon**: Click the Bodhi Bar icon in the Chrome toolbar.
-2.  **Mode Selection**: Choose between Push, Overlay, or Hidden for the current tab.
-3.  **Rules Management**:
-    - **Add Rule**: Click `+` to add a rule for the current site.
-    - **Edit Rule**: You can edit the pattern (e.g., change `*example.com/*` to `*example.com/app/*`) and the target mode (Push/Overlay/Hidden) for that rule.
-    - **CSS Overrides**: Click `{}` to write custom CSS for the current site (applied only in Push mode).
-4.  **Minimize (Overlay only)**: When in Overlay mode, use the `‹` icon to collapse the bar.
-5.  **Instant Layout Adjustment**: When hidden, the extension automatically removes the `padding-top` and `margin` adjustments from the current webpage.
-6.  **Persistence**: Your visibility preference is saved in `chrome.storage.local`.
+> Note: earlier versions had three visibility modes (Push / Overlay / Hidden), per-URL rules and per-site CSS overrides. These were removed in favor of the single overlay + leaf/pin model. Workspaces saved by older versions still import correctly — the obsolete `visibilityMode` / `siteOverrides` / `visibilityRules` fields are simply ignored.
 
 ---
 
 ## Technical Implementation Details (for Developers)
 *   **State Management**:
-    *   `tz_visibility_mode` tracks explicit mode per tabId.
-    *   `tz_visibility_rules` stores the array of user-defined pattern rules.
-    *   `tz_site_overrides` stores user-defined CSS patches per hostname.
+    *   `tz_pinned_by_tab` tracks the per-tab pin state (`{ [tabId]: true }`; absent = collapsed).
     *   `tz_group_meta` stores a `url → { title, color }` map written after each workspace restore, used to re-apply group metadata on the next startup.
-*   **Messaging**: `popup.js` communicates with `content.js` via `chrome.tabs.sendMessage` using the `SET_VISIBILITY_MODE` action.
-*   **CSS Injection**: The bar is hidden using `display: none !important` to ensure it overrides site-specific styles.
-*   **Reflow**: `page-shift.js` checks bar visibility and restores shifted headers / safe-area padding when the bar is hidden, then triggers a resize to let the page reflow.
-*   **Layout behavior**: when minimized, the bar collapses to the minimize button and `page-shift.js` removes the safe-area padding / header shifting (treats minimized like hidden for page layout).
-*   **Reflow**: `page-shift.js` monitors the bar's visibility; if the bar is detected as hidden (via `getComputedStyle`), it triggers `restoreShiftedHeaders()` to clean up the DOM.
-*   **Workspace file format**: Exported JSON includes a workspace version field (`wv`, currently `1.0`). Import validates the version and basic schema before saving.
+*   **Layout**: the bar is `position: fixed` and floats over the page. Collapsed/expanded is pure CSS: `#…:not(.tz-pinned):not(:hover)` shows only the leaf chip; `:hover` or `.tz-pinned` expands it. `page-shift.js` is now a no-op (`applyPageShift`) kept only so existing call sites stay valid.
+*   **Workspace file format**: Exported JSON includes a workspace version field (`wv`, currently `1.0`). Import validates the version and basic schema before saving; obsolete fields from older versions are accepted and ignored.
 
 ## Important
 - The UI is injected only on normal websites (`http(s)://...`). It will not run on browser-restricted/system pages (e.g., `chrome://extensions`), where content scripts cannot be injected.
@@ -125,18 +102,17 @@ You can also configure **Smart Rules** in the popup to automate this behavior ba
 ## Project Structure
 Our codebase is organized into specialized components:
 - **background.js**: service worker enforcing tab layout + handling UI actions (switch/close/move/group/ungroup) + **workspace payload generation and JSON downloads**.
-- **popup.js**: extension action popup handling visibility toggle and **workspace management (save/import/export/delete)**.
+- **popup.js**: extension action popup handling **workspace management (save/import/export/delete)**.
 - **content.js**: UI entry point + navigation state + refresh handling.
-- **render.js**: bar rendering (Level 1/2/3) and dynamic layout updates.
+- **render.js**: bar rendering (Level 1/2/3), the leaf chip + pin toggle, and dynamic layout updates.
 - **search.js**: search state + search popover trigger.
 - **popover.js**: group picker popover + search results popover.
 - **drag-drop.js**: drag & drop for tabs and groups.
-- **page-shift.js**: safe-area padding + header collision shifting + bottom clipper handling.
+- **page-shift.js**: overlay-only layout (no-op `applyPageShift`; the page is never reflowed).
 - **zoom.js**: zoom-compensated CSS variables and metric updates.
 - **messaging.js**: port handshake + robust message retry.
-- **constants.js**: shared UI constants and IDs.
+- **constants.js**: shared UI constants, IDs, the inline leaf glyph, and pin-state helpers.
 - **content.css**: all UI styling (bar, tiles, popovers).
-- **site_overrides.js**: dynamic CSS patch injector (reads from storage).
 - **manifest.json**: MV3 manifest and permissions.
 
 ## Development Installation

@@ -190,34 +190,8 @@ hookViewportEvents();
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    // Don't apply metrics yet, wait for boot to determine mode
     boot();
   }, { once: true });
 } else {
   boot();
 }
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'SET_VISIBILITY') {
-    const bar = document.getElementById(TZ_BAR_ID);
-    if (bar) {
-      if (request.hidden) {
-        bar.style.setProperty('display', 'none', 'important');
-      } else {
-        bar.style.display = '';
-        requestTabList();
-      }
-      if (typeof applyPageShift === 'function') applyPageShift();
-    }
-    sendResponse({ success: true });
-  }
-
-  if (request.action === 'SET_VISIBILITY_MODE') {
-    setVisibilityMode(request.mode);
-    getThisTabId().then(tabId => {
-      applyVisibilityState(tabId);
-      if (request.mode !== VISIBILITY_MODES.HIDDEN) requestTabList();
-    });
-    sendResponse({ success: true });
-  }
-});

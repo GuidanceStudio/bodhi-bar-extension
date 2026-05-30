@@ -26,69 +26,20 @@ const STARTUP_GRACE_MS = 20000;
 // Delay before re-applying group metadata after restart (shorter than grace, session restore is usually done by then).
 const GROUP_META_REAPPLY_DELAY_MS = 10000;
 
-// ---- Overrides injection (site_overrides.js) ----
-// Injects the dynamic CSS override system that loads user-defined CSS
-// from storage (tz_site_overrides) and applies it only in PUSH mode.
 let restoreInProgress = false;
-
-const OVERRIDES_FILE = 'site_overrides.js';
-const overridesInjected = new Map(); // tabId -> lastInjectedUrl
 
 function effectiveUrl(tab) {
   return tab?.url || tab?.pendingUrl || '';
 }
 
-function canInjectIntoUrl(url = '') {
-  if (!url) return false;
-  if (!WEB_URL_RE.test(url)) return false;
-  if (isSystemPage(url)) return false;
-  return true;
-}
-
-async function injectOverrides(tabId, url) {
-  if (tabId == null) return;
-  if (!canInjectIntoUrl(url)) return;
-
-  if (overridesInjected.get(tabId) === url) return;
-
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
-      files: [OVERRIDES_FILE]
-    });
-    overridesInjected.set(tabId, url);
-    log('overrides injected', { tabId, url });
-  } catch (e) {
-    // Expected on some restricted pages / timing edges.
-    warn('overrides inject failed', { tabId, url, message: String(e?.message || e) });
-  }
-}
-
 chrome.tabs.onRemoved.addListener((tabId) => {
-  overridesInjected.delete(tabId);
-
-  // Cleanup per-tab visibility state (Combined for efficiency)
+  // Drop the per-tab pin state for the closed tab so the map doesn't grow.
   try {
-    chrome.storage.local.get([STORAGE_KEY_HIDDEN_BY_TAB, STORAGE_KEY_VISIBILITY_MODE], (obj) => {
-      const hiddenMap = obj?.[STORAGE_KEY_HIDDEN_BY_TAB];
-      const modeMap = obj?.[STORAGE_KEY_VISIBILITY_MODE];
-      let changed = false;
-
-      if (hiddenMap && typeof hiddenMap === 'object' && Object.prototype.hasOwnProperty.call(hiddenMap, String(tabId))) {
-        delete hiddenMap[String(tabId)];
-        changed = true;
-      }
-
-      if (modeMap && typeof modeMap === 'object' && Object.prototype.hasOwnProperty.call(modeMap, String(tabId))) {
-        delete modeMap[String(tabId)];
-        changed = true;
-      }
-
-      if (changed) {
-        chrome.storage.local.set({ 
-          [STORAGE_KEY_HIDDEN_BY_TAB]: hiddenMap, 
-          [STORAGE_KEY_VISIBILITY_MODE]: modeMap 
-        }, () => {});
+    chrome.storage.local.get([STORAGE_KEY_PINNED_BY_TAB], (obj) => {
+      const map = obj?.[STORAGE_KEY_PINNED_BY_TAB];
+      if (map && typeof map === 'object' && Object.prototype.hasOwnProperty.call(map, String(tabId))) {
+        delete map[String(tabId)];
+        chrome.storage.local.set({ [STORAGE_KEY_PINNED_BY_TAB]: map }, () => {});
       }
     });
   } catch {
@@ -649,18 +600,13 @@ async function buildUngroupedPayload() {
 
 async function buildExportPayload() {
   const active = await getActiveTab();
-  if (!active) return { pinnedTabs: [], allTabGroups: [], siteOverrides: {} };
+  if (!active) return { pinnedTabs: [], allTabGroups: [] };
 
   const windowId = active.windowId;
   const [tabs, groups] = await Promise.all([
     getTabsInWindow(windowId),
     getAllGroupsInWindow(windowId)
   ]);
-
-  // Fetch visibility modes for all tabs in this window
-  const data = await chrome.storage.local.get([STORAGE_KEY_VISIBILITY_MODE, STORAGE_KEY_OVERRIDES]);
-  const modeMap = data?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-  const siteOverrides = data?.[STORAGE_KEY_OVERRIDES] || {};
 
   const pinnedTabs = [];
   const groupTabsMap = new Map(); // groupId -> tabItem[]
@@ -673,12 +619,6 @@ async function buildExportPayload() {
 
     const title = (t.title || '').trim();
     if (title) item.title = title;
-
-    // Add visibility mode if it exists and is not the default PUSH
-    const mode = modeMap[String(t.id)];
-    if (mode && mode !== VISIBILITY_MODES.PUSH) {
-      item.visibilityMode = mode;
-    }
 
     return item;
   };
@@ -722,7 +662,7 @@ async function buildExportPayload() {
   }
   const allTabGroups = [...dedupMap.values()];
 
-  return { pinnedTabs, allTabGroups, siteOverrides };
+  return { pinnedTabs, allTabGroups };
 }
 
 async function buildGroupTabsPayload(groupId) {
@@ -1161,8 +1101,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
           const pinnedTabs = Array.isArray(payload?.pinnedTabs) ? payload.pinnedTabs : [];
           const rawGroups = Array.isArray(payload?.allTabGroups) ? payload.allTabGroups : [];
-          const siteOverrides = payload?.siteOverrides || {};
-          const visibilityRules = Array.isArray(payload?.visibilityRules) ? payload.visibilityRules : [];
+          // Legacy payloads may carry siteOverrides / visibilityMode / visibilityRules;
+          // those features were removed, so we simply ignore them on restore.
 
           // Deduplicate groups: merge groups with same title+color (corrupted snapshots)
           const groupMap = new Map(); // "title\0color" -> merged group
@@ -1244,9 +1184,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
           }
 
-          // Collect visibility modes to write once at the end
-          const pendingModes = {};
-
           // Create pinned tabs
           for (const t of pinnedTabs) {
             const url = String(t?.url || '').trim();
@@ -1255,10 +1192,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             const created = await chrome.tabs.create({ windowId: activeWindow.id, url, pinned: true, active: false });
             if (created && muted) {
               try { await chrome.tabs.update(created.id, { muted: true }); } catch {}
-            }
-
-            if (created?.id != null && t.visibilityMode) {
-              pendingModes[String(created.id)] = t.visibilityMode;
             }
             await sleep(80); // Throttle to prevent browser crash
           }
@@ -1279,10 +1212,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (muted) {
                   try { await chrome.tabs.update(created.id, { muted: true }); } catch {}
                 }
-
-                if (t.visibilityMode) {
-                  pendingModes[String(created.id)] = t.visibilityMode;
-                }
               }
               await sleep(80); // Throttle to prevent browser crash
             }
@@ -1300,28 +1229,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               } catch {
                 try { await chrome.tabGroups.update(groupId, { title }); } catch {}
               }
-            }
-          }
-
-          // Restore site overrides
-          if (Object.keys(siteOverrides).length > 0) {
-            await chrome.storage.local.set({ [STORAGE_KEY_OVERRIDES]: siteOverrides });
-          }
-
-          // Restore visibility rules
-          if (visibilityRules.length > 0) {
-            await chrome.storage.local.set({ 'tz_visibility_rules': visibilityRules });
-          }
-
-          // Batch-write all pending visibility modes in a single storage call
-          if (Object.keys(pendingModes).length > 0) {
-            try {
-              const res = await chrome.storage.local.get(STORAGE_KEY_VISIBILITY_MODE);
-              const map = res?.[STORAGE_KEY_VISIBILITY_MODE] || {};
-              Object.assign(map, pendingModes);
-              await chrome.storage.local.set({ [STORAGE_KEY_VISIBILITY_MODE]: map });
-            } catch (e) {
-              warn('Failed to batch-write visibility modes', { message: String(e?.message || e) });
             }
           }
 
@@ -1569,11 +1476,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     } catch {
       // ignore: restricted/timing errors
     }
-  }
-
-  // Try to inject overrides on "complete" (best effort).
-  if (changeInfo.status === 'complete') {
-    injectOverrides(tabId, effectiveUrl(tab)).catch(() => {});
   }
 
   if (tab?.windowId != null) touch(tab.windowId, 'onUpdated');
