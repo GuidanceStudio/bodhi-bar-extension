@@ -424,3 +424,18 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Nessuna funzione top-level morta nei moduli principali; UI/comportamento invariati.
+
+---
+
+## M23 — Transizione fluida collasso↔espansione della foglia ✅
+
+**Why:** Il passaggio collassato↔hover era istantaneo (snap della posizione della foglia), perché lo stato collassato usava `height:auto` (non animabile) e `border:none`.
+
+**Approach:** Solo CSS. Stato collassato con **altezza fissa** (`calc(var(--tz-h) - var(--tz-search-diff) + 4px)`, non `auto`) e `border-bottom-color:transparent` (mantiene 1px di larghezza, animabile) invece di `border:none`. Aggiunta `transition` sulla barra base (`height`/`padding`/`background-color`/`border-color`, 160ms ease) e sulla `.tz-leaf` (aggiunto `margin`). La larghezza resta istantanea (la foglia è ancorata a sinistra, non dipende dalla width). Risultato: la foglia scivola (~3px giù, ~4px destra) e il box sfuma, invece di saltare. Mantenuto il "vicino all'angolo" di M19.
+
+**Tasks:**
+- [x] `content.css`: collasso ad altezza fissa + `border-bottom-color:transparent`; `transition` su barra e foglia
+- [ ] Verifica manuale (utente): hover/leave fa scivolare la foglia in modo fluido; pin/unpin idem; nessuno snap
+- [x] Commit & push
+
+**Done when:** Il passaggio foglia↔barra (hover, pin/unpin) è animato in modo fluido invece di istantaneo.
