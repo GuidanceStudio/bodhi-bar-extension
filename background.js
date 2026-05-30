@@ -652,10 +652,6 @@ async function switchToTab(tabId) {
   }
 }
 
-async function openNewTab() {
-  await chrome.tabs.create({});
-}
-
 // ---------------- Receiver: Port + Messages ----------------
 chrome.runtime.onConnect.addListener((port) => {
   if (!port || port.name !== TZ_PORT_NAME) return;
