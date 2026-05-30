@@ -439,3 +439,29 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Il passaggio foglia↔barra (hover, pin/unpin) è animato in modo fluido invece di istantaneo.
+
+---
+
+## M24 — Review/tidy CSS ✅
+
+**Why:** Richiesta una review del CSS per ordine/ottimizzazione.
+
+**Approach:** Analisi di `content.css` (≈968 righe), `editor.css`, `popup.css`. `!important`/`all:initial` in `content.css` sono **difensivi e voluti** (iniettato in pagine arbitrarie) → non toccati. Applicate solo modifiche sicure e verificabili (brace-balance + grep), il resto segnalato.
+
+**Applicato:**
+- `content.css`: `.tz-search.expanded` era frammentato in **3 blocchi** (con `padding-left/right` letteralmente duplicati) → unificato in un solo blocco.
+- `content.css`: brand blue `#0078d4` (13 occorrenze) centralizzato in custom property `--tz-accent` definita sulla regola base della barra (namespaced per evitare clash nel contesto iniettato; cascata ai discendenti). Funzionalmente identico (la var risolve allo stesso valore).
+
+**Segnalato, NON applicato (richiede verifica nel browser / poco valore):**
+- Selettori "duplicati" residui (`.tz-close-x`, `.tz-group-btn`, `.tz-leaf`, `.tz-search:not(.expanded) .icon`) sono **falsi positivi**: stesso selettore una volta standalone e una volta in un gruppo `,` condiviso (transition/hover-brighten) — pattern normale, non ridondante.
+- Selettori identici definiti in **sezioni distanti** (es. `.tz-close-x` riga ~33 "struttura/colore" e ~681 "sizing"): unibili ma settano proprietà non sovrapposte, separati per concern — merge rischioso senza browser, lasciati.
+- Altri colori ripetuti (`#fff` 15×, `#3a3a3a` 9×, `#444`/`#333` 6×): centralizzabili in var, ma valore marginale → lasciati.
+- `editor.css` già ordinato (usa già `--accent`).
+
+**Tasks:**
+- [x] Consolidare `.tz-search.expanded` (3→1 blocchi)
+- [x] Centralizzare `#0078d4` → `var(--tz-accent)` (13×) con def sulla barra
+- [x] Verifica: brace-balance + grep + 11/11 test verdi
+- [x] Commit & push
+
+**Done when:** Rimosse le duplicazioni CSS sicure e centralizzato il colore accent; il resto documentato come scelte consapevoli.
