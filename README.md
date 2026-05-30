@@ -94,7 +94,7 @@ Pin and hidden states are stored **per tab** in `chrome.storage.local` (`tz_pinn
     *   `tz_pinned_by_tab` tracks the per-tab pin state (`{ [tabId]: true }`; absent = collapsed).
     *   `tz_hidden_by_tab` tracks the per-tab hidden state (`{ [tabId]: true }`; absent = visible).
     *   `tz_group_meta` stores a `url → { title, color }` map written after each workspace restore, used to re-apply group metadata on the next startup.
-*   **Layout**: the bar is `position: fixed` and floats over the page. Collapsed/expanded is pure CSS: `#…:not(.tz-pinned):not(:hover)` shows only the leaf chip; `:hover` or `.tz-pinned` expands it; `.tz-hidden` hides it entirely. `page-shift.js` is now a no-op (`applyPageShift`) kept only so existing call sites stay valid.
+*   **Layout**: the bar is `position: fixed` and floats over the page — it never reflows page content. Collapsed/expanded is pure CSS: `#…:not(.tz-pinned):not(:hover)` shows only the leaf chip; `:hover` or `.tz-pinned` expands it; `.tz-hidden` hides it entirely.
 *   **Live popup→page sync**: `content.js` has no message listener; instead it watches `chrome.storage.onChanged` for `tz_hidden_by_tab` so the popup's show/hide toggle takes effect immediately.
 *   **Workspace file format**: Exported JSON includes a workspace version field (`wv`, currently `1.0`). Import validates the version and basic schema before saving; obsolete fields from older versions are accepted and ignored.
 
@@ -111,7 +111,6 @@ Our codebase is organized into specialized components:
 - **search.js**: search state + search popover trigger.
 - **popover.js**: group picker popover + search results popover.
 - **drag-drop.js**: drag & drop for tabs and groups.
-- **page-shift.js**: overlay-only layout (no-op `applyPageShift`; the page is never reflowed).
 - **zoom.js**: zoom-compensated CSS variables and metric updates.
 - **messaging.js**: port handshake + robust message retry.
 - **constants.js**: shared UI constants, IDs, the inline leaf glyph, and pin-state helpers.

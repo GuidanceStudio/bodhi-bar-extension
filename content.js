@@ -81,8 +81,6 @@ function requestTabList() {
         response.currentTabTitle || '',
         cachedTabGroups
       );
-      // Ensure page shift is applied after rendering (checks current mode)
-      if (typeof applyPageShift === 'function') applyPageShift();
     } else {
       handleStateChange();
     }
@@ -134,7 +132,7 @@ function hookViewportEvents() {
   }
 
   window.addEventListener('resize', () => {
-    if (!isInternalResize) window.__tzZoomMetrics?.scheduleMetricsUpdate(false);
+    window.__tzZoomMetrics?.scheduleMetricsUpdate(false);
   });
 
   window.addEventListener('focus', () => {

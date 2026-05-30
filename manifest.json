@@ -25,7 +25,6 @@
         "messaging.js",
         "dom-helpers.js",
         "zoom.js",
-        "page-shift.js",
         "popover.js",
         "drag-drop.js",
         "search.js",

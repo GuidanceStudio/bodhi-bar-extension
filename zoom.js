@@ -223,7 +223,6 @@
     root.style.setProperty('--tz-popover-icon-font', px(BASE.POPOVER_ICON_FONT, scale));
     root.style.setProperty('--tz-fav-wrap-radius', px(BASE.FAV_WRAP_RADIUS, scale));
 
-    if (typeof applyPageShift === 'function') applyPageShift();
     if (typeof updateDynamicLayout === 'function') updateDynamicLayout();
   }
 
