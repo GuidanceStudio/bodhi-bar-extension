@@ -728,9 +728,14 @@
   color:#5fae5f; /* leaf green */
   background:transparent;
   flex:0 0 auto;
-  will-change: transform; /* composite the glide — avoids paint-step jank */
+  /* Force a GPU layer: the parent has overflow:hidden, which otherwise keeps
+     the leaf un-composited so the transform repaints each frame (janky). The
+     3D transform + will-change pin it on the compositor. */
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  backface-visibility: hidden;
   transition: color 120ms ease, opacity 120ms ease,
-              transform 240ms cubic-bezier(0.4, 0, 0.2, 1);
+              transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 #ungroup-automatic-tab-bar .tz-leaf svg{
   display:block;
@@ -931,7 +936,7 @@
 /* Collapsed: nudge the leaf toward the corner with a transform (no layout
    change), so hover/leave glides it symmetrically. */
 #ungroup-automatic-tab-bar:not(.tz-pinned):not(:hover) .tz-leaf{
-  transform: translate(-4px, -3px) !important;
+  transform: translate3d(-4px, -3px, 0) !important;
 }
 
 /* Global icon hover: lighten icons across the bar (all levels) */
