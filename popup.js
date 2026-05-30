@@ -27,25 +27,6 @@ function sanitizeWorkspaceName(name) {
   return s.slice(0, PRESET_NAME_MAX_LEN);
 }
 
-function promptForUniqueWorkspaceName(initialName, workspaces, promptText) {
-  const ws = workspaces || {};
-  const base = sanitizeWorkspaceName(initialName);
-
-  let name = base;
-  if (!name) {
-    name = sanitizeWorkspaceName(prompt(promptText || 'Workspace name:'));
-  }
-  if (!name) return '';
-
-  while (ws[name]) {
-    const next = prompt(`Workspace "${name}" already exists. Enter a new name:`);
-    if (!next) return '';
-    name = sanitizeWorkspaceName(next);
-    if (!name) return '';
-  }
-  return name;
-}
-
 function escapeFilenamePart(name) {
   return String(name || '')
     .trim()

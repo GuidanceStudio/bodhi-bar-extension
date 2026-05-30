@@ -409,3 +409,18 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** `page-shift.js` non esiste più, nessun riferimento residuo, e l'estensione resta funzionante (la barra è overlay puro, mai reflow).
+
+---
+
+## M22 — Rimozione funzioni morte ✅
+
+**Why:** Scan delle funzioni top-level mai referenziate: due funzioni morte (pre-esistenti, non dalla rework).
+
+**Approach:** Rimosse `promptForUniqueWorkspaceName` (`popup.js`, usava `prompt()` nativo, mai chiamata — la UI usa form inline) e `openNewTab` (`background.js`, duplicato inutilizzato: l'handler `OPEN_NEW_TAB` fa già `chrome.tabs.create` inline).
+
+**Tasks:**
+- [x] Rimuovere `promptForUniqueWorkspaceName` (popup.js) e `openNewTab` (background.js)
+- [x] Verifica: sintassi + grep-guard + 11/11 test verdi
+- [x] Commit & push
+
+**Done when:** Nessuna funzione top-level morta nei moduli principali; UI/comportamento invariati.
