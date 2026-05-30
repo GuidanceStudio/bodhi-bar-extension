@@ -421,6 +421,28 @@ select#visibilityModeSelect:disabled {
   margin-bottom: 10px;
 }
 
+.vis-toggle {
+  width: 100%;
+  padding: 8px 10px;
+  background: #2f2f2f;
+  color: #e8e8e8;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.vis-toggle:hover:not(:disabled) {
+  border-color: var(--accent, #0078d4);
+  background: #383838;
+}
+
+.vis-toggle:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Domain Rules Section */
 .domain-rules-section {
   margin-top: 10px;

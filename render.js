@@ -109,15 +109,36 @@ function togglePinned(tabId) {
   });
 }
 
+// Double-click hides the bar entirely for this tab. There's no leaf left to
+// click afterwards, so it's re-shown from the extension popup.
+function hideTab(tabId) {
+  if (tabId == null) return;
+  const bar = document.getElementById(TZ_BAR_ID);
+  if (bar) bar.classList.add('tz-hidden');
+  chrome.storage.local.get([STORAGE_KEY_HIDDEN_BY_TAB], (obj) => {
+    const map = obj?.[STORAGE_KEY_HIDDEN_BY_TAB] || {};
+    chrome.storage.local.set({ [STORAGE_KEY_HIDDEN_BY_TAB]: nextHiddenMap(map, tabId, true) });
+  });
+}
+
 function createLeaf(tabId) {
   const leaf = document.createElement('div');
   leaf.className = 'tz-leaf';
   leaf.setAttribute('role', 'button');
   leaf.innerHTML = TZ_LEAF_SVG;
 
+  // Single click pins; double click hides. Disambiguate with a short timer:
+  // the click action waits ~250ms and is cancelled if a dblclick arrives.
+  let clickTimer = null;
   leaf.onclick = (e) => {
     e.stopPropagation();
-    togglePinned(tabId);
+    if (clickTimer) return; // part of a double-click in progress
+    clickTimer = setTimeout(() => { clickTimer = null; togglePinned(tabId); }, 250);
+  };
+  leaf.ondblclick = (e) => {
+    e.stopPropagation();
+    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+    hideTab(tabId);
   };
 
   // The active state and tooltip are set by syncLeafUI(), which always runs

@@ -162,10 +162,10 @@ async function boot() {
 
   try {
     // The bar is always a floating overlay now — there is no mode to resolve.
-    // Fetch Tab ID and the per-tab minimized state in parallel for speed.
+    // Fetch Tab ID and the per-tab pin/hidden state in parallel for speed.
     const [tabId, storageData] = await Promise.all([
       getThisTabId(),
-      chrome.storage.local.get([STORAGE_KEY_PINNED_BY_TAB])
+      chrome.storage.local.get([STORAGE_KEY_PINNED_BY_TAB, STORAGE_KEY_HIDDEN_BY_TAB])
     ]);
 
     window.__tzZoomMetrics?.captureBaseDPR();
@@ -173,10 +173,12 @@ async function boot() {
     const bar = ensureBar();
     bar.classList.add('tz-mode-overlay');
 
-    // Apply pin state immediately to avoid a flash.
-    // Default is unpinned (collapsed leaf); only pinned tabs expand on load.
+    // Apply pin/hidden state immediately to avoid a flash.
+    // Default is unpinned (collapsed leaf) and visible.
     const pinMap = storageData?.[STORAGE_KEY_PINNED_BY_TAB] || {};
     if (isTabPinned(pinMap, tabId)) bar.classList.add('tz-pinned');
+    const hiddenMap = storageData?.[STORAGE_KEY_HIDDEN_BY_TAB] || {};
+    if (isTabHidden(hiddenMap, tabId)) bar.classList.add('tz-hidden');
 
     window.__tzZoomMetrics?.applyZoomCompensatedMetrics(true);
 
@@ -185,6 +187,21 @@ async function boot() {
     renderDisconnectedBar('boot failed');
   }
 }
+
+// Re-show / re-hide live when the popup toggles this tab's hidden state.
+// (content.js no longer has a message listener, so we react to storage.)
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local' || !changes[STORAGE_KEY_HIDDEN_BY_TAB]) return;
+  const bar = document.getElementById(TZ_BAR_ID);
+  if (!bar) return;
+  getThisTabId().then((tabId) => {
+    if (tabId == null) return;
+    const map = changes[STORAGE_KEY_HIDDEN_BY_TAB].newValue || {};
+    const nowHidden = isTabHidden(map, tabId);
+    bar.classList.toggle('tz-hidden', nowHidden);
+    if (!nowHidden) requestTabList(); // refresh stale content on re-show
+  });
+});
 
 hookViewportEvents();
 
