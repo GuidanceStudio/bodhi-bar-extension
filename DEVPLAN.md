@@ -569,3 +569,18 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push su GitHub
 
 **Done when:** Il README spiega in modo sintetico cosa fa Bodhi Bar, come si installa (da sorgente) e come si usa, con la parte sviluppatore separata e senza ripetizioni.
+
+---
+
+## M30 — Untrack AIDER.md (internal tooling file)
+
+**Why:** `AIDER.md` è un file interno di tooling (Aider) che non serve nel repo pubblico. I file aider nascosti erano già coperti da `.aider*` in `.gitignore`, ma `AIDER.md` (senza punto) era tracciato.
+
+**Approach:** Aggiungere `AIDER.md` a `.gitignore` e rimuoverlo dal repo mantenendo la copia locale (`git rm --cached`).
+
+**Tasks:**
+- [x] `.gitignore`: aggiungere `AIDER.md`
+- [x] `git rm --cached AIDER.md` (file resta in locale, tolto dal tracking)
+- [x] Commit & push su GitHub
+
+**Done when:** `AIDER.md` non è più nel repo remoto ed è ignorato da git, ma resta sul disco locale.
