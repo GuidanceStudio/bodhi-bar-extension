@@ -69,7 +69,7 @@ A Workspace is a named snapshot of your window — its pinned tabs and all tab g
 - **Rename** — give the workspace a new name.
 - **Export** — download the workspace as a JSON file for backup or sharing.
 - **Delete** — remove the workspace from storage.
-- **Import** — load workspaces from JSON files. If the name already exists, Bodhi Bar asks you to pick a different one.
+- **Import** — load workspaces from JSON files. If the name already exists, Bodhi Bar asks what to do: **Keep both** (import under a new, pre-suggested free name) or **Replace existing** (overwrite the current one).
 
 Exported files carry a version field (`wv`, currently `1.0`), validated on import for compatibility.
 
