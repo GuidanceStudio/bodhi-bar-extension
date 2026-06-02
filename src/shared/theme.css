@@ -1,0 +1,32 @@
+/* theme.css — shared design tokens for the Bodhi Bar UI surfaces.
+ *
+ * Single source of truth for the dark theme, consumed by both popup.css and
+ * editor.css (linked before them in popup.html / editor.html). content.css is
+ * intentionally NOT included here: it is injected into arbitrary host pages and
+ * keeps its own `--tz-*` namespace with `all: initial` to avoid inheriting or
+ * leaking page styles.
+ *
+ * Shared UI components (.btn / .input / .msg / .panel) are added in M37.
+ */
+:root {
+  /* Surfaces */
+  --bg: #1e1e1e;
+  --panel-bg: #2a2a2a;
+  --panel-bg-2: #252525;
+  --border: rgba(255, 255, 255, 0.06);
+
+  /* Text */
+  --text: #ffffff;
+  --text-dim: #c9d1d9;
+  --muted: #9aa3ad;
+
+  /* Accent & states */
+  --accent: #0078d4;
+  --accent-hover: #1a8cff;
+  --danger: #f87171;
+
+  /* Shape & typography */
+  --radius: 4px;
+  --font: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}

@@ -767,3 +767,92 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push su GitHub
 
 **Done when:** Tutti gli inline-edit dell'editor sono attivabili da tastiera (Tab + Invio/Spazio) con focus visibile, oltre che col mouse.
+
+---
+
+## M36 — Fondamenta uniformazione stili: `theme.css` con i design token
+
+**Why:** `popup.css` ed `editor.css` ridefiniscono gli stessi token del tema scuro con nomi divergenti (`--white` vs `--text`, ecc.), con rischio di drift. Una sola fonte di verità è la base per i componenti condivisi dei milestone successivi.
+
+**Approach:** creare `src/shared/theme.css` con i **soli** design token (colori, font-stack, raggi, spaziature), riconciliando i nomi (`--white`→`--text`). Collegarlo da `popup.html` ed `editor.html` **prima** del rispettivo CSS specifico. Far sì che `popup.css`/`editor.css` **consumino** i token (rimuovere/ridurre i loro `:root` locali). Nessun cambiamento visivo (mappatura 1:1 dei valori). `content.css` invariato (resta isolato per l'iniezione in pagina). Estendere `tests/manifest-paths.test.js` per validare anche i `<link href>`/`<script src>` negli HTML (risolti relativi alla dir del file).
+
+**Tasks:**
+- [x] Creare `src/shared/theme.css` coi token riconciliati
+- [x] Collegare `theme.css` in `popup.html` ed `editor.html` (prima del CSS specifico)
+- [x] Migrare `popup.css`/`editor.css` a consumare i token (rimuovere i `:root` duplicati)
+- [x] Test: estendere lo smoke-test ai `<link>`/`<script src>` degli HTML (assert risolvono)
+- [x] `npm test` verde
+- [ ] Verifica manuale (utente): popup ed editor identici a prima
+- [x] Commit & push
+
+**Done when:** Un solo `theme.css` contiene i token, popup ed editor li consumano, le due schermate appaiono invariate, e lo smoke-test valida i riferimenti asset negli HTML.
+
+---
+
+## M37 — Sistema di componenti condivisi + restyle del flusso import
+
+**Why:** Il flusso di import è quasi privo di stile (bottoni di sistema su sfondo scuro) e incoerente col resto. Costruire il set di componenti condivisi e usarlo proprio per l'import risolve il problema visibile e fa nascere i componenti già nella forma definitiva (niente rilavorazioni).
+
+**Approach:** in `theme.css` definire i componenti unici: `.btn` (+ `--primary`/`--danger`/`--ghost`/`--sm`), `.input`, `.msg` (+ `--error`/`--info`/`--success`), `.panel`. Ricostruire il flusso import in `popup.js` (`initImportMode`, `showNameInputForm`, `renderConflictIntent`, `renderConflictRename`) usando queste classi, sostituendo gli stili inline. La `.btn.danger` introdotta in M34 confluisce in `.btn--danger`. `content.css` invariato.
+
+**Tasks:**
+- [ ] Definire i componenti (`.btn`/`.input`/`.msg`/`.panel`) in `theme.css`
+- [ ] Restyle import: `initImportMode` (card a tema), `showNameInputForm`, step conflitto
+- [ ] Rimuovere gli stili inline e la `.btn.danger` ad-hoc (assorbita in `.btn--danger`)
+- [ ] `npm test` verde
+- [ ] Verifica manuale (utente): flusso import a tema e coerente (select file, nome, Keep both/Replace, Cancel/Back)
+- [ ] Commit & push
+
+**Done when:** L'intero flusso import usa i componenti condivisi ed è visivamente coerente con popup ed editor.
+
+---
+
+## M38 — Il popup adotta i componenti condivisi
+
+**Why:** Il popup usa ancora classi locali (`.btn.small`, `.std-input`, `.msg-*`). Migrarle alle classi condivise elimina la duplicazione e garantisce coerenza.
+
+**Approach:** in `popup.js`/`popup.css` sostituire le classi-componente locali con quelle condivise (`.btn--*`, `.input`, `.msg--*`), rimuovendo le regole locali ormai morte. Mantenere il layout specifico del popup (`.container`, `.workspaces-*`).
+
+**Tasks:**
+- [ ] Migrare bottoni/input/messaggi del popup alle classi condivise
+- [ ] Rimuovere il CSS locale duplicato/morto in `popup.css`
+- [ ] `npm test` verde
+- [ ] Verifica manuale (utente): popup invariato visivamente (Save current, lista workspace, toggle, messaggi)
+- [ ] Commit & push
+
+**Done when:** Il popup usa i componenti condivisi, i duplicati locali sono rimossi, e l'aspetto è identico a prima.
+
+---
+
+## M39 — L'editor adotta i componenti condivisi
+
+**Why:** L'editor usa `.btn-primary`/`.btn-ghost`/`.inline-edit-input`. Migrarli alle classi condivise completa l'uniformazione popup↔editor.
+
+**Approach:** in `editor.js`/`editor.css` sostituire le classi-componente locali con quelle condivise (`.inline-edit-input`→variante di `.input`, bottoni toolbar→`.btn--*`), rimuovendo le regole morte. Mantenere il layout specifico dell'editor (`.editor-*`, gruppi, DnD).
+
+**Tasks:**
+- [ ] Migrare bottoni/input dell'editor alle classi condivise
+- [ ] Rimuovere il CSS locale duplicato/morto in `editor.css`
+- [ ] `npm test` verde
+- [ ] Verifica manuale (utente): editor invariato (inline-edit, toolbar Save/Discard, color picker, banner/status)
+- [ ] Commit & push
+
+**Done when:** L'editor usa i componenti condivisi, i duplicati locali sono rimossi, e l'aspetto è identico a prima.
+
+---
+
+## M40 — Pulizia finale + guardrail del design system
+
+**Why:** Chiudere l'uniformazione: rimuovere CSS morto residuo, documentare il sistema, e allineare (documentandolo) la palette di `content.css` ai token pur restando file separato.
+
+**Approach:** sweep di `popup.css`/`editor.css` per regole morte residue; opzionale: portare i valori-colore letterali di `content.css` a coincidere coi token, con commento di cross-reference (resta separato per l'iniezione in pagina); aggiungere una breve nota "Design system" nel README (token in `theme.css`, componenti condivisi, `content.css` separato e perché).
+
+**Tasks:**
+- [ ] Rimuovere CSS morto residuo in `popup.css`/`editor.css`
+- [ ] Allineare/annotare la palette di `content.css` ai token (documentato)
+- [ ] `README.md`: nota "Design system"
+- [ ] `npm test` verde
+- [ ] Verifica manuale (utente): tutte le superfici coerenti, nessuna regressione
+- [ ] Commit & push
+
+**Done when:** Nessun CSS morto residuo, palette di `content.css` allineata ai token, design system documentato nel README.
