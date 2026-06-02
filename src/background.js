@@ -3,7 +3,10 @@
  * BACKGROUND.JS - Bodhi Bar (v9.24)
  */
 
-// Import shared constants and utilities from constants.js
+// Import shared constants and utilities from constants.js.
+// NOTE: importScripts() resolves relative to the service worker's own URL, so
+// constants.js MUST stay in the same directory as background.js (src/). If it
+// ever moves, update this path or the worker breaks at load (runtime-only).
 importScripts('constants.js');
 
 const DEBUG = false;

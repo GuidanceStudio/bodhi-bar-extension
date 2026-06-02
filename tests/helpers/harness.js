@@ -38,9 +38,13 @@ const SRC_INDEX = (() => {
 })();
 
 function readSrc(name) {
-  // Resolve a bare basename via the src/ index; fall back to a ROOT-relative
-  // path for anything outside src/.
-  const full = SRC_INDEX.get(name) || path.join(ROOT, name);
+  // Resolve a bare basename via the src/ index. Every source the tests load
+  // lives under src/, so an unknown name is a mistake — fail loudly rather
+  // than silently reading from somewhere unexpected.
+  const full = SRC_INDEX.get(name);
+  if (!full) {
+    throw new Error(`Unknown source "${name}" — no such .js under src/`);
+  }
   return fs.readFileSync(full, 'utf8');
 }
 
