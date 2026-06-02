@@ -116,8 +116,8 @@ function applyMessageStyle(el, type) {
 function showInlineMessage(text, isSuccess) {
   const msg = document.createElement('div');
   msg.textContent = text;
-  applyMessageStyle(msg, isSuccess ? 'success' : 'error');
-  
+  msg.className = 'msg ' + (isSuccess ? 'msg--success' : 'msg--error');
+
   const container = document.getElementById('importContainer');
   if (container) {
     container.appendChild(msg);
@@ -128,9 +128,7 @@ function showInlineMessage(text, isSuccess) {
 function buildSelectFileButton() {
   const btn = document.createElement('button');
   btn.textContent = 'Select JSON File...';
-  btn.className = 'btn';
-  btn.style.fontSize = '16px';
-  btn.style.padding = '10px 20px';
+  btn.className = 'btn btn--primary';
   btn.onclick = handleImportFile;
   return btn;
 }
@@ -152,20 +150,17 @@ function showNameInputForm(onSubmit) {
   const label = document.createElement('div');
   label.textContent = 'Workspace Name:';
   label.className = 'control-group label';
-  
+
   const input = document.createElement('input');
   input.type = 'text';
-  input.className = 'std-input';
-  input.style.width = '100%';
-  input.style.marginBottom = '8px';
-  
+  input.className = 'input';
+
   const buttonRow = document.createElement('div');
-  buttonRow.className = 'rule-actions';
-  buttonRow.style.justifyContent = 'flex-start';
-  
+  buttonRow.className = 'import-actions';
+
   const save = document.createElement('button');
   save.textContent = 'Save';
-  save.className = 'btn small success';
+  save.className = 'btn btn--primary';
   save.onclick = () => {
     const name = sanitizeWorkspaceName(input.value);
     if (!name) {
@@ -177,7 +172,7 @@ function showNameInputForm(onSubmit) {
   
   const cancel = document.createElement('button');
   cancel.textContent = 'Cancel';
-  cancel.className = 'btn small';
+  cancel.className = 'btn';
   cancel.onclick = resetImportToFileSelect;
 
   buttonRow.appendChild(save);
@@ -226,20 +221,19 @@ function renderConflictIntent(name, workspaces, payload) {
 
   const msg = document.createElement('div');
   msg.textContent = `A workspace named "${name}" already exists. What do you want to do?`;
-  applyMessageStyle(msg, 'info');
+  msg.className = 'msg msg--info';
 
   const buttonRow = document.createElement('div');
-  buttonRow.className = 'rule-actions';
-  buttonRow.style.justifyContent = 'flex-start';
+  buttonRow.className = 'import-actions';
 
   const keepBoth = document.createElement('button');
   keepBoth.textContent = 'Keep both';
-  keepBoth.className = 'btn small success';
+  keepBoth.className = 'btn btn--primary';
   keepBoth.onclick = () => renderConflictRename(name, workspaces, payload);
 
   const replace = document.createElement('button');
   replace.textContent = 'Replace existing';
-  replace.className = 'btn small danger';
+  replace.className = 'btn btn--danger';
   replace.title = `Overwrite the existing "${name}" with the imported one`;
   replace.onclick = async () => {
     workspaces[name] = { name, createdAt: Date.now(), payload };
@@ -250,7 +244,7 @@ function renderConflictIntent(name, workspaces, payload) {
 
   const cancel = document.createElement('button');
   cancel.textContent = 'Cancel';
-  cancel.className = 'btn small';
+  cancel.className = 'btn';
   cancel.onclick = resetImportToFileSelect;
 
   buttonRow.appendChild(keepBoth);
@@ -275,17 +269,14 @@ function renderConflictRename(name, workspaces, payload) {
   const input = document.createElement('input');
   input.type = 'text';
   input.value = suggestFreeName(name, workspaces);
-  input.className = 'std-input';
-  input.style.width = '100%';
-  input.style.marginBottom = '8px';
+  input.className = 'input';
 
   const buttonRow = document.createElement('div');
-  buttonRow.className = 'rule-actions';
-  buttonRow.style.justifyContent = 'flex-start';
+  buttonRow.className = 'import-actions';
 
   const importBtn = document.createElement('button');
   importBtn.textContent = 'Import';
-  importBtn.className = 'btn small success';
+  importBtn.className = 'btn btn--primary';
   importBtn.onclick = async () => {
     const newName = sanitizeWorkspaceName(input.value);
     if (!newName) {
@@ -304,7 +295,7 @@ function renderConflictRename(name, workspaces, payload) {
 
   const back = document.createElement('button');
   back.textContent = 'Back';
-  back.className = 'btn small';
+  back.className = 'btn';
   back.onclick = () => renderConflictIntent(name, workspaces, payload);
 
   buttonRow.appendChild(importBtn);
@@ -727,28 +718,23 @@ function renderWorkspacesList(workspacesMap) {
 
 function initImportMode() {
   document.body.innerHTML = '';
-  document.body.style.padding = '40px';
-  document.body.style.textAlign = 'center';
-  document.body.style.width = '100%';
-  document.body.style.height = '100vh';
+  document.body.classList.add('import-mode');
+
+  const view = document.createElement('div');
+  view.className = 'import-view';
 
   const h2 = document.createElement('h2');
   h2.textContent = 'Import Workspace';
-  h2.style.marginBottom = '20px';
 
-  const btn = buildSelectFileButton();
-
+  // The card always holds the current step (select file → name → conflict).
   const container = document.createElement('div');
   container.id = 'importContainer';
-  container.style.marginTop = '20px';
-  container.style.width = '100%';
-  container.style.maxWidth = '400px';
-  container.style.marginLeft = 'auto';
-  container.style.marginRight = 'auto';
+  container.className = 'card import-card';
+  container.appendChild(buildSelectFileButton());
 
-  document.body.appendChild(h2);
-  document.body.appendChild(btn);
-  document.body.appendChild(container);
+  view.appendChild(h2);
+  view.appendChild(container);
+  document.body.appendChild(view);
 }
 
 async function initWorkspacesSection() {
