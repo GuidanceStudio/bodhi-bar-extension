@@ -468,13 +468,13 @@ function showAddTabForm(zoneEl, listType, groupIdx) {
 
   const add = document.createElement('button');
   add.type = 'button';
-  add.className = 'inline-confirm-btn yes';
+  add.className = 'btn btn--primary btn--sm';
   add.textContent = 'Add';
   add.draggable = false;
 
   const cancel = document.createElement('button');
   cancel.type = 'button';
-  cancel.className = 'inline-confirm-btn no';
+  cancel.className = 'btn btn--sm';
   cancel.textContent = 'Cancel';
   cancel.draggable = false;
 
@@ -608,13 +608,13 @@ function inlineConfirm(triggerEl, question, onConfirm) {
 
   const yes = document.createElement('button');
   yes.type = 'button';
-  yes.className = 'inline-confirm-btn yes';
+  yes.className = 'btn btn--danger btn--sm';
   yes.textContent = 'Yes';
   yes.draggable = false;
 
   const no = document.createElement('button');
   no.type = 'button';
-  no.className = 'inline-confirm-btn no';
+  no.className = 'btn btn--sm';
   no.textContent = 'No';
   no.draggable = false;
 
@@ -972,13 +972,13 @@ function showAddGroupForm(rowEl) {
 
   const save = document.createElement('button');
   save.type = 'button';
-  save.className = 'inline-confirm-btn yes';
+  save.className = 'btn btn--primary btn--sm';
   save.textContent = 'Add';
   save.draggable = false;
 
   const cancel = document.createElement('button');
   cancel.type = 'button';
-  cancel.className = 'inline-confirm-btn no';
+  cancel.className = 'btn btn--sm';
   cancel.textContent = 'Cancel';
   cancel.draggable = false;
 
@@ -1093,7 +1093,7 @@ function showConflictPicker(conflict, onDiscard, onForce) {
 
   const discard = document.createElement('button');
   discard.type = 'button';
-  discard.className = 'inline-confirm-btn no';
+  discard.className = 'btn btn--sm';
   discard.textContent = 'Discard my changes';
   discard.addEventListener('click', async (ev) => {
     ev.stopPropagation();
@@ -1103,7 +1103,7 @@ function showConflictPicker(conflict, onDiscard, onForce) {
 
   const force = document.createElement('button');
   force.type = 'button';
-  force.className = 'inline-confirm-btn yes';
+  force.className = 'btn btn--danger btn--sm';
   force.textContent = 'Force overwrite';
   force.addEventListener('click', async (ev) => {
     ev.stopPropagation();

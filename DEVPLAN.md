@@ -835,11 +835,13 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 **Approach:** in `editor.js`/`editor.css` sostituire le classi-componente locali con quelle condivise (`.inline-edit-input`→variante di `.input`, bottoni toolbar→`.btn--*`), rimuovendo le regole morte. Mantenere il layout specifico dell'editor (`.editor-*`, gruppi, DnD).
 
 **Tasks:**
-- [ ] Migrare bottoni/input dell'editor alle classi condivise
-- [ ] Rimuovere il CSS locale duplicato/morto in `editor.css`
-- [ ] `npm test` verde
+- [x] Migrare bottoni/input dell'editor alle classi condivise
+- [x] Rimuovere il CSS locale duplicato/morto in `editor.css`
+- [x] `npm test` verde
 - [ ] Verifica manuale (utente): editor invariato (inline-edit, toolbar Save/Discard, color picker, banner/status)
-- [ ] Commit & push
+- [x] Commit & push
+
+**Note (esecuzione):** migrati toolbar (`.btn-primary`/`.btn-ghost`→`.btn .btn--primary`/`.btn--ghost`) e tutti i confirm (`.inline-confirm-btn`→`.btn--sm` con `.btn--danger` per Yes-delete e Force-overwrite). `.inline-edit-input` **tenuto** come controllo inline dedicato (bordo blu attivo, padding stretto): non è un duplicato di `.input` (form) e fonderlo peggiorerebbe l'edit in-place; è già tokenizzato. Rimosse da `editor.css`: `.btn-primary`, `.btn-ghost`, `.inline-confirm-btn*`. Verificato con screenshot headless. Suite 22/22.
 
 **Done when:** L'editor usa i componenti condivisi, i duplicati locali sono rimossi, e l'aspetto è identico a prima.
 
