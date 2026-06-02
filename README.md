@@ -65,7 +65,7 @@ A Workspace is a named snapshot of your window — its pinned tabs and all tab g
 
 - **Save current** — store the current window as a named Workspace.
 - **Restore** — recreate the saved Workspace (opens all pinned tabs and rebuilds all groups with their original titles and colors).
-- **Edit** — open the Workspace in a full-page editor: rename the workspace and groups, change group colors, drag-and-drop reorder groups and tabs (including pinned), create groups, add/delete tabs, and edit tab URLs. Changes are buffered in memory — **Save** (or Cmd/Ctrl+S) to persist, **Discard** to revert. The editor warns before closing with unsaved changes and flags conflicts if the workspace was modified elsewhere.
+- **Edit** — open the Workspace in a full-page editor: rename the workspace and groups, change group colors, drag-and-drop reorder groups and tabs (including pinned), create groups, add/delete tabs, and click a tab's URL or label to edit it inline. (A tab label is a name you give it inside the workspace; it survives export/import, but on restore the browser shows the live page's own title.) Changes are buffered in memory — **Save** (or Cmd/Ctrl+S) to persist, **Discard** to revert. The editor warns before closing with unsaved changes and flags conflicts if the workspace was modified elsewhere.
 - **Rename** — give the workspace a new name.
 - **Export** — download the workspace as a JSON file for backup or sharing.
 - **Delete** — remove the workspace from storage.
