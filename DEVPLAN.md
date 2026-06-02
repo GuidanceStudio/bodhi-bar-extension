@@ -916,3 +916,25 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Il drag&drop dei tab funziona dentro i gruppi esattamente come tra i pinned, senza rompere il riordino dei gruppi.
+
+---
+
+## M44 — Snellire le azioni workspace nel popup; spostare delete nell'editor
+
+**Why:** Richiesta utente. Nel popup, per ogni workspace, tenere solo **Restore / Edit / Download(export)**. La **rename** si fa già dentro l'editor (click sul nome). Anche l'**eliminazione** ("cancel"=delete) ha senso solo dentro l'edit, per evitare cancellazioni accidentali dalla lista.
+
+**Approach:**
+- **Popup** (`popup.js`): rimuovere le icone **rename** e **delete** dalla riga workspace (e il codice ora morto: il form di rename inline e il relativo handler). Restano restore, edit, export. `withConfirmation` resta (usata da restore).
+- **Editor**: aggiungere un'azione **Delete workspace** in toolbar — bottone distruttivo (`.btn--danger .btn--sm`) con conferma inline (riuso `inlineConfirm`); su conferma elimina la chiave da storage e **chiude la tab** dell'editor. La rename resta quella inline esistente.
+- Parte UI/event-driven → verifica manuale; suite verde.
+
+**Tasks:**
+- [x] `popup.js`: rimuovere icona **rename** + form rename inline morto
+- [x] `popup.js`: rimuovere icona **delete** dalla riga workspace
+- [x] `editor.html`/`editor.js`: bottone **Delete workspace** in toolbar (danger) → conferma **type-the-name** (mostra il nome, l'utente lo deve digitare; Delete abilitato solo se combacia) → elimina da storage e **chiude la tab** (`chrome.tabs.getCurrent`+`remove`, fallback `window.close`)
+- [x] Pulizia: rimuovere eventuale CSS/handler ormai inutilizzati (`.workspace-action-icon.rename`/`.delete` se non più usati)
+- [x] `npm test` verde
+- [ ] Verifica manuale (utente): popup mostra solo Restore/Edit/Download; nell'editor rename (click sul nome) e Delete (con conferma → chiude) funzionano
+- [x] Commit & push
+
+**Done when:** Nel popup ogni workspace ha solo Restore/Edit/Download; rename e delete del workspace si fanno dall'editor.
