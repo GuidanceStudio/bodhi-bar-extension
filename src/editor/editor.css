@@ -97,6 +97,20 @@ a { color: #8ab4f8; }
   color: var(--text);
 }
 
+/* Type-to-confirm workspace delete (rendered into #editor-banners). */
+.delete-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.10);
+  border-radius: 6px;
+}
+.delete-confirm-msg { font-size: 13px; color: var(--text); }
+.delete-confirm-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.delete-confirm-row .input { flex: 1; min-width: 180px; }
+
 .ws-name {
   margin: 0;
   font-size: 22px;

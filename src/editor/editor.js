@@ -1152,6 +1152,84 @@ async function handleDiscardClick() {
   await discardChanges();
 }
 
+// Close the editor tab. It was opened via chrome.tabs.create, so window.close()
+// isn't reliable — remove the tab explicitly, with a fallback.
+function closeEditorTab() {
+  try {
+    if (chrome.tabs && chrome.tabs.getCurrent) {
+      chrome.tabs.getCurrent((tab) => {
+        if (tab && tab.id != null) chrome.tabs.remove(tab.id);
+        else window.close();
+      });
+      return;
+    }
+  } catch { /* fall through */ }
+  window.close();
+}
+
+async function deleteWorkspaceAndClose() {
+  const key = editorState.originalName;
+  if (key) {
+    const all = await storageGetWorkspaces();
+    if (all[key]) {
+      delete all[key];
+      savingInFlight = true; // ignore the storage echo of our own write
+      await storageSetWorkspaces(all);
+    }
+  }
+  editorState.dirty = false; // don't trigger the beforeunload prompt
+  closeEditorTab();
+}
+
+// Destructive delete: require typing the exact workspace name to confirm.
+function showDeleteWorkspaceConfirm() {
+  if (!editorState.name || !els.banners) return;
+  els.banners.innerHTML = '';
+
+  const box = document.createElement('div');
+  box.className = 'delete-confirm';
+
+  const msg = document.createElement('div');
+  msg.className = 'delete-confirm-msg';
+  msg.textContent = `Permanently delete "${editorState.name}". Type the workspace name to confirm:`;
+
+  const row = document.createElement('div');
+  row.className = 'delete-confirm-row';
+
+  const input = document.createElement('input');
+  input.className = 'input';
+  input.placeholder = editorState.name;
+  input.autocomplete = 'off';
+
+  const del = document.createElement('button');
+  del.className = 'btn btn--danger btn--sm';
+  del.textContent = 'Delete';
+  del.disabled = true;
+
+  const cancel = document.createElement('button');
+  cancel.className = 'btn btn--sm';
+  cancel.textContent = 'Cancel';
+
+  const matches = () => input.value.trim() === editorState.name;
+  const close = () => { els.banners.innerHTML = ''; };
+
+  input.addEventListener('input', () => { del.disabled = !matches(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && matches()) { e.preventDefault(); deleteWorkspaceAndClose(); }
+    else if (e.key === 'Escape') { e.preventDefault(); close(); }
+  });
+  cancel.addEventListener('click', close);
+  del.addEventListener('click', () => { if (matches()) deleteWorkspaceAndClose(); });
+
+  row.appendChild(input);
+  row.appendChild(del);
+  row.appendChild(cancel);
+  box.appendChild(msg);
+  box.appendChild(row);
+  els.banners.appendChild(box);
+  input.focus();
+}
+
 function init() {
   els.status = document.getElementById('editor-status');
   els.wsName = document.getElementById('ws-name');
@@ -1161,6 +1239,7 @@ function init() {
   els.banners = document.getElementById('editor-banners');
   els.saveBtn = document.getElementById('ws-save-btn');
   els.discardBtn = document.getElementById('ws-discard-btn');
+  els.deleteBtn = document.getElementById('ws-delete-btn');
   els.pinnedSection = document.getElementById('pinned-section');
   els.pinnedList = document.getElementById('pinned-list');
   els.groupsSection = document.getElementById('groups-section');
@@ -1171,6 +1250,12 @@ function init() {
     els.discardBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       inlineConfirm(els.discardBtn, 'Discard?', () => handleDiscardClick());
+    });
+  }
+  if (els.deleteBtn) {
+    els.deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showDeleteWorkspaceConfirm();
     });
   }
 
