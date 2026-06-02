@@ -898,3 +898,21 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Nel flusso import il messaggio ha spaziatura coerente col resto (solo il gap della card).
+
+---
+
+## M43 — Fix: drag&drop dei tab dentro i gruppi (editor)
+
+**Why:** Bug segnalato dall'utente: nell'editor del workspace il drag&drop dei tab **dentro i gruppi** non funziona, mentre tra i **pinned** sì.
+
+**Root cause:** `renderGroupCard` chiama `stopGroupContentsDragOver(card)`, che registra un listener `dragover` in **fase di capture** sulla card e, quando si trascina un tab, fa `e.stopPropagation()`. In capture l'evento viene fermato **sulla card prima** di raggiungere la riga-tab, quindi il `dragover` della riga (che fa `preventDefault()` per abilitare il drop) non scatta → drop disabilitato nei gruppi. I pinned non sono dentro una card → non sono colpiti. La funzione è anche inutile: il `dragover` della card (bubble) è già protetto da `if (dragState.type !== 'group') return;`, e la riga-tab fa `preventDefault` per prima (bubble dal target).
+
+**Approach:** rimuovere la funzione `stopGroupContentsDragOver` e la sua chiamata in `renderGroupCard`. Il riordino gruppi resta intatto (handler attivo solo su `type==='group'`); il DnD dei tab nei gruppi torna simmetrico ai pinned. Parte event-driven con `dataTransfer` → verifica manuale (non coperta dal vm harness).
+
+**Tasks:**
+- [x] Rimuovere `stopGroupContentsDragOver` (funzione + chiamata in `renderGroupCard`)
+- [x] `npm test` verde (nessuna regressione)
+- [ ] Verifica manuale (utente): nell'editor, drag&drop dei tab dentro un gruppo, riordino gruppi, e DnD pinned tutti funzionanti
+- [x] Commit & push
+
+**Done when:** Il drag&drop dei tab funziona dentro i gruppi esattamente come tra i pinned, senza rompere il riordino dei gruppi.
