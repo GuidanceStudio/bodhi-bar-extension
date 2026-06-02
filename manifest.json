@@ -12,12 +12,12 @@
     "downloads"
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "src/popup/popup.html",
     "default_icon": {
-      "16": "icons/leaf-16.png",
-      "32": "icons/leaf-32.png",
-      "48": "icons/leaf-48.png",
-      "128": "icons/leaf-128.png"
+      "16": "assets/icons/leaf-16.png",
+      "32": "assets/icons/leaf-32.png",
+      "48": "assets/icons/leaf-48.png",
+      "128": "assets/icons/leaf-128.png"
     }
   },
   "host_permissions": [
@@ -27,27 +27,27 @@
     {
       "matches": ["<all_urls>"],
       "js": [
-        "constants.js",
-        "messaging.js",
-        "dom-helpers.js",
-        "zoom.js",
-        "popover.js",
-        "drag-drop.js",
-        "search.js",
-        "render.js",
-        "content.js"
+        "src/constants.js",
+        "src/content/messaging.js",
+        "src/content/dom-helpers.js",
+        "src/content/zoom.js",
+        "src/content/popover.js",
+        "src/content/drag-drop.js",
+        "src/content/search.js",
+        "src/content/render.js",
+        "src/content/content.js"
       ],
-      "css": ["content.css"],
+      "css": ["src/content/content.css"],
       "run_at": "document_idle"
     }
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background.js"
   },
   "icons": {
-    "16": "icons/leaf-16.png",
-    "32": "icons/leaf-32.png",
-    "48": "icons/leaf-48.png",
-    "128": "icons/leaf-128.png"
+    "16": "assets/icons/leaf-16.png",
+    "32": "assets/icons/leaf-32.png",
+    "48": "assets/icons/leaf-48.png",
+    "128": "assets/icons/leaf-128.png"
   }
 }

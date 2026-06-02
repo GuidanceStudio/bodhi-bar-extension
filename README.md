@@ -89,22 +89,36 @@ In the background, Bodhi Bar keeps your tabs in a predictable structure:
 
 ## Project structure
 
-The codebase is plain Manifest V3 — content scripts are loaded as browser globals (no module bundler).
+The codebase is plain Manifest V3 — content scripts are loaded as browser globals (no module bundler). Sources live under `src/`, grouped by surface; static assets under `assets/`. `manifest.json` stays at the repo root (required).
+
+```
+manifest.json           MV3 manifest and permissions
+src/
+  background.js         service worker
+  constants.js          shared: UI constants, IDs, the inline leaf glyph, pin-state helpers
+  content/              in-page bar (loaded as content scripts, in manifest order)
+  popup/                toolbar popup
+  editor/               full-page workspace editor
+assets/icons/           extension icons (the green leaf)
+tests/                  Node test runner suites + harness
+```
 
 | File | Responsibility |
 | --- | --- |
-| `background.js` | Service worker: tab-layout enforcement, UI actions (switch/close/move/group/ungroup), workspace payload generation and JSON downloads. |
-| `popup.js` | Toolbar popup: workspace management (save/import/export/delete). |
-| `content.js` | UI entry point: navigation state and refresh handling. |
-| `render.js` | Bar rendering (Levels 1/2/3), the leaf chip + pin toggle, dynamic layout. |
-| `search.js` | Search state + search popover trigger. |
-| `popover.js` | Group-picker popover + search-results popover. |
-| `drag-drop.js` | Drag & drop for tabs and groups. |
-| `zoom.js` | Zoom-compensated CSS variables and metric updates. |
-| `messaging.js` | Port handshake + message retry. |
-| `constants.js` | Shared UI constants, IDs, the inline leaf glyph, pin-state helpers. |
-| `content.css` | All UI styling (bar, tiles, popovers). |
-| `manifest.json` | MV3 manifest and permissions. |
+| `src/background.js` | Service worker: tab-layout enforcement, UI actions (switch/close/move/group/ungroup), workspace payload generation and JSON downloads. |
+| `src/constants.js` | Shared UI constants, IDs, the inline leaf glyph, pin-state helpers (used by content scripts, background, popup, editor). |
+| `src/content/content.js` | UI entry point: navigation state and refresh handling. |
+| `src/content/render.js` | Bar rendering (Levels 1/2/3), the leaf chip + pin toggle, dynamic layout. |
+| `src/content/search.js` | Search state + search popover trigger. |
+| `src/content/popover.js` | Group-picker popover + search-results popover. |
+| `src/content/drag-drop.js` | Drag & drop for tabs and groups. |
+| `src/content/zoom.js` | Zoom-compensated CSS variables and metric updates. |
+| `src/content/dom-helpers.js` | Shared DOM construction helpers for the bar. |
+| `src/content/messaging.js` | Port handshake + message retry. |
+| `src/content/content.css` | All UI styling (bar, tiles, popovers). |
+| `src/popup/` | Toolbar popup (`popup.html` / `popup.js` / `popup.css`): workspace management (save/import/export/delete). |
+| `src/editor/` | Full-page workspace editor (`editor.html` / `editor.js` / `editor.css`). |
+| `assets/icons/` | Extension icons (`leaf-{16,32,48,128}.png`). |
 
 ## State management
 

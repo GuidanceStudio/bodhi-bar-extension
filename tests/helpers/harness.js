@@ -14,9 +14,34 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.resolve(__dirname, '..', '..');
+const SRC_ROOT = path.join(ROOT, 'src');
+
+// Source files live under src/ in nested folders (background, content, popup,
+// editor). Tests reference them by bare basename, so build a basename → path
+// index once. Basenames are unique today; a collision is a hard error so a
+// future duplicate name can't silently resolve to the wrong file.
+const SRC_INDEX = (() => {
+  const index = new Map();
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) { walk(full); continue; }
+      if (!entry.name.endsWith('.js')) continue;
+      if (index.has(entry.name)) {
+        throw new Error(`Ambiguous source basename "${entry.name}": ${index.get(entry.name)} vs ${full}`);
+      }
+      index.set(entry.name, full);
+    }
+  };
+  walk(SRC_ROOT);
+  return index;
+})();
 
 function readSrc(name) {
-  return fs.readFileSync(path.join(ROOT, name), 'utf8');
+  // Resolve a bare basename via the src/ index; fall back to a ROOT-relative
+  // path for anything outside src/.
+  const full = SRC_INDEX.get(name) || path.join(ROOT, name);
+  return fs.readFileSync(full, 'utf8');
 }
 
 // --- Minimal DOM ---------------------------------------------------------
