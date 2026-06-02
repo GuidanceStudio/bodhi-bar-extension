@@ -1,16 +1,4 @@
-/* editor.css - Workspace editor full-page styles */
-
-:root {
-  --bg: #1e1e1e;
-  --panel-bg: #2a2a2a;
-  --panel-bg-2: #252525;
-  --border: rgba(255,255,255,0.06);
-  --accent: #0078d4;
-  --muted: #9aa3ad;
-  --text: #ffffff;
-  --text-dim: #c9d1d9;
-  --danger: #f87171;
-}
+/* editor.css - Workspace editor full-page styles. Tokens live in shared/theme.css. */
 
 * { box-sizing: border-box; }
 
@@ -19,7 +7,7 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font);
   -webkit-font-smoothing: antialiased;
   font-size: 14px;
 }
@@ -75,7 +63,7 @@ a { color: #8ab4f8; }
 
 .btn-primary {
   background: var(--accent);
-  color: var(--white, #fff);
+  color: var(--text);
   border: 1px solid var(--accent);
   border-radius: 4px;
   padding: 6px 14px;
@@ -468,7 +456,7 @@ a { color: #8ab4f8; }
 
 .add-tab-input {
   flex: 1;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   min-width: 120px;
 }
@@ -519,7 +507,7 @@ a { color: #8ab4f8; }
 .inline-edit-input.tab-url-input {
   flex: 1;
   font-size: 11px;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   min-width: 200px;
 }
 

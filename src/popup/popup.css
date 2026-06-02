@@ -1,12 +1,4 @@
-/* popup.css - Styles for Bodhi Bar popup */
-:root {
-  --bg: #1e1e1e;
-  --panel-bg: #2a2a2a;
-  --accent: #0078d4;
-  --muted: #9aa3ad;
-  --success-bg: #fff7e6;
-  --white: #ffffff;
-}
+/* popup.css - Styles for Bodhi Bar popup. Tokens live in shared/theme.css. */
 
 * { box-sizing: border-box; }
 
@@ -14,9 +6,9 @@ body {
   margin: 0;
   padding: 12px;
   width: 360px;
-  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font);
   background: var(--bg);
-  color: var(--white);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -177,7 +169,7 @@ body {
   margin: 0;
   font-size: 13px;
   font-weight: 700;
-  color: var(--white);
+  color: var(--text);
 }
 
 .workspaces-list {
@@ -221,7 +213,7 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
-  color: var(--white);
+  color: var(--text);
 }
 
 /* Per-tab bar visibility panel */
@@ -272,7 +264,7 @@ body {
 
 .btn-icon:hover {
   background: rgba(255,255,255,0.1);
-  color: var(--white);
+  color: var(--text);
 }
 
 .btn-icon.success:hover { color: #4ade80; }

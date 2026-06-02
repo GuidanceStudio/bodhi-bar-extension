@@ -85,3 +85,58 @@ test('importScripts(): every string-literal resolves worker-relative', () => {
   }
   assert.ok(checked > 0, 'expected at least one importScripts() literal to verify');
 });
+
+// All .html files under src/ (recursive).
+function htmlFiles(dir, acc = []) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) htmlFiles(full, acc);
+    else if (entry.name.endsWith('.html')) acc.push(full);
+  }
+  return acc;
+}
+
+// Local (relative) href/src asset references in an HTML file; skips absolute
+// URLs, protocol-relative, data:, and bare anchors.
+function htmlAssetRefs(src) {
+  const out = [];
+  for (const m of src.matchAll(/(?:href|src)\s*=\s*["']([^"']+)["']/g)) {
+    const v = m[1];
+    if (/^(https?:)?\/\//.test(v) || v.startsWith('data:') || v.startsWith('#')) continue;
+    out.push(v);
+  }
+  return out;
+}
+
+test('HTML asset links (<link>/<script>) resolve to files', () => {
+  let checked = 0;
+  for (const file of htmlFiles(SRC)) {
+    const src = fs.readFileSync(file, 'utf8');
+    for (const ref of htmlAssetRefs(src)) {
+      const resolved = path.join(path.dirname(file), stripSuffix(ref));
+      assert.ok(exists(resolved),
+        `${path.relative(ROOT, file)} → missing asset ${ref}`);
+      checked++;
+    }
+  }
+  assert.ok(checked > 0, 'expected at least one HTML asset reference to verify');
+});
+
+test('popup.html and editor.html share a common stylesheet (theme)', () => {
+  const sheetsFor = (rel) => {
+    const file = path.join(SRC, rel);
+    const src = fs.readFileSync(file, 'utf8');
+    return new Set(
+      htmlAssetRefs(src)
+        .filter((r) => /\.css($|[?#])/.test(r))
+        .map((r) => path.resolve(path.dirname(file), stripSuffix(r))),
+    );
+  };
+  const popup = sheetsFor('popup/popup.html');
+  const editor = sheetsFor('editor/editor.html');
+  const shared = [...popup].filter((p) => editor.has(p));
+  assert.ok(shared.length > 0, 'popup and editor should link a shared stylesheet');
+  for (const s of shared) {
+    assert.ok(exists(s), `shared stylesheet missing: ${path.relative(ROOT, s)}`);
+  }
+});
