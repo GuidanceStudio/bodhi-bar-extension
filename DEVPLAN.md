@@ -514,3 +514,26 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** La transizione `transform` della foglia non è più sovrascritta; il glide è realmente animato e fluido.
+
+---
+
+## M28 — Foglia del menu come icona dell'extension
+
+**Why:** L'utente ama la foglia usata nel chip del menu (il glifo "eco" verde `#5fae5f`, `TZ_LEAF_SVG` in `constants.js`) e vuole riusarla come icona dell'estensione/toolbar. L'attuale `icon128.png` è invece un logo a goccia/foglia con gradiente blu-verde, non coerente con la foglia del menu. La `manifest.json` inoltre non definisce `action.default_icon`, quindi la toolbar usa il fallback `icons`.
+
+**Approach (scelto dall'utente):** foglia verde su sfondo trasparente, identica al menu. Rasterizzo l'SVG `TZ_LEAF_SVG` nei formati PNG standard per estensioni Chrome/Brave (16, 32, 48, 128) usando **Brave headless** (`--headless --screenshot --default-background-color=00000000` per la trasparenza, con device-scale-factor per la nitidezza), partendo da un HTML temporaneo che contiene l'SVG con `fill:#5fae5f` e un piccolo padding interno (~8% del lato) per non far toccare i bordi. Verifico in PIL che i PNG abbiano alpha (sfondo trasparente) e la dimensione corretta. Poi collego le icone nel manifest sia in `icons` sia in `action.default_icon`.
+
+**Decisioni:**
+- Sfondo trasparente (no tile), colore foglia `#5fae5f` (identico al menu).
+- Nuovi asset: `icons/leaf-16.png`, `icons/leaf-32.png`, `icons/leaf-48.png`, `icons/leaf-128.png` (cartella `icons/` dedicata, lascio invariati `icon128.png`/`logo.png` esistenti per non rompere altri riferimenti).
+- `manifest.json`: `icons` → 16/32/48/128 verso i nuovi file; aggiungo `action.default_icon` con gli stessi 4 formati.
+
+**Tasks:**
+- [x] Generare i 4 PNG della foglia (16/32/48/128) da `TZ_LEAF_SVG` via Brave headless, sfondo trasparente, padding interno
+- [x] Verifica PIL: dimensioni esatte + canale alpha presente (sfondo trasparente)
+- [x] `manifest.json`: aggiornare `icons` (16/32/48/128) e aggiungere `action.default_icon` (16/32/48/128)
+- [ ] Verifica manuale (utente): ricarica l'estensione → icona toolbar e pagina estensioni mostrano la foglia verde
+- [x] Migrare il remote: `origin` da `gitlab.com:gd-pub/bodhi-bar.git` → `github.com:GuidanceStudio/bodhi-bar-extension.git` (rimosso il riferimento al vecchio repo)
+- [ ] Commit & push su GitHub
+
+**Done when:** L'estensione mostra la foglia del menu (verde su trasparente) come icona della toolbar e nella pagina delle estensioni, in tutti i formati richiesti.
