@@ -45,6 +45,7 @@ body.import-mode {
   gap: 10px;
 }
 .import-card .input { width: 100%; }
+.import-card .msg { margin: 0; } /* card already spaces children via gap */
 .import-actions {
   display: flex;
   gap: 8px;
