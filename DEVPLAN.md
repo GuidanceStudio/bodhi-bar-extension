@@ -653,3 +653,26 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push su GitHub
 
 **Done when:** I sorgenti sono organizzati in `src/` (per superficie) + `assets/`, i file orfani eliminati, tutti i riferimenti aggiornati, `npm test` verde e l'estensione funziona identica dopo reload (checklist runtime ok).
+
+---
+
+## M32 — Smoke test sui path + hardening post-riorganizzazione
+
+**Why:** Esito della code-review di M31. La correttezza dei path root-relative (`content_scripts`, icone, `getURL`, `service_worker`, `importScripts`) falliva **solo a runtime** e non era coperta da alcun test (`npm test` esercitava solo `constants.js`+`popup.js`). La refactor M31 ha portato i path mantenuti a mano da ~5 a ~20 → serve una rete automatica. Più due fix minori (🟢) emersi dalla review.
+
+**Approach:**
+1. **Smoke test** `tests/manifest-paths.test.js` (Node test runner, zero dipendenze): (a) legge `manifest.json` e asserisce che ogni path referenziato esista (`default_popup`, `default_icon`×4, `icons`×4, `content_scripts[].js[]`, `content_scripts[].css[]`, `background.service_worker`); (b) estrae le stringhe-letterali `getURL('…')` da tutti i `.js` sotto `src/` e asserisce che il path (senza query/hash) risolva a un file esistente (root-relative); (c) estrae `importScripts('…')` da `src/background.js` e lo risolve **worker-relative** (rispetto alla dir del worker) — coglie esattamente il coupling segnalato.
+2. **Fix 🟢** `src/background.js:7`: commento che documenta il coupling `importScripts` ↔ stessa cartella di `constants.js`.
+3. **Fix 🟢** `tests/helpers/harness.js`: rimuovere il fallback silenzioso a ROOT (codice morto: tutti i sorgenti caricati dai test sono sotto `src/`) e lanciare un errore esplicito se un basename non è nell'indice.
+
+**Tasks:**
+- [x] `tests/manifest-paths.test.js`: assert esistenza path del manifest
+- [x] Stesso test: assert path dei `getURL('…')` (strip query) in `src/**/*.js`
+- [x] Stesso test: assert `importScripts('…')` worker-relative in `src/background.js`
+- [x] `src/background.js`: commento sul coupling importScripts/dir
+- [x] `harness.js`: errore esplicito invece del fallback ROOT silenzioso
+- [x] `npm test` verde (suite esistenti + nuova)
+- [x] Verifica negativa: rompere temporaneamente un path → il test fallisce (poi ripristinare)
+- [x] Commit & push su GitHub
+
+**Done when:** Un path errato nel manifest, in un `getURL` o in `importScripts` fa fallire `npm test`, così ogni futura riorganizzazione è blindata senza dipendere dalla verifica manuale.
