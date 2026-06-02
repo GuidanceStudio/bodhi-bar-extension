@@ -577,19 +577,6 @@ function attachGroupDnD(cardEl, groupIdx) {
   });
 }
 
-// Stop dragover bubbling from inside group cards so groups don't fight tabs
-function stopGroupContentsDragOver(cardEl) {
-  // Tab rows handle their own dragover and the group card handles only group drags.
-  // When dragging a TAB over the card body, prevent the group's dragover from
-  // claiming the event by short-circuiting at the card level.
-  cardEl.addEventListener('dragover', (e) => {
-    if (dragState.type === 'tab') {
-      // let tab rows / drop zones handle it
-      e.stopPropagation();
-    }
-  }, true);
-}
-
 // --- Inline confirm helper -------------------------------------------------
 
 /**
@@ -915,7 +902,6 @@ function renderGroupCard(group, groupIndex) {
   card.appendChild(tabsUl);
 
   attachGroupDnD(card, groupIndex);
-  stopGroupContentsDragOver(card);
   return card;
 }
 
