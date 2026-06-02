@@ -534,6 +534,6 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] `manifest.json`: aggiornare `icons` (16/32/48/128) e aggiungere `action.default_icon` (16/32/48/128)
 - [ ] Verifica manuale (utente): ricarica l'estensione → icona toolbar e pagina estensioni mostrano la foglia verde
 - [x] Migrare il remote: `origin` da `gitlab.com:gd-pub/bodhi-bar.git` → `github.com:GuidanceStudio/bodhi-bar-extension.git` (rimosso il riferimento al vecchio repo)
-- [ ] Commit & push su GitHub
+- [x] Commit & push su GitHub
 
 **Done when:** L'estensione mostra la foglia del menu (verde su trasparente) come icona della toolbar e nella pagina delle estensioni, in tutti i formati richiesti.
