@@ -864,3 +864,21 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 **Note (esecuzione):** scan classi CSS → nessuna orfana residua (la pulizia è avvenuta per-milestone). `content.css` non alterato nei colori (palette tarata per overlay con `all:initial`, non può usare i token non iniettati in pagina) ma annotato con header che spiega la separazione. README: nuova sezione "Design system".
 
 **Done when:** Nessun CSS morto residuo, palette di `content.css` allineata ai token, design system documentato nel README.
+
+---
+
+## M41 — Unificare i bottoni-icona in un `.icon-btn` condiviso
+
+**Why:** Ultimo vero residuo di duplicazione dopo M36–M40 (deciso con l'utente: il resto del "debito" sono scelte corrette, non debito). Popup ed editor definiscono lo **stesso** pattern di bottone-icona con classi separate: popup `.btn-icon` (rename ✓/✕), editor `.tab-action-btn`/`.group-action-btn` (delete 🗑) — tutti "icona trasparente, muted→text su hover con bg leggero, + variante colore".
+
+**Approach:** definire `.icon-btn` (+ `--danger`/`--success` per il colore on-hover) in `theme.css`; migrare popup ed editor; rimuovere le regole locali `.btn-icon*` / `.tab-action-btn*` / `.group-action-btn*`. Restano **distinti** (non toccati): `.workspace-action-icon` (icone azione sempre colorate, pattern diverso) e `.group-color-btn` (swatch colore). Parte visiva → IDD, verifica con screenshot headless; suite verde.
+
+**Tasks:**
+- [x] `theme.css`: `.icon-btn` + `.icon-btn--danger` / `.icon-btn--success`
+- [x] popup: `btn-icon`→`icon-btn`, `btn-icon success`→`icon-btn icon-btn--success`; rimuovere `.btn-icon*` da `popup.css`
+- [x] editor: `tab-action-btn delete`/`group-action-btn delete`→`icon-btn icon-btn--danger`; rimuovere `.tab-action-btn*`/`.group-action-btn*` da `editor.css`
+- [x] `npm test` verde + screenshot di verifica
+- [ ] Verifica manuale (utente): icone rename (popup) e delete (editor) invariate nell'aspetto/hover
+- [x] Commit & push
+
+**Done when:** Un solo `.icon-btn` condiviso copre i bottoni-icona di popup ed editor; nessuna regola icona duplicata residua; aspetto invariato.
