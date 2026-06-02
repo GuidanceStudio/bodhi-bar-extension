@@ -816,11 +816,13 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 **Approach:** in `popup.js`/`popup.css` sostituire le classi-componente locali con quelle condivise (`.btn--*`, `.input`, `.msg--*`), rimuovendo le regole locali ormai morte. Mantenere il layout specifico del popup (`.container`, `.workspaces-*`).
 
 **Tasks:**
-- [ ] Migrare bottoni/input/messaggi del popup alle classi condivise
-- [ ] Rimuovere il CSS locale duplicato/morto in `popup.css`
-- [ ] `npm test` verde
+- [x] Migrare bottoni/input/messaggi del popup alle classi condivise
+- [x] Rimuovere il CSS locale duplicato/morto in `popup.css`
+- [x] `npm test` verde
 - [ ] Verifica manuale (utente): popup invariato visivamente (Save current, lista workspace, toggle, messaggi)
-- [ ] Commit & push
+- [x] Commit & push
+
+**Note (esecuzione):** migrati Save current, Import, Save/Cancel del form, conferme Yes/No (delete + overwrite) e i messaggi (`applyMessageStyle`→`.msg--*`) ai componenti condivisi; `.std-input`→`.input`. Rimosse da `popup.css`: `.btn.small` scoped, `.std-input`, `.msg-box/.msg-*`, `.input-row input`. `.btn-icon` (rename inline ✓/✕) resta popup-local. Verificato con screenshot headless. Suite 22/22.
 
 **Done when:** Il popup usa i componenti condivisi, i duplicati locali sono rimossi, e l'aspetto è identico a prima.
 
