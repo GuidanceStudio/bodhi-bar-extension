@@ -61,29 +61,6 @@ a { color: #8ab4f8; }
   flex-shrink: 0;
 }
 
-.btn-primary {
-  background: var(--accent);
-  color: var(--text);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.1s, border-color 0.1s;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #1a8cff;
-  border-color: #1a8cff;
-}
-
-.btn-primary:disabled,
-.btn-ghost:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 /* Banners (conflict / external change) */
 
 .editor-banners:empty { display: none; }
@@ -530,34 +507,6 @@ a { color: #8ab4f8; }
   margin-right: 2px;
 }
 
-.inline-confirm-btn {
-  font-size: 11px;
-  padding: 2px 8px;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.inline-confirm-btn.yes {
-  background: var(--danger);
-  color: var(--text);
-}
-
-.inline-confirm-btn.yes:hover { background: #f56565; }
-
-.inline-confirm-btn.no {
-  background: rgba(255,255,255,0.08);
-  color: var(--text);
-}
-
-.inline-confirm-btn.no:hover { background: rgba(255,255,255,0.16); }
-
-.inline-confirm-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 /* Add group row + form */
 
 .add-group-row {
@@ -596,24 +545,5 @@ a { color: #8ab4f8; }
 .add-group-form .inline-edit-input {
   flex: 1;
   font-size: 13px;
-}
-
-/* Ghost button (editor toolbar) */
-
-.btn-ghost {
-  background: transparent;
-  color: var(--text-dim);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 4px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: border-color 0.1s, color 0.1s, background 0.1s;
-}
-
-.btn-ghost:hover {
-  border-color: var(--accent);
-  color: var(--text);
-  background: rgba(0, 120, 212, 0.08);
 }
 
