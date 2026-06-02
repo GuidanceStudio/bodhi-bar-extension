@@ -676,3 +676,38 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push su GitHub
 
 **Done when:** Un path errato nel manifest, in un `getURL` o in `importScripts` fa fallire `npm test`, così ogni futura riorganizzazione è blindata senza dipendere dalla verifica manuale.
+
+---
+
+## M33 — Editor: click-to-edit diretto su URL e titolo delle tab
+
+**Why:** Richiesta utente. Oggi nell'editor (`renderTabRow`, `src/editor/editor.js:640`) l'URL si edita solo cliccando la matita ✏ rivelata all'hover, e il **titolo è read-only** (a differenza di nome workspace e titoli gruppo, già click-to-edit). L'utente vuole (1) editare cliccando direttamente sul link e (2) poter editare anche i title.
+
+**Caveat onesto (verificato in `background.js:1128/1145`):** al restore l'estensione fa `chrome.tabs.create({ url })` — il titolo **non viene applicato** (Chrome non permette di forzare il titolo di una tab: lo decide il `<title>` della pagina). Quindi un titolo personalizzato è **un'etichetta solo nello snapshot/editor**: sovrascritta al restore dal titolo reale e da un eventuale ri-salvataggio dalla finestra live. **Decisione utente:** abilitarlo comunque come etichetta editor, con hint esplicito.
+
+**Decisioni utente:**
+- Title: click-to-edit abilitato come etichetta (tooltip che chiarisce che è un'etichetta salvata).
+- URL: click diretto sul testo host/URL apre l'edit; **rimuovere il bottone matita ✏** (ridondante); resta solo 🗑 delete; aggiungere cue di hover per scopribilità.
+
+**Approach (solo `src/editor/editor.js` + `src/editor/editor.css`; nessun cambiamento a save/restore):**
+1. **Titolo editabile**: su `titleEl` aggiungere classe `editable` + tooltip hint e handler `click` → `startInlineEdit(titleEl, { initialValue: tab.title || '', maxLength: 200, onCommit })`. onCommit: `next = raw.trim()`; via `applyMutation` settare `list[tabIdx].title = next` (se vuoto → eliminare la chiave `title`, così `tabLabel` torna all'host). Empty ammesso = "pulisci etichetta".
+2. **URL via click diretto**: spostare la logica oggi nel handler della matita dentro un handler `click` su `hostEl` (stessa `startInlineEdit(hostEl, { initialValue: tab.url, maxLength: 2000, inputClass:'tab-url-input', onCommit con isValidWebUrl })`). Aggiungere classe `editable` + tooltip + cue hover.
+3. **Rimuovere** la creazione/append di `editUrlBtn` (✏). `tab-actions` resta col solo `delBtn` (🗑).
+4. **Tooltip**: `hostEl.title = tab.url` (URL completo); `titleEl.title` = hint "Saved label — the live page title is used when restored".
+5. **CSS**: affordance hover per `.tab-title.editable` / `.tab-host.editable` (cursor + leggero underline/bg su hover), coerente con `.group-title.editable`.
+6. **Convivenza con DnD**: identica al precedente già funzionante dei titoli gruppo (riga draggable + titolo click-to-edit) — `stopPropagation` sul click.
+7. **README**: aggiornare la descrizione dell'Edit nel blocco Workspaces ("edit tab URLs" → "edit tab URLs and labels").
+8. **Round-trip JSON del title (richiesta utente)** — verificato che **non serve codice nuovo**: l'export (`popup.js:627-631`) serializza il `payload` salvato verbatim in `{ wv, name, payload }`; l'import (`normalizeImportedWorkspaceJson`, `popup.js:43-54`) è lenient e passa i campi sconosciuti invariati (`payload = raw.payload`). Quindi il `title` scritto dall'editor nel payload (task 1) viene esportato e re-importato così com'è. Unico caso di perdita: ri-salvataggio da finestra live (ricattura i titoli reali) — già nel caveat. Aggiungere un **test di regressione** che blinda il round-trip.
+
+**Tasks:**
+- [x] `editor.js`: titolo tab click-to-edit (commit su `tab.title`, empty=clear)
+- [x] `editor.js`: URL click-to-edit su `hostEl`; rimuovere il bottone matita ✏
+- [x] `editor.js`: tooltip URL completo su host + hint "etichetta salvata" sul titolo
+- [x] `editor.css`: affordance hover per `.tab-title.editable` / `.tab-host.editable`
+- [x] `README.md`: aggiornare descrizione Edit (URLs + labels)
+- [x] Test di regressione: un payload con `title` custom su pinned + group tab sopravvive a `normalizeImportedWorkspaceJson` invariato (round-trip import)
+- [x] `npm test` verde (suite esistenti + nuovo test round-trip)
+- [ ] Verifica manuale (utente): click su titolo → edit etichetta; click su URL → edit URL; matita assente; delete ok; DnD ancora funzionante; etichetta vuota torna all'host; **export → JSON contiene il title; import dello stesso file → title presente nell'editor**
+- [x] Commit & push su GitHub
+
+**Done when:** Nell'editor si edita titolo (etichetta) e URL cliccando direttamente sul testo; la matita è rimossa; il `title` custom fa round-trip export→import nel JSON (con test di regressione); nessuna regressione su DnD/delete/test.

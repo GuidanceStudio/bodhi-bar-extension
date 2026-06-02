@@ -81,3 +81,28 @@ test('a non-object (e.g. array or string) is still rejected', () => {
   assert.equal(normalizeImportedWorkspaceJson('nope').ok, false);
   assert.equal(normalizeImportedWorkspaceJson([1, 2, 3]).ok, false);
 });
+
+// M33: custom tab labels edited in the editor are stored as `title` in the
+// payload. Export serializes the payload verbatim, so the round-trip guarantee
+// is that import preserves `title` on both pinned and grouped tabs untouched.
+
+test('custom tab titles round-trip through import (pinned + grouped)', () => {
+  const { normalizeImportedWorkspaceJson } = loadValidator();
+
+  const exported = {
+    wv: '1.0',
+    name: 'Labelled',
+    payload: {
+      pinnedTabs: [{ url: 'https://mail.google.com', title: 'Inbox' }],
+      allTabGroups: [
+        { title: 'AI', color: 'purple', tabs: [{ url: 'https://chatgpt.com', title: 'My ChatGPT' }] },
+      ],
+    },
+  };
+
+  const res = normalizeImportedWorkspaceJson(exported);
+
+  assert.equal(res.ok, true, res.error || 'should be accepted');
+  assert.equal(res.payload.pinnedTabs[0].title, 'Inbox', 'pinned tab label preserved');
+  assert.equal(res.payload.allTabGroups[0].tabs[0].title, 'My ChatGPT', 'grouped tab label preserved');
+});

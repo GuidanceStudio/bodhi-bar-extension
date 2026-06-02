@@ -648,28 +648,40 @@ function renderTabRow(tab, listType, groupIdx, tabIdx) {
   const label = document.createElement('div');
   label.className = 'tab-label';
 
+  // Title doubles as an editable label. NOTE: this label lives only in the
+  // workspace/editor snapshot — on restore the browser uses the page's real
+  // <title> (Chrome can't force a tab title), and re-saving from a live window
+  // recaptures the real title. It does round-trip through export/import.
   const titleEl = document.createElement('span');
-  titleEl.className = 'tab-title';
+  titleEl.className = 'tab-title editable';
   titleEl.textContent = tabLabel(tab);
-  titleEl.title = tab.url || '';
+  titleEl.title = 'Click to edit label (saved in this workspace; the live page title is used when restored)';
+  titleEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startInlineEdit(titleEl, {
+      initialValue: tab.title || '',
+      maxLength: 200,
+      inputClass: 'tab-title-input',
+      onCommit: async (raw) => {
+        const next = String(raw || '').trim();
+        if (next === (tab.title || '')) return true;
+        applyMutation((payload) => {
+          const list = getTabList(payload, listType, groupIdx);
+          if (!list || !list[tabIdx]) return false;
+          if (next) list[tabIdx].title = next;
+          else delete list[tabIdx].title; // empty clears the custom label
+        });
+        return true;
+      }
+    });
+  });
 
+  // Host line is the click target for editing the full URL.
   const hostEl = document.createElement('span');
-  hostEl.className = 'tab-host';
+  hostEl.className = 'tab-host editable';
   hostEl.textContent = hostFromUrl(tab.url) || tab.url || '';
-
-  label.appendChild(titleEl);
-  label.appendChild(hostEl);
-
-  const actions = document.createElement('div');
-  actions.className = 'tab-actions';
-
-  const editUrlBtn = document.createElement('button');
-  editUrlBtn.type = 'button';
-  editUrlBtn.className = 'tab-action-btn edit';
-  editUrlBtn.title = 'Edit URL';
-  editUrlBtn.draggable = false;
-  editUrlBtn.innerHTML = '&#9999;'; // ✏
-  editUrlBtn.addEventListener('click', (e) => {
+  hostEl.title = tab.url || '';
+  hostEl.addEventListener('click', (e) => {
     e.stopPropagation();
     startInlineEdit(hostEl, {
       initialValue: tab.url || '',
@@ -692,6 +704,12 @@ function renderTabRow(tab, listType, groupIdx, tabIdx) {
     });
   });
 
+  label.appendChild(titleEl);
+  label.appendChild(hostEl);
+
+  const actions = document.createElement('div');
+  actions.className = 'tab-actions';
+
   const delBtn = document.createElement('button');
   delBtn.type = 'button';
   delBtn.className = 'tab-action-btn delete';
@@ -709,7 +727,6 @@ function renderTabRow(tab, listType, groupIdx, tabIdx) {
     });
   });
 
-  actions.appendChild(editUrlBtn);
   actions.appendChild(delBtn);
 
   li.appendChild(dot);
