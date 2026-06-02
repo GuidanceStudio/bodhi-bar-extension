@@ -938,3 +938,21 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Nel popup ogni workspace ha solo Restore/Edit/Download; rename e delete del workspace si fanno dall'editor.
+
+---
+
+## M45 — Duplica workspace (azione nel popup)
+
+**Why:** Richiesta utente. Copiare rapidamente un workspace è utile e **non-distruttivo**: sta nella lista del popup (dove si gestiscono i workspace) accanto a Download — entrambe "producono una copia". Non nell'editor: aprirlo solo per duplicare sarebbe attrito, e il motivo per cui rename/delete sono nell'editor (evitare azioni distruttive accidentali dalla lista) non vale per una copia.
+
+**Approach:** in `popup.js renderWorkspacesList`, aggiungere un'icona **Duplicate** (tra Edit e Download). Al click: nome libero via `suggestFreeName(name, workspaces)` (riuso M34), payload **clonato in profondità** (`JSON.parse(JSON.stringify(...))`), nuovo `createdAt`; scrittura in storage, re-render e flash "Duplicated as <nome>". Nessun prompt (azione rapida; il rename si fa nell'editor). Icona con classe colore propria in `popup.css`.
+
+**Tasks:**
+- [x] `popup.js`: icona Duplicate nella riga workspace (ordine Restore · Edit · Duplicate · Download)
+- [x] Handler: `suggestFreeName` + clone profondo del payload + nuovo `createdAt` + save + re-render + flash
+- [x] `popup.css`: colore dedicato per `.workspace-action-icon.duplicate`
+- [x] `npm test` verde
+- [ ] Verifica manuale (utente): Duplicate crea una copia "X 2" indipendente (modificarla non tocca l'originale); compare nella lista
+- [x] Commit & push
+
+**Done when:** Dalla lista del popup si duplica un workspace con un click, ottenendo una copia indipendente con nome libero suggerito.
