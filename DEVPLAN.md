@@ -796,12 +796,14 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 **Approach:** in `theme.css` definire i componenti unici: `.btn` (+ `--primary`/`--danger`/`--ghost`/`--sm`), `.input`, `.msg` (+ `--error`/`--info`/`--success`), `.panel`. Ricostruire il flusso import in `popup.js` (`initImportMode`, `showNameInputForm`, `renderConflictIntent`, `renderConflictRename`) usando queste classi, sostituendo gli stili inline. La `.btn.danger` introdotta in M34 confluisce in `.btn--danger`. `content.css` invariato.
 
 **Tasks:**
-- [ ] Definire i componenti (`.btn`/`.input`/`.msg`/`.panel`) in `theme.css`
-- [ ] Restyle import: `initImportMode` (card a tema), `showNameInputForm`, step conflitto
-- [ ] Rimuovere gli stili inline e la `.btn.danger` ad-hoc (assorbita in `.btn--danger`)
-- [ ] `npm test` verde
+- [x] Definire i componenti (`.btn`/`.input`/`.msg`/`.panel`) in `theme.css`
+- [x] Restyle import: `initImportMode` (card a tema), `showNameInputForm`, step conflitto
+- [x] Rimuovere gli stili inline e la `.btn.danger` ad-hoc (assorbita in `.btn--danger`)
+- [x] `npm test` verde
 - [ ] Verifica manuale (utente): flusso import a tema e coerente (select file, nome, Keep both/Replace, Cancel/Back)
-- [ ] Commit & push
+- [x] Commit & push
+
+**Note (esecuzione):** parte visiva → fallback IDD (niente unit test per il CSS); suite esistente verde (22/22), e restyle verificato con screenshot headless Brave della vista iniziale e degli step di conflitto. `applyMessageStyle` lasciato intatto (lo usa ancora la lista workspace → M38). `.btn--ghost`/`.btn--sm` definiti ora come parte del sistema, adottati in M38/M39.
 
 **Done when:** L'intero flusso import usa i componenti condivisi ed è visivamente coerente con popup ed editor.
 
