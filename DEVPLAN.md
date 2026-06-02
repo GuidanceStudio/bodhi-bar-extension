@@ -711,3 +711,40 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push su GitHub
 
 **Done when:** Nell'editor si edita titolo (etichetta) e URL cliccando direttamente sul testo; la matita è rimossa; il `title` custom fa round-trip export→import nel JSON (con test di regressione); nessuna regressione su DnD/delete/test.
+
+---
+
+## M34 — Ridisegno UX della risoluzione conflitti in import (scelta esplicita a 2 step)
+
+**Why:** La schermata attuale di conflitto (`showConflictResolution`, `popup.js:190-271`) è incoerente: un campo nome sempre visibile che vale **solo** per "Rename", un bottone **"Overwrite" che ignora il campo** (`popup.js:215` usa `name`, non `input.value`) e butta via quanto digitato, il campo pre-riempito col nome che collide (inutile, ri-collide), e un'azione distruttiva (overwrite) senza stile di pericolo né conferma. Tre azioni che si pestano i piedi.
+
+**Design scelto dall'utente — scelta esplicita a 2 step:**
+- **Step 1 (intento):** messaggio `A workspace named "X" already exists. What do you want to do?` + 3 bottoni:
+  - **Keep both** (primario) → vai allo step 2.
+  - **Replace existing** (distruttivo, stile rosso) → sovrascrive il workspace X col payload importato. Un click (la scelta esplicita del bottone è la conferma), ma chiaramente segnalato come distruttivo.
+  - **Cancel** → torna a "Select JSON File...".
+- **Step 2 (Keep both → nome):** campo pre-riempito con un **nome libero suggerito** (`suggestFreeName`, es. "X 2" → "X 3"… fino al primo libero) + **Import** (valida; se ancora collide → errore inline e resta sullo step) + **Back** (torna allo step 1).
+
+**Approach (solo `src/popup/popup.js` + `src/popup/popup.css` + README):**
+1. Riscrivere `showConflictResolution` come due render (step1/step2) self-contained; rimuovere Overwrite/Rename/campo-sempre-visibile attuali.
+2. Helper puro `suggestFreeName(base, workspaces)` → primo `"<base> N"` non presente (rispetta `sanitizeWorkspaceName`, che ammette spazi). **Unit-testabile.**
+3. **Replace** = logica dell'attuale overwrite ma esplicita e con stile pericolo.
+4. **Import (keep both)** = logica dell'attuale rename (validazione + collision check).
+5. **D1 cleanup**: il rebuild "Select JSON File..." è duplicato 3× → fattorizzare in `resetImportToFileSelect()` e riusarlo nei Cancel/Back.
+6. CSS: aggiungere `.btn.danger` (rosso) in `popup.css` per "Replace existing".
+7. README: aggiornare il bullet Import (oggi "asks you to pick a different one") → descrivere Keep both / Replace.
+
+**Tasks:**
+- [x] `suggestFreeName(base, workspaces)` puro + estratto per il test
+- [x] Test unit: `suggestFreeName` (es. base "sead" con {sead, "sead 2"} → "sead 3"; base libero → "<base> 2")
+- [x] Riscrivere `showConflictResolution`: step1 (Keep both / Replace existing / Cancel)
+- [x] Step2 (Keep both): campo pre-riempito con `suggestFreeName` + Import (validazione/collision) + Back
+- [x] `Replace existing`: overwrite esplicito con stile distruttivo
+- [x] `resetImportToFileSelect()` helper; deduplicare i 3 rebuild "Select JSON File..."
+- [x] `popup.css`: classe `.btn.danger`
+- [x] `README.md`: aggiornare bullet Import (Keep both / Replace)
+- [x] `npm test` verde (suite esistenti + test suggestFreeName)
+- [ ] Verifica manuale (utente): import con nome che collide → step1; Keep both → nome suggerito libero → Import; Replace → sovrascrive; Back/Cancel ok; nessun campo che "non c'entra" con l'azione
+- [x] Commit & push su GitHub
+
+**Done when:** In caso di conflitto l'utente sceglie prima l'intento (tieni entrambi / sostituisci); il campo nome compare solo quando serve (Keep both) pre-riempito con un nome libero; "Replace" è esplicito e distruttivo; niente più campo che l'azione ignora.

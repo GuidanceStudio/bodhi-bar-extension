@@ -27,6 +27,21 @@ function sanitizeWorkspaceName(name) {
   return s.slice(0, PRESET_NAME_MAX_LEN);
 }
 
+// Suggest the first free "<base> N" (N starting at 2) not already in the
+// workspaces map. Used to pre-fill the "keep both" name on an import conflict.
+// The cap guards the pathological case where truncation to the max length
+// collapses successive candidates; the Import step still validates anyway.
+function suggestFreeName(base, workspaces) {
+  const map = workspaces || {};
+  const root = sanitizeWorkspaceName(base) || 'Workspace';
+  let candidate = root;
+  for (let n = 2; n < 1000; n++) {
+    candidate = sanitizeWorkspaceName(`${root} ${n}`);
+    if (!map[candidate]) break;
+  }
+  return candidate;
+}
+
 function escapeFilenamePart(name) {
   return String(name || '')
     .trim()
@@ -110,6 +125,24 @@ function showInlineMessage(text, isSuccess) {
   }
 }
 
+function buildSelectFileButton() {
+  const btn = document.createElement('button');
+  btn.textContent = 'Select JSON File...';
+  btn.className = 'btn';
+  btn.style.fontSize = '16px';
+  btn.style.padding = '10px 20px';
+  btn.onclick = handleImportFile;
+  return btn;
+}
+
+// Reset the import panel back to the initial "Select JSON File..." state.
+function resetImportToFileSelect() {
+  const container = document.getElementById('importContainer');
+  if (!container) return;
+  container.innerHTML = '';
+  container.appendChild(buildSelectFileButton());
+}
+
 function showNameInputForm(onSubmit) {
   const container = document.getElementById('importContainer');
   if (!container) return;
@@ -145,17 +178,8 @@ function showNameInputForm(onSubmit) {
   const cancel = document.createElement('button');
   cancel.textContent = 'Cancel';
   cancel.className = 'btn small';
-  cancel.onclick = () => {
-    container.innerHTML = '';
-    const btn = document.createElement('button');
-    btn.textContent = 'Select JSON File...';
-    btn.className = 'btn';
-    btn.style.fontSize = '16px';
-    btn.style.padding = '10px 20px';
-    btn.onclick = handleImportFile;
-    container.appendChild(btn);
-  };
-  
+  cancel.onclick = resetImportToFileSelect;
+
   buttonRow.appendChild(save);
   buttonRow.appendChild(cancel);
   
@@ -187,45 +211,82 @@ async function finishImport(name, payload, file) {
   setTimeout(() => window.close(), 1500);
 }
 
+// Import name collision. Two-step explicit choice so no control contradicts
+// another: first the user picks the intent, then (only for "keep both") a name.
 function showConflictResolution(name, workspaces, payload) {
+  renderConflictIntent(name, workspaces, payload);
+}
+
+// Step 1 — pick the intent: keep both, replace the existing one, or cancel.
+function renderConflictIntent(name, workspaces, payload) {
   const container = document.getElementById('importContainer');
   if (!container) return;
-  
+
   container.innerHTML = '';
-  
+
   const msg = document.createElement('div');
-  msg.textContent = `A workspace named "${name}" already exists.`;
-  applyMessageStyle(msg, 'error');
-  
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.value = name;
-  input.className = 'std-input';
-  input.style.width = '100%';
-  input.style.marginBottom = '8px';
-  
+  msg.textContent = `A workspace named "${name}" already exists. What do you want to do?`;
+  applyMessageStyle(msg, 'info');
+
   const buttonRow = document.createElement('div');
   buttonRow.className = 'rule-actions';
   buttonRow.style.justifyContent = 'flex-start';
-  
-  const overwrite = document.createElement('button');
-  overwrite.textContent = 'Overwrite';
-  overwrite.className = 'btn small';
-  overwrite.onclick = async () => {
-    workspaces[name] = {
-      name,
-      createdAt: Date.now(),
-      payload
-    };
+
+  const keepBoth = document.createElement('button');
+  keepBoth.textContent = 'Keep both';
+  keepBoth.className = 'btn small success';
+  keepBoth.onclick = () => renderConflictRename(name, workspaces, payload);
+
+  const replace = document.createElement('button');
+  replace.textContent = 'Replace existing';
+  replace.className = 'btn small danger';
+  replace.title = `Overwrite the existing "${name}" with the imported one`;
+  replace.onclick = async () => {
+    workspaces[name] = { name, createdAt: Date.now(), payload };
     await storageSetWorkspaces(workspaces);
-    showInlineMessage(`Overwrote "${name}".`, true);
+    showInlineMessage(`Replaced "${name}".`, true);
     setTimeout(() => window.close(), 1500);
   };
-  
-  const rename = document.createElement('button');
-  rename.textContent = 'Rename';
-  rename.className = 'btn small success';
-  rename.onclick = async () => {
+
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.className = 'btn small';
+  cancel.onclick = resetImportToFileSelect;
+
+  buttonRow.appendChild(keepBoth);
+  buttonRow.appendChild(replace);
+  buttonRow.appendChild(cancel);
+
+  container.appendChild(msg);
+  container.appendChild(buttonRow);
+}
+
+// Step 2 — keep both: import under a new (pre-suggested, free) name.
+function renderConflictRename(name, workspaces, payload) {
+  const container = document.getElementById('importContainer');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  const label = document.createElement('div');
+  label.textContent = 'Import under a new name:';
+  label.className = 'control-group label';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = suggestFreeName(name, workspaces);
+  input.className = 'std-input';
+  input.style.width = '100%';
+  input.style.marginBottom = '8px';
+
+  const buttonRow = document.createElement('div');
+  buttonRow.className = 'rule-actions';
+  buttonRow.style.justifyContent = 'flex-start';
+
+  const importBtn = document.createElement('button');
+  importBtn.textContent = 'Import';
+  importBtn.className = 'btn small success';
+  importBtn.onclick = async () => {
     const newName = sanitizeWorkspaceName(input.value);
     if (!newName) {
       showInlineMessage('Please enter a new name.', false);
@@ -235,39 +296,26 @@ function showConflictResolution(name, workspaces, payload) {
       showInlineMessage(`"${newName}" already exists.`, false);
       return;
     }
-    workspaces[newName] = {
-      name: newName,
-      createdAt: Date.now(),
-      payload
-    };
+    workspaces[newName] = { name: newName, createdAt: Date.now(), payload };
     await storageSetWorkspaces(workspaces);
     showInlineMessage(`Imported as "${newName}".`, true);
     setTimeout(() => window.close(), 1500);
   };
-  
-  const cancel = document.createElement('button');
-  cancel.textContent = 'Cancel';
-  cancel.className = 'btn small';
-  cancel.onclick = () => {
-    container.innerHTML = '';
-    const btn = document.createElement('button');
-    btn.textContent = 'Select JSON File...';
-    btn.className = 'btn';
-    btn.style.fontSize = '16px';
-    btn.style.padding = '10px 20px';
-    btn.onclick = handleImportFile;
-    container.appendChild(btn);
-  };
-  
-  buttonRow.appendChild(overwrite);
-  buttonRow.appendChild(rename);
-  buttonRow.appendChild(cancel);
-  
-  container.appendChild(msg);
+
+  const back = document.createElement('button');
+  back.textContent = 'Back';
+  back.className = 'btn small';
+  back.onclick = () => renderConflictIntent(name, workspaces, payload);
+
+  buttonRow.appendChild(importBtn);
+  buttonRow.appendChild(back);
+
+  container.appendChild(label);
   container.appendChild(input);
   container.appendChild(buttonRow);
-  
+
   input.focus();
+  input.select();
 }
 
 function showWorkspacesMessage(text, status = 'info') {
@@ -688,12 +736,7 @@ function initImportMode() {
   h2.textContent = 'Import Workspace';
   h2.style.marginBottom = '20px';
 
-  const btn = document.createElement('button');
-  btn.textContent = 'Select JSON File...';
-  btn.className = 'btn';
-  btn.style.fontSize = '16px';
-  btn.style.padding = '10px 20px';
-  btn.onclick = handleImportFile;
+  const btn = buildSelectFileButton();
 
   const container = document.createElement('div');
   container.id = 'importContainer';
