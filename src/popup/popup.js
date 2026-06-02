@@ -103,14 +103,8 @@ function runtimeSendMessage(msg) {
 }
 
 function applyMessageStyle(el, type) {
-  el.className = 'msg-box';
-  if (type === 'success') {
-    el.classList.add('msg-success');
-  } else if (type === 'error') {
-    el.classList.add('msg-error');
-  } else {
-    el.classList.add('msg-info');
-  }
+  const variant = (type === 'success' || type === 'error') ? type : 'info';
+  el.className = 'msg msg--' + variant;
 }
 
 function showInlineMessage(text, isSuccess) {
@@ -436,7 +430,7 @@ function appendImportRow(ul) {
   actions.className = 'workspace-actions';
 
   const importBtn = document.createElement('button');
-  importBtn.className = 'btn small';
+  importBtn.className = 'btn btn--primary btn--sm';
   importBtn.textContent = 'Import';
   importBtn.style.marginLeft = '8px';
   importBtn.addEventListener('click', () => {
@@ -504,19 +498,11 @@ function renderWorkspacesList(workspacesMap) {
 
         const yes = document.createElement('button');
         yes.textContent = 'Yes';
-        yes.className = 'btn small';
-        yes.style.padding = '2px 6px';
-        yes.style.fontSize = '10px';
-        yes.style.minWidth = 'auto';
-        yes.style.background = '#f87171';
-        yes.style.color = '#fff';
-        
+        yes.className = 'btn btn--danger btn--sm';
+
         const no = document.createElement('button');
         no.textContent = 'No';
-        no.className = 'btn small';
-        no.style.padding = '2px 6px';
-        no.style.fontSize = '10px';
-        no.style.minWidth = 'auto';
+        no.className = 'btn btn--sm';
 
         yes.onclick = async (ev) => {
           ev.stopPropagation();
@@ -586,7 +572,7 @@ function renderWorkspacesList(workspacesMap) {
       const input = document.createElement('input');
       input.type = 'text';
       input.value = name;
-      input.className = 'std-input';
+      input.className = 'input';
       input.style.flex = '1';
       input.style.minWidth = '0';
 
@@ -781,11 +767,11 @@ async function initWorkspacesSection() {
 
     const yesBtn = document.createElement('button');
     yesBtn.textContent = 'Yes';
-    yesBtn.className = 'btn small';
+    yesBtn.className = 'btn btn--danger btn--sm';
 
     const noBtn = document.createElement('button');
     noBtn.textContent = 'No';
-    noBtn.className = 'btn small';
+    noBtn.className = 'btn btn--sm';
 
     container.appendChild(msg);
     container.appendChild(yesBtn);
@@ -805,16 +791,16 @@ async function initWorkspacesSection() {
 
     const input = document.createElement('input');
     input.type = 'text';
-    input.className = 'std-input';
+    input.className = 'input';
     input.placeholder = 'Workspace name...';
 
     const saveBtn = document.createElement('button');
     saveBtn.textContent = 'Save';
-    saveBtn.className = 'btn small';
+    saveBtn.className = 'btn btn--primary btn--sm';
 
     const cancelBtn = document.createElement('button');
     cancelBtn.textContent = 'Cancel';
-    cancelBtn.className = 'btn small';
+    cancelBtn.className = 'btn btn--sm';
 
     container.appendChild(input);
     container.appendChild(saveBtn);

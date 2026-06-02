@@ -18,23 +18,6 @@ body {
   gap: 10px;
 }
 
-/* Blue action buttons (Save current, Import) */
-.workspaces-header .btn.small,
-.workspace-item.import-row .btn.small {
-  background: #0078d4 !important;
-  color: #ffffff !important;
-  font-weight: 600;
-  font-size: 12px;
-  padding: 6px 10px !important;
-  border: none;
-  border-radius: 4px;
-}
-
-.workspaces-header .btn.small:hover,
-.workspace-item.import-row .btn.small:hover {
-  background: #1a8cff !important;
-}
-
 /* Import view (full-tab page opened via popup.html?mode=import). The shared
    .btn/.input/.msg/.card components (theme.css) carry the look; this is layout. */
 body.import-mode {
@@ -104,51 +87,6 @@ body.import-mode {
   body { width: 280px; }
 }
 
-/* Standard input (workspace names) */
-.std-input {
-  background: #1e1e1e;
-  border: 1px solid #444;
-  color: #fff;
-  padding: 4px 6px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-family: inherit; /* Usa il font sans-serif del body, non monospace */
-  box-sizing: border-box;
-  outline: none;
-}
-
-.std-input:focus {
-  border-color: var(--accent);
-  background: #252525;
-}
-
-/* Message Boxes */
-.msg-box {
-  padding: 8px 10px;
-  margin: 8px 0;
-  font-size: 12px;
-  line-height: 1.3;
-  border-radius: 4px;
-  word-break: break-word;
-}
-
-.msg-success {
-  color: #166534;
-  background: #dcfce7;
-  border: 1px solid #86efac;
-}
-
-.msg-error {
-  color: #b91c1c;
-  background: #fee2e2;
-  border: 1px solid #fca5a5;
-}
-
-.msg-info {
-  color: #1a1a1a;
-  background: #fff7e6;
-  border: 1px solid #f1d9a8;
-}
 
 /* Inline form label (e.g. the import name form) */
 .control-group {
@@ -299,17 +237,6 @@ body.import-mode {
   margin-bottom: 8px;
 }
 
-.input-row input {
+.input-row .input {
   flex: 1;
-  background: #333;
-  border: 1px solid #444;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.input-row input:focus {
-  outline: none;
-  border-color: var(--accent);
 }
