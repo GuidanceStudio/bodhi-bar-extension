@@ -882,3 +882,19 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Un solo `.icon-btn` condiviso copre i bottoni-icona di popup ed editor; nessuna regola icona duplicata residua; aspetto invariato.
+
+---
+
+## M42 — Fix nit code-review: doppia spaziatura del `.msg` nell'import
+
+**Why:** Rilievo 🟢 della review M36–M41: `.msg` ha `margin:8px 0` ma `.import-card` impila i figli con `gap:10px`, creando ~18px attorno al messaggio nel flusso import. Cosmetico.
+
+**Approach:** azzerare il margine del `.msg` solo dentro la card import (`.import-card .msg{margin:0}`), lasciando intatto il `.msg` della lista workspace (che non è in un contenitore flex con gap).
+
+**Tasks:**
+- [x] `popup.css`: `.import-card .msg { margin: 0 }`
+- [x] `npm test` verde
+- [ ] Verifica manuale (utente): spaziatura del messaggio nell'import uniforme
+- [x] Commit & push
+
+**Done when:** Nel flusso import il messaggio ha spaziatura coerente col resto (solo il gap della card).
