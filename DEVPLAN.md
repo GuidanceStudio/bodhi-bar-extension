@@ -854,11 +854,13 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 **Approach:** sweep di `popup.css`/`editor.css` per regole morte residue; opzionale: portare i valori-colore letterali di `content.css` a coincidere coi token, con commento di cross-reference (resta separato per l'iniezione in pagina); aggiungere una breve nota "Design system" nel README (token in `theme.css`, componenti condivisi, `content.css` separato e perché).
 
 **Tasks:**
-- [ ] Rimuovere CSS morto residuo in `popup.css`/`editor.css`
-- [ ] Allineare/annotare la palette di `content.css` ai token (documentato)
-- [ ] `README.md`: nota "Design system"
-- [ ] `npm test` verde
+- [x] Rimuovere CSS morto residuo in `popup.css`/`editor.css`
+- [x] Allineare/annotare la palette di `content.css` ai token (documentato)
+- [x] `README.md`: nota "Design system"
+- [x] `npm test` verde
 - [ ] Verifica manuale (utente): tutte le superfici coerenti, nessuna regressione
-- [ ] Commit & push
+- [x] Commit & push
+
+**Note (esecuzione):** scan classi CSS → nessuna orfana residua (la pulizia è avvenuta per-milestone). `content.css` non alterato nei colori (palette tarata per overlay con `all:initial`, non può usare i token non iniettati in pagina) ma annotato con header che spiega la separazione. README: nuova sezione "Design system".
 
 **Done when:** Nessun CSS morto residuo, palette di `content.css` allineata ai token, design system documentato nel README.
