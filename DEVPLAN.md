@@ -537,3 +537,35 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push su GitHub
 
 **Done when:** L'estensione mostra la foglia del menu (verde su trasparente) come icona della toolbar e nella pagina delle estensioni, in tutti i formati richiesti.
+
+---
+
+## M29 — Riscrittura README: completo, sintetico, leggibile
+
+**Why:** Review del README attuale (richiesta utente). Diagnosi: (a) **install incompleto** — c'è solo "Development Installation" (load unpacked), nessun percorso install pensato per l'utente finale; (b) **non sintetico** — il comportamento leaf→hover→pin→hide è ripetuto 3 volte (Key Features, sezione "Bar visibility", Technical details), "floats/never reflows" ~5 volte, "Key Features" è una spec annidata lunghissima; (c) **leggibilità** — ordine controintuitivo (setup vertical-tabs prima dell'install), install sepolto in fondo, parte utente e parte dev mescolate. Il "cosa serve" (intro) è invece ottimo e va tenuto.
+
+**Decisioni utente:**
+- **No Chrome Web Store**: install resta "carica da sorgente" (load unpacked), ma riscritto come istruzione chiara per utenti, non solo per dev.
+- **Solo testo**: niente screenshot/GIF né placeholder immagine.
+
+**Approach:** Riscrittura con ordine orientato al lettore, separando nettamente la parte utente da quella sviluppatore. Nessun cambiamento al codice/comportamento — solo `README.md`. Eliminare le ripetizioni (una sola spiegazione del modello leaf/hover/pin/hide, referenziata dove serve). Sfoltire "Key Features" ai concetti chiave; spostare il dettaglio fine in una sezione dev compatta.
+
+**Struttura target:**
+1. Titolo + 2 righe "cos'è" (riusare l'intro attuale, già buona)
+2. **Install** (load-unpacked, passi chiari per utenti)
+3. **Quick start** (3–4 passi fino al primo workspace)
+4. **Setup consigliato** (vertical tabs) — accorciato, link mantenuti
+5. **Uso & funzionalità** — sfoltite, una sola volta il modello leaf/pin/hide
+6. separatore — **For developers**: architettura (project structure), state management, file format, test, troubleshooting, technical highlights
+7. **License** (verificare se esiste un file LICENSE; se assente, segnalarlo e non inventarne una)
+
+**Tasks:**
+- [x] Verificato: nessun LICENSE presente → decisione utente: aggiungere **MIT** ("è per tutti")
+- [x] Creare file `LICENSE` (MIT, © 2026 guidance.studio) e referenziarlo nella sezione License del README
+- [x] Riscrivere `README.md` secondo la struttura target, rimuovendo le 3 ripetizioni del modello leaf/pin/hide e le ridondanze "floats/never reflows"
+- [x] Sezione Install per utenti (load-unpacked) + Quick start
+- [x] Separare nettamente sezione utente vs "For developers"
+- [x] Rilettura finale: completo (install incluso), sintetico (no duplicati), leggibile (ordine reader-first)
+- [x] Commit & push su GitHub
+
+**Done when:** Il README spiega in modo sintetico cosa fa Bodhi Bar, come si installa (da sorgente) e come si usa, con la parte sviluppatore separata e senza ripetizioni.

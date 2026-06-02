@@ -1,155 +1,147 @@
-# Bodhi Bar - Smart Tab Manager
+# Bodhi Bar — Smart Tab Manager
 
 A Chromium-based browser productivity layer that turns a browser window into a **repeatable workspace**.
 
-Bodhi Bar enforces a stable tab structure (pinned → groups → ungrouped), adds a fast in-page horizontal tab bar, and introduces **Workspaces**: named snapshots of your window you can restore, export, and import. This is especially useful on browsers like **Brave** (including setups with a vertical tab strip), where you may want a consistent “workspace” model independent of the native tab UI.
+Bodhi Bar enforces a stable tab structure (pinned → groups → ungrouped), adds a fast in-page horizontal tab bar, and introduces **Workspaces**: named snapshots of your window you can restore, export, and import. It's especially handy on browsers like **Brave** (including setups with a vertical tab strip), where you want a consistent "workspace" model independent of the native tab UI.
 
-## Recommended setup: Vertical tabs (Chromium-based browsers)
+Works on Chromium-based browsers: Brave, Chrome, Edge, Vivaldi.
 
-Bodhi Bar works best when you set your browser's native tab strip to **vertical tabs** (especially in Brave).
-This gives you a scalable overview of many tabs, while Bodhi Bar provides the fast "workspace layer" on top:
-stable ordering, group-focused navigation, and search.
+## Install
 
-Optionally, if you prefer a cleaner UI, you can also hide/collapse the vertical tabs panel when you're not using it.
+Bodhi Bar is distributed as source (not on the Chrome Web Store). To install it:
 
-### Brave (Chromium)
-- Enable vertical tabs (official instructions): https://brave.com/blog/vertical-tabs/
-- (Optional) Hide the vertical tabs panel completely when minimized: https://brave.com/whats-new/hide-vertical-tabs/
+1. Download or clone this repository to a folder on your computer.
+2. Open your browser's extensions page:
+   - Brave: `brave://extensions`
+   - Chrome: `chrome://extensions`
+   - Edge: `edge://extensions`
+3. Turn on **Developer mode** (toggle, usually top-right).
+4. Click **Load unpacked** and select the folder you downloaded.
+5. The Bodhi Bar icon (a green leaf) appears in your toolbar. Refresh any open web pages to activate the in-page bar.
 
-### Microsoft Edge (Chromium)
-- Vertical tabs (official page + FAQ, including how to enable/disable): https://www.microsoft.com/en-us/edge/features/vertical-tabs
+> Keep the folder where it is — the browser loads the extension from that location. Deleting or moving it removes the extension.
 
-### Vivaldi (Chromium)
-- Move the Tab Bar to the left/right (vertical) + Tab Bar visibility: https://help.vivaldi.com/desktop/tabs/tab-bar/
-- (Optional) Hide browser UI / Tab Bar (includes "Hide the Tab Bar"): https://help.vivaldi.com/desktop/appearance-customization/hide-browser-windows-user-interface/
+## Quick start
 
-## Key Features
-- **Stable tab layout enforcement (background service worker)**:
-  - The extension continuously reorders tabs to keep a predictable structure:
-    1) Pinned tabs first
-    2) Then tab groups (kept compact)
-    3) Then ungrouped tabs
-  - Among ungrouped tabs, normal **web** tabs are kept before **system** tabs (`chrome://`, `brave://`, `about:`, etc.)
-- **Keep groups “clean” (auto-ungrouping for new tabs)**:
-  - If a newly created tab ends up inside an existing group, the extension automatically removes it from the group.
-  - This is implemented in an event-driven way (no periodic “sweeps”) to avoid accidental mass-ungrouping during session restore.
-  - Tabs are considered eligible for auto-ungrouping only when there is strong evidence they were user-created (e.g., link-opened tabs with `openerTabId`, plus tabs created via the extension UI).
-- **Native tab strip group collapsing (opinionated)**:
-  - On every tab activation, the extension collapses all tab groups in the current window.
-  - If the active tab belongs to a group, that group is kept expanded while all other groups are collapsed.
-  - This affects the browser's native tab strip (not just the in-page bar) and is skipped during the startup/session-restore grace period.
-- **Horizontal tab bar UI (in-page)**:
-  - The UI is injected at the top of normal web pages as a floating overlay and provides quick access to your tabs without relying on the browser tab strip.
-  - **Leaf chip + hover + pin + hide**: by default the bar is collapsed to a small **leaf** chip in the top-left corner. Hovering peeks the full bar open; single-click **pins** it open for that tab; **double-click hides** the bar entirely (re-show it from the popup toggle). These states are saved **per tab**. The page is never reflowed — the bar always floats over content.
-  - Level 1: pinned favicons + ungrouped tabs (web + system separated by a divider)
-  - “Groups” trigger to navigate into groups
-- **Group navigation (multi-level)**:
-  - Level 2: groups list with group color + favicons of tabs inside each group
-  - Level 3: tabs inside a selected group, with an “Ungroup / Move to group / New group…” menu
-- **Search (popover)**: search across all tabs (pinned, ungrouped, and grouped) with match highlighting and quick switch.
-- **Quick actions**:
-  - Close tab (X)
-  - Create new tab (+)
-  - Group an ungrouped web tab into an existing group or a new group
-  - Ungroup a grouped tab (Level 3 menu)
-  - Icons in the bar brighten slightly on hover for clearer affordance (applies across all levels).
-- **Workspaces (Import/Export)**:
-  - Save the current window state (pinned tabs and all tab groups) as a named Workspace.
-  - **Save current**: Click the blue button to save your current workspace with a custom name.
-  - **Actions**: Each workspace shows a row with its name and five flat action icons:
-    - **Restore**: Instantly recreate the saved workspace (opens all pinned tabs and recreates all tab groups with their original titles and colors).
-    - **Edit**: Open the saved workspace in a full-page editor. Supports renaming the workspace and groups, changing group colors, drag-and-drop reordering of groups and tabs (including pinned), creating new groups, adding and deleting tabs (in groups or pinned), and editing tab URLs. Changes are buffered in memory; click **Save** (or Cmd/Ctrl+S) to persist, or **Discard** to revert. The editor warns before closing with unsaved changes and surfaces a conflict prompt if the workspace was modified externally.
-    - **Rename**: Give the workspace a new name.
-    - **Export**: Download the workspace as a JSON file for backup or sharing.
-    - **Delete**: Remove the workspace from storage.
-  - **Import**: Restore workspaces from JSON files. If the imported workspace name already exists, Bodhi asks you to choose a different name.
-  - **Versioning**: Exported files include a workspace version field (`wv`, currently `1.0`). Import validates the version to ensure compatibility.
-  - **Group metadata persistence**: After every workspace restore, the extension persists a `url → { title, color }` map (`tz_group_meta`) so that on the next browser startup it can re-apply group titles and colors to session-restored groups (Brave does not persist extension-set metadata across restarts). Re-apply runs automatically ~10 s after startup, once session restore is complete. Note: the visual label in Brave's sidebar/Quick Access still requires a manual click on the group to repaint — this is a Brave rendering limitation not addressable via extension API.
-- **Drag & drop reordering**:
-  - Reorder pinned tabs among pinned tabs
-  - Reorder ungrouped web tabs among web tabs, and system tabs among system tabs
-  - Reorder tabs within the same group (Level 3)
-  - Reorder groups (Level 2)
-- **Zoom + layout resilience**:
-  - Zoom-compensated sizing (keeps the bar usable across browser zoom levels)
-  - The bar floats as an overlay and never reflows the page
+1. Open a normal website. A small **leaf** chip appears in the top-left corner — that's the collapsed bar. Hover it to peek the full bar open.
+2. Arrange your window the way you like it: pin tabs, create tab groups.
+3. Click the toolbar icon to open the popup, type a name, and **Save current** to store your window as a Workspace.
+4. Later, open the popup and click **Restore** on that Workspace to recreate all your pinned tabs and groups in one click.
 
-## Bar visibility: leaf + hover + pin
+## Recommended setup: vertical tabs
 
-The Bodhi Bar always floats over the page as an overlay — it never pushes or reflows page content. It has a single behavior with two states per tab:
+Bodhi Bar works best when your browser's native tab strip is set to **vertical tabs** (especially in Brave): you get a scalable overview of many tabs, while Bodhi Bar adds the fast "workspace layer" on top — stable ordering, group-focused navigation, and search. Optionally, hide/collapse the vertical panel when you're not using it for a cleaner UI.
 
-1. **Collapsed (default)**: only a small **leaf** chip is shown in the top-left corner. Minimal footprint.
-2. **Hover**: moving the pointer over the leaf peeks the full bar open; it collapses again when the pointer leaves.
-3. **Pinned**: single-click the leaf to pin the bar open for that tab, so it stays expanded regardless of hover. Click again to unpin.
-4. **Hidden**: **double-click** the leaf to hide the bar entirely for that tab (zero footprint). Since the leaf is then gone, re-show it from the extension popup — it offers a **"Hide / Show bar on this tab"** toggle. The popup writes storage and the page reacts live (no reload).
+- **Brave** — [enable vertical tabs](https://brave.com/blog/vertical-tabs/) · [hide the panel when minimized](https://brave.com/whats-new/hide-vertical-tabs/)
+- **Edge** — [vertical tabs](https://www.microsoft.com/en-us/edge/features/vertical-tabs)
+- **Vivaldi** — [move the tab bar to the side](https://help.vivaldi.com/desktop/tabs/tab-bar/) · [hide browser UI](https://help.vivaldi.com/desktop/appearance-customization/hide-browser-windows-user-interface/)
 
-Pin and hidden states are stored **per tab** in `chrome.storage.local` (`tz_pinned_by_tab`, `tz_hidden_by_tab`); a tab is pinned/hidden only if explicitly stored, so the defaults are "collapsed leaf" and "visible". When a tab closes, its entries are dropped.
+## Using the bar
 
-> Note: earlier versions had three visibility modes (Push / Overlay / Hidden), per-URL rules and per-site CSS overrides. These were removed in favor of the single overlay + leaf/pin model. Workspaces saved by older versions still import correctly — the obsolete `visibilityMode` / `siteOverrides` / `visibilityRules` fields are simply ignored.
+The bar always **floats over the page as an overlay** — it never pushes or reflows your content. It has one behavior with a few states, saved **per tab**:
+
+- **Collapsed (default)** — only a small leaf chip in the top-left corner.
+- **Hover** — move the pointer over the leaf to peek the full bar open; it collapses again when you leave.
+- **Pinned** — single-click the leaf to keep the bar open for that tab; click again to unpin.
+- **Hidden** — double-click the leaf to hide the bar entirely for that tab. Since the leaf is then gone, re-show it from the toolbar popup's **"Hide / Show bar on this tab"** toggle (it takes effect live, no reload).
+
+Inside the bar you can navigate three levels:
+
+- **Level 1** — pinned favicons + ungrouped tabs (web and system tabs separated by a divider), plus a **Groups** trigger.
+- **Level 2** — the list of groups, each with its color and the favicons of the tabs inside.
+- **Level 3** — the tabs inside a selected group, with an **Ungroup / Move to group / New group…** menu.
+
+**Quick actions**: close a tab (X), create a new tab (+), group an ungrouped web tab into an existing or new group, and ungroup a grouped tab.
+
+**Search**: a popover searches across all tabs (pinned, ungrouped, grouped) with match highlighting and quick switch.
+
+**Drag & drop**: reorder pinned tabs, ungrouped web/system tabs (within their section), tabs within a group, and groups themselves.
+
+The bar uses zoom-compensated sizing so it stays usable across browser zoom levels.
+
+## Workspaces
+
+A Workspace is a named snapshot of your window — its pinned tabs and all tab groups (with titles and colors). Manage them from the toolbar popup:
+
+- **Save current** — store the current window as a named Workspace.
+- **Restore** — recreate the saved Workspace (opens all pinned tabs and rebuilds all groups with their original titles and colors).
+- **Edit** — open the Workspace in a full-page editor: rename the workspace and groups, change group colors, drag-and-drop reorder groups and tabs (including pinned), create groups, add/delete tabs, and edit tab URLs. Changes are buffered in memory — **Save** (or Cmd/Ctrl+S) to persist, **Discard** to revert. The editor warns before closing with unsaved changes and flags conflicts if the workspace was modified elsewhere.
+- **Rename** — give the workspace a new name.
+- **Export** — download the workspace as a JSON file for backup or sharing.
+- **Delete** — remove the workspace from storage.
+- **Import** — load workspaces from JSON files. If the name already exists, Bodhi Bar asks you to pick a different one.
+
+Exported files carry a version field (`wv`, currently `1.0`), validated on import for compatibility.
+
+## How layout enforcement works
+
+In the background, Bodhi Bar keeps your tabs in a predictable structure:
+
+- **Stable ordering** — pinned tabs first, then tab groups (kept compact), then ungrouped tabs. Among ungrouped tabs, normal **web** tabs come before **system** tabs (`chrome://`, `brave://`, `about:`, …).
+- **Clean groups** — if a newly created tab ends up inside a group, it's automatically removed from the group. This is event-driven (no periodic sweeps) and only applies to tabs with strong evidence of being user-created (e.g. link-opened tabs, or tabs created via the Bodhi Bar UI), so session restore isn't mass-ungrouped.
+- **Group collapsing** — on each tab activation, all groups in the window collapse except the one containing the active tab. This affects the browser's native tab strip and is skipped during the startup/session-restore grace period.
+
+> The in-page bar is injected only on normal `http(s)://` websites — not on browser-restricted pages like `chrome://extensions`, where content scripts can't run. System tabs are still managed by the background rules; they only appear in the bar (as a separate "system" section) when the bar is shown on a normal site.
 
 ---
 
-## Technical Implementation Details (for Developers)
-*   **State Management**:
-    *   `tz_pinned_by_tab` tracks the per-tab pin state (`{ [tabId]: true }`; absent = collapsed).
-    *   `tz_hidden_by_tab` tracks the per-tab hidden state (`{ [tabId]: true }`; absent = visible).
-    *   `tz_group_meta` stores a `url → { title, color }` map written after each workspace restore, used to re-apply group metadata on the next startup.
-*   **Layout**: the bar is `position: fixed` and floats over the page — it never reflows page content. Collapsed/expanded is pure CSS: `#…:not(.tz-pinned):not(:hover)` shows only the leaf chip; `:hover` or `.tz-pinned` expands it; `.tz-hidden` hides it entirely.
-*   **Live popup→page sync**: `content.js` has no message listener; instead it watches `chrome.storage.onChanged` for `tz_hidden_by_tab` so the popup's show/hide toggle takes effect immediately.
-*   **Workspace file format**: Exported JSON includes a workspace version field (`wv`, currently `1.0`). Import validates the version and basic schema before saving; obsolete fields from older versions are accepted and ignored.
+# For developers
 
-## Important
-- The UI is injected only on normal websites (`http(s)://...`). It will not run on browser-restricted/system pages (e.g., `chrome://extensions`), where content scripts cannot be injected.
-- “System tabs” (e.g., `chrome://`, `brave://`, `about:`) are still managed by the background layout rules, but they are shown in the bar only as a separate “system” section when the bar is injected on a normal website.
+## Project structure
 
-## Project Structure
-Our codebase is organized into specialized components:
-- **background.js**: service worker enforcing tab layout + handling UI actions (switch/close/move/group/ungroup) + **workspace payload generation and JSON downloads**.
-- **popup.js**: extension action popup handling **workspace management (save/import/export/delete)**.
-- **content.js**: UI entry point + navigation state + refresh handling.
-- **render.js**: bar rendering (Level 1/2/3), the leaf chip + pin toggle, and dynamic layout updates.
-- **search.js**: search state + search popover trigger.
-- **popover.js**: group picker popover + search results popover.
-- **drag-drop.js**: drag & drop for tabs and groups.
-- **zoom.js**: zoom-compensated CSS variables and metric updates.
-- **messaging.js**: port handshake + robust message retry.
-- **constants.js**: shared UI constants, IDs, the inline leaf glyph, and pin-state helpers.
-- **content.css**: all UI styling (bar, tiles, popovers).
-- **manifest.json**: MV3 manifest and permissions.
+The codebase is plain Manifest V3 — content scripts are loaded as browser globals (no module bundler).
 
-## Development Installation
-1. Enable Developer Mode in Chrome extensions
-2. Click "Load Unpacked Extension"
-3. Select our source folder
-4. Refresh normal websites to activate
+| File | Responsibility |
+| --- | --- |
+| `background.js` | Service worker: tab-layout enforcement, UI actions (switch/close/move/group/ungroup), workspace payload generation and JSON downloads. |
+| `popup.js` | Toolbar popup: workspace management (save/import/export/delete). |
+| `content.js` | UI entry point: navigation state and refresh handling. |
+| `render.js` | Bar rendering (Levels 1/2/3), the leaf chip + pin toggle, dynamic layout. |
+| `search.js` | Search state + search popover trigger. |
+| `popover.js` | Group-picker popover + search-results popover. |
+| `drag-drop.js` | Drag & drop for tabs and groups. |
+| `zoom.js` | Zoom-compensated CSS variables and metric updates. |
+| `messaging.js` | Port handshake + message retry. |
+| `constants.js` | Shared UI constants, IDs, the inline leaf glyph, pin-state helpers. |
+| `content.css` | All UI styling (bar, tiles, popovers). |
+| `manifest.json` | MV3 manifest and permissions. |
+
+## State management
+
+State lives in `chrome.storage.local`:
+
+- `tz_pinned_by_tab` — per-tab pin state (`{ [tabId]: true }`; absent = collapsed). Dropped when the tab closes.
+- `tz_hidden_by_tab` — per-tab hidden state (`{ [tabId]: true }`; absent = visible). Dropped when the tab closes.
+- `tz_group_meta` — a `url → { title, color }` map written after each workspace restore. Brave doesn't persist extension-set group metadata across restarts, so on the next startup (≈10 s after session restore completes) Bodhi Bar re-applies group titles and colors to the restored groups. The label in Brave's sidebar/Quick Access may still need a manual click on the group to repaint — a Brave rendering limitation, not addressable via the extension API.
+
+The collapsed/expanded/hidden bar states are pure CSS: `#…:not(.tz-pinned):not(:hover)` shows only the leaf chip; `:hover` or `.tz-pinned` expands it; `.tz-hidden` hides it. The popup→page sync has no message listener — `content.js` watches `chrome.storage.onChanged` for `tz_hidden_by_tab`, so the show/hide toggle takes effect immediately.
+
+## Workspace file format
+
+Exported JSON includes a workspace version field (`wv`, currently `1.0`). Import validates the version and basic schema before saving. Obsolete fields from older versions (e.g. `visibilityMode`, `siteOverrides`, `visibilityRules` from the removed Push/Overlay/Hidden model) are accepted and ignored, so older exports still import correctly.
 
 ## Tests
+
 Unit tests run on Node's built-in test runner — no dependencies to install:
 
 ```
 npm test
 ```
 
-Because the content scripts are plain browser globals (no module system), the
-harness in `tests/helpers/harness.js` loads the real source files into a `vm`
-sandbox with a mocked `chrome` API and a minimal DOM, then exposes the
-requested top-level symbols for assertions. Test files live in `tests/` and are
-named `*.test.js`.
+Because the content scripts are plain browser globals (no module system), the harness in `tests/helpers/harness.js` loads the real source files into a `vm` sandbox with a mocked `chrome` API and a minimal DOM, then exposes the requested top-level symbols for assertions. Test files live in `tests/` and are named `*.test.js`.
 
 ## Troubleshooting
-### Service Worker "Inactive"
-- Verify no import errors exist
-- Confirm `manifest.json` points to `background.js` as the MV3 service worker
-- Check the extension’s Service Worker console for errors
 
-### Empty Bar with "No Receiver" Message
-- Check browser console for errors
-- Reload the extension
-- Validate all files are present
+**Service worker shows "Inactive"** — verify there are no import errors, confirm `manifest.json` points to `background.js` as the MV3 service worker, and check the extension's service-worker console for errors.
 
-## Technical Highlights
-- Manifest V3 service worker + content-script UI
-- Robust message retry + handshake to reduce “no receiver” issues
-- Best-effort handling for restricted pages and timing edges (BFCache / late injection)
-- Full Manifest V3 compatibility
-- Ready for deployment to Chrome Web Store (packaged extension)
+**Empty bar / "No receiver" message** — check the browser console for errors, reload the extension, and verify all files are present.
+
+## Notes
+
+- Manifest V3 service worker + content-script UI, fully MV3-compatible.
+- Robust message retry + handshake to reduce "no receiver" issues.
+- Best-effort handling for restricted pages and timing edges (BFCache / late injection).
+
+## License
+
+Released under the [MIT License](LICENSE) — © 2026 guidance.studio. Free to use, modify, and distribute.
