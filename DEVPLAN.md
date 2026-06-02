@@ -584,3 +584,72 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push su GitHub
 
 **Done when:** `AIDER.md` non è più nel repo remoto ed è ignorato da git, ma resta sul disco locale.
+
+---
+
+## M31 — Riorganizzare i file in sottocartelle (src/ + assets/)
+
+**Why:** ~18 file sorgente tutti in root. Ora che il repo è pubblico, raggruppare per superficie (background / content / popup / editor) + asset migliora leggibilità e onboarding. Consentito da MV3 senza vincoli: tutti i path nel manifest sono root-relative, `getURL()` è root-relative, `importScripts`/`<script src>`/`<link href>` sono relativi al file referente. Unico file obbligatorio in root: `manifest.json`. Progetto **senza bundler** → ogni path è mantenuto a mano e un riferimento rotto fallisce **solo a runtime** (`getURL`/`importScripts`/`content_scripts`), che `npm test` non copre → verifica manuale obbligatoria.
+
+**Decisioni utente (approvate):** struttura moderata per superficie; spostare le icone in `assets/`; **eliminare `logo.png` e `icon128.png`** (orfani dopo M28, "uccidi il vecchio logo"); README solo testo.
+
+### Struttura target
+```
+/  manifest.json            ← resta in root (obbligatorio)
+   README.md LICENSE package.json DEVPLAN.md .gitignore
+   src/
+     background.js          ← service worker
+     constants.js           ← SHARED (content + background + popup + editor)
+     content/  content.js render.js search.js popover.js drag-drop.js
+               zoom.js dom-helpers.js messaging.js content.css
+     popup/    popup.html popup.js popup.css
+     editor/   editor.html editor.js editor.css
+   assets/icons/  leaf-16.png leaf-32.png leaf-48.png leaf-128.png
+   tests/         (posizione invariata; harness reso path-aware)
+```
+**Razionale `constants.js` a `src/` root (non in una `shared/`):** è l'unico file condiviso; tenerlo accanto a `background.js` fa sì che `importScripts('constants.js')` resti **invariato** (stessa cartella) e riduce la churn dei path. Una cartella `shared/` per un solo file sarebbe over-engineering.
+
+### Mappa spostamenti (git mv, preserva storia)
+| Da (root) | A |
+| --- | --- |
+| `background.js` | `src/background.js` |
+| `constants.js` | `src/constants.js` |
+| `content.js` `render.js` `search.js` `popover.js` `drag-drop.js` `zoom.js` `dom-helpers.js` `messaging.js` `content.css` | `src/content/` |
+| `popup.html` `popup.js` `popup.css` | `src/popup/` |
+| `editor.html` `editor.js` `editor.css` | `src/editor/` |
+| `icons/leaf-*.png` | `assets/icons/leaf-*.png` |
+| `icon128.png` `logo.png` | **ELIMINATI** (git rm) |
+
+### Riferimenti — censimento esaustivo (ogni punto, cambia/no + perché)
+1. **`manifest.json`** *(CAMBIA — centralizzato)*:
+   - `action.default_popup`: `popup.html` → `src/popup/popup.html`
+   - `action.default_icon` + `icons` (4+4): `icons/leaf-*.png` → `assets/icons/leaf-*.png`
+   - `content_scripts[0].js[]` (**ordine invariato!**): `constants.js`→`src/constants.js`; gli altri 8 → `src/content/<nome>`
+   - `content_scripts[0].css[]`: `content.css` → `src/content/content.css`
+   - `background.service_worker`: `background.js` → `src/background.js`
+2. **`src/background.js:7`** `importScripts('constants.js')` → *NESSUN CAMBIO* (worker base = `src/background.js`, risolve `src/constants.js`). **Verificare a runtime.**
+3. **`src/popup/popup.html`**: `popup.css` → *no cambio* (stessa dir); `popup.js` → *no cambio*; `constants.js` → **`../constants.js`** *(CAMBIA)*
+4. **`src/editor/editor.html`**: `editor.css` → *no cambio*; `editor.js` → *no cambio*; `constants.js` → **`../constants.js`** *(CAMBIA)*
+5. **`src/popup/popup.js`**: riga 404 `getURL('popup.html?mode=import')` → `getURL('src/popup/popup.html?mode=import')` *(CAMBIA)*; riga 659 `getURL('editor.html')` → `getURL('src/editor/editor.html')` *(CAMBIA)*
+6. **`tests/helpers/harness.js`**: `readSrc(name)` legge da `ROOT/name`. Rendere **path-aware**: indicizzare i `.js` sotto `src/` per basename (ricorsivo, errore su collisione — oggi tutti i basename sono unici), fallback a `ROOT` per file non-src. *(CAMBIA)*
+7. **Test file** (`hidden-state`, `pin-state`, `workspace-retrocompat`): passano basename nudi (`constants.js`, `popup.js`) → *NESSUN CAMBIO* grazie al punto 6.
+8. **`package.json`** `"test": ... tests/**`: tests/ resta in root → *NESSUN CAMBIO*
+9. **`.gitignore`**: pattern globali (`.aider*`, `AIDER.md`) → *NESSUN CAMBIO*
+10. **`README.md`** tabella "Project structure": aggiornare i path ai nuovi (`src/background.js`, `src/popup/popup.js`, `src/content/...`, ecc.); le menzioni narrative a basename restano valide. *(CAMBIA)*
+11. **CSS `url()`**: nessuno → niente da fare. **`web_accessible_resources`**: assente e non necessario (le pagine extension aperte via `getURL` sono navigazioni top-level, non richiedono WAR in MV3) → niente da fare.
+12. **`DEVPLAN.md` storico** (es. `background.js:650`): riferimenti storici dei milestone precedenti — **lasciati invariati** (non si riscrive la storia).
+
+**Tasks:**
+- [x] Creare `src/`, `src/content/`, `src/popup/`, `src/editor/`, `assets/icons/`
+- [x] `git mv` di tutti i file secondo la mappa (preserva blame/storia)
+- [x] `git rm icon128.png logo.png` (orfani)
+- [x] `manifest.json`: aggiornare tutti i path (popup, icone×8, content_scripts js×9 con ordine invariato, css, service_worker)
+- [x] `popup.html` / `editor.html`: `constants.js` → `../constants.js`
+- [x] `popup.js`: aggiornare i 2 `getURL` (popup.html, editor.html) ai path `src/...`
+- [x] `harness.js`: indicizzazione basename ricorsiva sotto `src/` (fallback ROOT); verificare unicità basename
+- [x] `README.md`: aggiornare la tabella Project structure ai nuovi path
+- [x] `npm test` → 3 suite verdi (constants.js + popup.js via harness)
+- [ ] Verifica manuale (utente) — checklist runtime: (a) icona foglia in toolbar [assets/icons]; (b) popup si apre [default_popup + ../constants.js]; (c) barra in-page si inietta su sito normale [content_scripts ×9 + ordine]; (d) service worker attivo senza errori import [background + importScripts]; (e) apertura editor dal popup [getURL src/editor + ../constants.js]; (f) flusso import [getURL src/popup ?mode=import]; (g) save/restore workspace [azioni background]
+- [x] Commit & push su GitHub
+
+**Done when:** I sorgenti sono organizzati in `src/` (per superficie) + `assets/`, i file orfani eliminati, tutti i riferimenti aggiornati, `npm test` verde e l'estensione funziona identica dopo reload (checklist runtime ok).

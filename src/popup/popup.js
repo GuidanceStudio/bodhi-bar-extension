@@ -401,7 +401,7 @@ function appendImportRow(ul) {
   importBtn.textContent = 'Import';
   importBtn.style.marginLeft = '8px';
   importBtn.addEventListener('click', () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?mode=import') });
+    chrome.tabs.create({ url: chrome.runtime.getURL('src/popup/popup.html?mode=import') });
   });
 
   actions.appendChild(importBtn);
@@ -656,7 +656,7 @@ function renderWorkspacesList(workspacesMap) {
     editIcon.title = 'Edit workspace contents';
     editIcon.addEventListener('click', (e) => {
       e.stopPropagation();
-      const url = chrome.runtime.getURL('editor.html') + '?ws=' + encodeURIComponent(name);
+      const url = chrome.runtime.getURL('src/editor/editor.html') + '?ws=' + encodeURIComponent(name);
       chrome.tabs.create({ url });
       window.close();
     });
