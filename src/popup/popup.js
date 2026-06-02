@@ -584,8 +584,32 @@ function renderWorkspacesList(workspacesMap) {
       window.close();
     });
 
+    const duplicateIcon = document.createElement('span');
+    duplicateIcon.className = 'workspace-action-icon duplicate';
+    duplicateIcon.innerHTML = '&#10697;'; // ⧉
+    duplicateIcon.title = 'Duplicate';
+    duplicateIcon.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const cur = await storageGetWorkspaces();
+      const src = cur[name];
+      if (!src) {
+        showWorkspacesMessage('Original workspace missing.', 'error');
+        return;
+      }
+      const newName = suggestFreeName(name, cur);
+      cur[newName] = {
+        name: newName,
+        createdAt: Date.now(),
+        payload: JSON.parse(JSON.stringify(src.payload || {})),
+      };
+      await storageSetWorkspaces(cur);
+      renderWorkspacesList(cur);
+      showWorkspacesMessage(`Duplicated as "${newName}".`, true);
+    });
+
     actions.appendChild(restoreIcon);
     actions.appendChild(editIcon);
+    actions.appendChild(duplicateIcon);
     actions.appendChild(exportIcon);
 
     li.appendChild(nameSpan);
