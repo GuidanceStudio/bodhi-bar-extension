@@ -134,6 +134,10 @@ The collapsed/expanded/hidden bar states are pure CSS: `#…:not(.tz-pinned):not
 
 Exported JSON includes a workspace version field (`wv`, currently `1.0`). Import validates the version and basic schema before saving. Obsolete fields from older versions (e.g. `visibilityMode`, `siteOverrides`, `visibilityRules` from the removed Push/Overlay/Hidden model) are accepted and ignored, so older exports still import correctly.
 
+## Accessibility
+
+The workspace editor's inline-editable fields — a tab's URL and label, a group's title, and the workspace name — are exposed as buttons (`role="button"`, focusable with **Tab**) and can be opened from the keyboard with **Enter** or **Space**, not just by mouse. Keyboard focus is shown with a visible outline. This is wired through one helper (`attachInlineEditTrigger` in `src/editor/editor.js`), so every editable field stays consistent. Note: the editor's drag-and-drop reordering is still mouse-only.
+
 ## Tests
 
 Unit tests run on Node's built-in test runner — no dependencies to install:

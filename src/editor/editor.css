@@ -294,6 +294,14 @@ a { color: #8ab4f8; }
   background: rgba(255, 255, 255, 0.06);
 }
 
+/* Keyboard focus must be visible: these are role="button" spans reachable
+   with Tab and activated with Enter/Space. */
+.editable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .ws-name.editable:hover {
   background: rgba(255, 255, 255, 0.04);
 }

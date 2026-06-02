@@ -748,3 +748,22 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push su GitHub
 
 **Done when:** In caso di conflitto l'utente sceglie prima l'intento (tieni entrambi / sostituisci); il campo nome compare solo quando serve (Keep both) pre-riempito con un nome libero; "Replace" è esplicito e distruttivo; niente più campo che l'azione ignora.
+
+---
+
+## M35 — Accessibilità da tastiera per gli inline-edit dell'editor
+
+**Why:** Rilievo 🟡 della code-review di M33. Rimuovendo il bottone matita ✏ (che era un `<button>` raggiungibile da Tab e attivabile con Invio), l'edit dell'URL è diventato solo-mouse: le scritte editabili sono `<span>` con solo handler `click`. Stesso limite preesistente su titolo gruppo e nome workspace. Regressione/gap di accessibilità: chi usa solo tastiera o screen reader non può attivare gli inline-edit.
+
+**Approach (DRY):** un unico helper `attachInlineEditTrigger(el, getOpts)` che rende l'elemento un "bottone" accessibile: `role="button"`, `tabIndex=0`, attivazione su `click` **e** `keydown` (Invio/Spazio); `getOpts()` ritorna le opzioni di `startInlineEdit` o `null` per saltare (caso ws-name senza nome). Applicato ai **4** siti editabili (tab title, tab URL, group title, workspace name), eliminando i rispettivi handler `click` boilerplate. CSS: `.editable:focus-visible` con outline `--accent` per rendere visibile il focus da tastiera.
+
+**Tasks:**
+- [x] Helper `attachInlineEditTrigger` (role/tabindex/click+keydown, getOpts→null skip)
+- [x] Refactor 4 siti (tab title, tab URL, group title, ws-name) all'helper
+- [x] `editor.css`: `.editable:focus-visible` (outline visibile)
+- [x] Docs: nota Accessibility nel README
+- [x] `npm test` verde
+- [ ] Verifica manuale (utente): Tab raggiunge titolo/URL/gruppo/nome; Invio/Spazio apre l'edit; focus visibile; mouse ancora ok
+- [x] Commit & push su GitHub
+
+**Done when:** Tutti gli inline-edit dell'editor sono attivabili da tastiera (Tab + Invio/Spazio) con focus visibile, oltre che col mouse.

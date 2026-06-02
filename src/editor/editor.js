@@ -321,6 +321,27 @@ function startInlineEdit(targetEl, opts) {
   input.select();
 }
 
+// Make an inline-editable element behave like a button: clickable AND
+// keyboard-activatable (Enter/Space), and announced as a button to assistive
+// tech. getOpts() returns the startInlineEdit options, or null to skip (e.g.
+// when there's nothing to edit yet).
+function attachInlineEditTrigger(el, getOpts) {
+  el.setAttribute('role', 'button');
+  el.tabIndex = 0;
+  const activate = (e) => {
+    e.stopPropagation();
+    const opts = getOpts();
+    if (opts) startInlineEdit(el, opts);
+  };
+  el.addEventListener('click', activate);
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+      e.preventDefault();
+      activate(e);
+    }
+  });
+}
+
 // --- Drag & drop state ----------------------------------------------------
 
 const dragState = {
@@ -656,53 +677,47 @@ function renderTabRow(tab, listType, groupIdx, tabIdx) {
   titleEl.className = 'tab-title editable';
   titleEl.textContent = tabLabel(tab);
   titleEl.title = 'Click to edit label (saved in this workspace; the live page title is used when restored)';
-  titleEl.addEventListener('click', (e) => {
-    e.stopPropagation();
-    startInlineEdit(titleEl, {
-      initialValue: tab.title || '',
-      maxLength: 200,
-      inputClass: 'tab-title-input',
-      onCommit: async (raw) => {
-        const next = String(raw || '').trim();
-        if (next === (tab.title || '')) return true;
-        applyMutation((payload) => {
-          const list = getTabList(payload, listType, groupIdx);
-          if (!list || !list[tabIdx]) return false;
-          if (next) list[tabIdx].title = next;
-          else delete list[tabIdx].title; // empty clears the custom label
-        });
-        return true;
-      }
-    });
-  });
+  attachInlineEditTrigger(titleEl, () => ({
+    initialValue: tab.title || '',
+    maxLength: 200,
+    inputClass: 'tab-title-input',
+    onCommit: async (raw) => {
+      const next = String(raw || '').trim();
+      if (next === (tab.title || '')) return true;
+      applyMutation((payload) => {
+        const list = getTabList(payload, listType, groupIdx);
+        if (!list || !list[tabIdx]) return false;
+        if (next) list[tabIdx].title = next;
+        else delete list[tabIdx].title; // empty clears the custom label
+      });
+      return true;
+    }
+  }));
 
   // Host line is the click target for editing the full URL.
   const hostEl = document.createElement('span');
   hostEl.className = 'tab-host editable';
   hostEl.textContent = hostFromUrl(tab.url) || tab.url || '';
   hostEl.title = tab.url || '';
-  hostEl.addEventListener('click', (e) => {
-    e.stopPropagation();
-    startInlineEdit(hostEl, {
-      initialValue: tab.url || '',
-      maxLength: 2000,
-      inputClass: 'tab-url-input',
-      onCommit: async (raw) => {
-        const next = String(raw || '').trim();
-        if (!isValidWebUrl(next)) {
-          flashStatus('URL must start with http:// or https://', 'error', 4000);
-          return false;
-        }
-        if (next === (tab.url || '')) return true;
-        applyMutation((payload) => {
-          const list = getTabList(payload, listType, groupIdx);
-          if (!list || !list[tabIdx]) return false;
-          list[tabIdx].url = next;
-        });
-        return true;
+  attachInlineEditTrigger(hostEl, () => ({
+    initialValue: tab.url || '',
+    maxLength: 2000,
+    inputClass: 'tab-url-input',
+    onCommit: async (raw) => {
+      const next = String(raw || '').trim();
+      if (!isValidWebUrl(next)) {
+        flashStatus('URL must start with http:// or https://', 'error', 4000);
+        return false;
       }
-    });
-  });
+      if (next === (tab.url || '')) return true;
+      applyMutation((payload) => {
+        const list = getTabList(payload, listType, groupIdx);
+        if (!list || !list[tabIdx]) return false;
+        list[tabIdx].url = next;
+      });
+      return true;
+    }
+  }));
 
   label.appendChild(titleEl);
   label.appendChild(hostEl);
@@ -836,28 +851,25 @@ function renderGroupCard(group, groupIndex) {
   titleEl.className = 'group-title editable';
   titleEl.textContent = group.title || 'Group';
   titleEl.title = 'Click to rename group';
-  titleEl.addEventListener('click', (e) => {
-    e.stopPropagation();
-    startInlineEdit(titleEl, {
-      initialValue: group.title || '',
-      maxLength: 60,
-      inputClass: 'group-title-input',
-      onCommit: async (raw) => {
-        const next = String(raw || '').trim();
-        if (!next) {
-          flashStatus('Group title cannot be empty.', 'error');
-          return false;
-        }
-        if (next === (group.title || '')) return true;
-        applyMutation((payload) => {
-          const g = payload.allTabGroups && payload.allTabGroups[groupIndex];
-          if (!g) return false;
-          g.title = next;
-        });
-        return true;
+  attachInlineEditTrigger(titleEl, () => ({
+    initialValue: group.title || '',
+    maxLength: 60,
+    inputClass: 'group-title-input',
+    onCommit: async (raw) => {
+      const next = String(raw || '').trim();
+      if (!next) {
+        flashStatus('Group title cannot be empty.', 'error');
+        return false;
       }
-    });
-  });
+      if (next === (group.title || '')) return true;
+      applyMutation((payload) => {
+        const g = payload.allTabGroups && payload.allTabGroups[groupIndex];
+        if (!g) return false;
+        g.title = next;
+      });
+      return true;
+    }
+  }));
 
   const metaEl = document.createElement('span');
   metaEl.className = 'group-meta';
@@ -1015,10 +1027,9 @@ function renderHeader() {
 }
 
 function attachWorkspaceNameRename() {
-  els.wsName.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (!editorState.name) return;
-    startInlineEdit(els.wsName, {
+  attachInlineEditTrigger(els.wsName, () => {
+    if (!editorState.name) return null;
+    return {
       initialValue: editorState.name,
       maxLength: PRESET_NAME_MAX_LEN,
       inputClass: 'ws-name-input',
@@ -1040,7 +1051,7 @@ function attachWorkspaceNameRename() {
         renderFromState();
         return true;
       }
-    });
+    };
   });
 }
 
