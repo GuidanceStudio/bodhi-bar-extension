@@ -578,11 +578,11 @@ function renderWorkspacesList(workspacesMap) {
 
       const save = document.createElement('button');
       save.innerHTML = '&#10003;'; // Checkmark
-      save.className = 'btn-icon success';
+      save.className = 'icon-btn icon-btn--success';
 
       const cancel = document.createElement('button');
       cancel.innerHTML = '&#10005;'; // X
-      cancel.className = 'btn-icon';
+      cancel.className = 'icon-btn';
 
       const cleanup = () => {
         editContainer.remove();

@@ -727,7 +727,7 @@ function renderTabRow(tab, listType, groupIdx, tabIdx) {
 
   const delBtn = document.createElement('button');
   delBtn.type = 'button';
-  delBtn.className = 'tab-action-btn delete';
+  delBtn.className = 'icon-btn icon-btn--danger';
   delBtn.title = 'Delete tab';
   delBtn.draggable = false;
   delBtn.innerHTML = '&#128465;'; // 🗑
@@ -878,7 +878,7 @@ function renderGroupCard(group, groupIndex) {
 
   const groupDelBtn = document.createElement('button');
   groupDelBtn.type = 'button';
-  groupDelBtn.className = 'group-action-btn delete';
+  groupDelBtn.className = 'icon-btn icon-btn--danger';
   groupDelBtn.title = 'Delete group';
   groupDelBtn.draggable = false;
   groupDelBtn.innerHTML = '&#128465;'; // 🗑

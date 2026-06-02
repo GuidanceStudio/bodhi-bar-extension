@@ -148,3 +148,28 @@
   border-radius: 8px;
   padding: 16px;
 }
+
+/* Transparent icon button: muted glyph that highlights on hover. The intent
+   variants only change the hover color. (Distinct from always-colored action
+   icons like .workspace-action-icon.) */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--text);
+}
+.icon-btn--danger:hover { color: var(--danger); }
+.icon-btn--success:hover { color: #4ade80; }

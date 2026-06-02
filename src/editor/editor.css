@@ -464,22 +464,7 @@ a { color: #8ab4f8; }
   opacity: 1;
 }
 
-.tab-action-btn,
-.group-action-btn {
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 3px;
-  font-size: 13px;
-  line-height: 1;
-}
-
-.tab-action-btn:hover { color: var(--text); background: rgba(255,255,255,0.08); }
-.tab-action-btn.delete:hover { color: var(--danger); }
-.group-action-btn:hover { color: var(--text); background: rgba(255,255,255,0.08); }
-.group-action-btn.delete:hover { color: var(--danger); }
+/* Tab/group delete buttons use the shared .icon-btn (theme.css). */
 
 .inline-edit-input.tab-url-input {
   flex: 1;

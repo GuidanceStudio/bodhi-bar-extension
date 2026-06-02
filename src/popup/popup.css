@@ -204,28 +204,8 @@ body.import-mode {
   cursor: default;
 }
 
-/* Icon buttons + form rows (used by the inline rename / import / confirm forms) */
-.btn-icon {
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 4px;
-  font-size: 14px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-}
-
-.btn-icon:hover {
-  background: rgba(255,255,255,0.1);
-  color: var(--text);
-}
-
-.btn-icon.success:hover { color: #4ade80; }
-
+/* Form rows (inline rename / import / confirm forms). Icon buttons use the
+   shared .icon-btn (theme.css). */
 .rule-actions {
   display: flex;
   gap: 2px;
