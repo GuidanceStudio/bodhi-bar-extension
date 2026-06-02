@@ -1,3 +1,12 @@
+/* content.css — in-page bar styling.
+ *
+ * Intentionally standalone from shared/theme.css: this stylesheet is injected
+ * into arbitrary host pages, so it uses its own `--tz-*` namespace and `all:
+ * initial` resets to avoid inheriting or leaking page styles. theme.css is only
+ * loaded by the extension's own pages (popup/editor) and is NOT available here.
+ * The bar's palette is tuned for a floating overlay and deliberately differs
+ * from the popup/editor tokens; keep the two in mind when changing either.
+ */
 :root{
   --tz-tab-w: 148px;
   --tz-h: 38px;

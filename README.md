@@ -120,6 +120,15 @@ tests/                  Node test runner suites + harness
 | `src/editor/` | Full-page workspace editor (`editor.html` / `editor.js` / `editor.css`). |
 | `assets/icons/` | Extension icons (`leaf-{16,32,48,128}.png`). |
 
+## Design system
+
+The extension's own pages (popup + editor) share a single stylesheet, `src/shared/theme.css`, linked before each page's CSS:
+
+- **Tokens** — colors, text shades, accent, radius, and font stacks as CSS custom properties (`--bg`, `--accent`, `--text`, `--font`, …). `popup.css` and `editor.css` consume these instead of redefining them.
+- **Components** — `.btn` (with `--primary` / `--danger` / `--ghost` / `--sm`), `.input`, `.msg` (with `--info` / `--success` / `--error`), and `.card`. Used across the popup, the editor toolbar/confirms, and the import flow so the three surfaces look consistent.
+
+`content.css` (the in-page bar) is **intentionally not** part of this system: it is injected into arbitrary host pages, so it keeps its own `--tz-*` namespace and `all: initial` resets to avoid inheriting or leaking page styles. The editor's in-place edit field (`.inline-edit-input`) is also kept separate from the form `.input` — it's a distinct inline control (active blue border, tight padding), already token-based.
+
 ## State management
 
 State lives in `chrome.storage.local`:
