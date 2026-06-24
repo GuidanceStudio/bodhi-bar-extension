@@ -164,6 +164,32 @@ function clearAutoUngroupEligible(tabId) {
   autoUngroupEligible.delete(tabId);
 }
 
+// Eject a freshly-created child tab from the group it inherited from its opener.
+// Reads the group state straight from the tab instead of depending on a single
+// tabs.onUpdated groupId event: Brave may create the child already inside the
+// group (no later groupId change ever fires) or emit that event unreliably, so
+// trusting one signal made ejection intermittent. Only acts on tabs we track as
+// eligible (opener-created / extension-created), never during startup grace, so
+// restored session tabs are left alone. Eligibility is cleared only on a
+// successful ungroup, so a failed attempt (edit-lock) is retried by later calls.
+async function ejectIfEligibleGrouped(tabId, tabOpt) {
+  if (tabId == null) return;
+  if (inStartupGrace()) return;
+  if (!autoUngroupEligible.has(tabId)) return;
+  try {
+    const tab = tabOpt || await chrome.tabs.get(tabId);
+    if (!tab || tab.pinned) return;
+    const gid = tab.groupId;
+    const isGrouped = (typeof gid === 'number' && gid !== chrome.tabGroups.TAB_GROUP_ID_NONE);
+    if (!isGrouped) return;
+    warn('DEGROUP new-tab', { tabId, groupId: gid, url: effectiveUrl(tab) });
+    await chrome.tabs.ungroup(tabId);
+    clearAutoUngroupEligible(tabId);
+  } catch {
+    // ignore: tab gone / restricted / edit-lock — deferred re-checks will retry
+  }
+}
+
 function inStartupGrace() {
   return (Date.now() - (state.startupAt || 0)) < STARTUP_GRACE_MS;
 }
@@ -1273,6 +1299,16 @@ chrome.tabs.onCreated.addListener(tab => {
     autoUngroupEligible: eligible
   });
 
+  // Eject now if the child tab was born already inside the opener's group; also
+  // re-check shortly after, since Brave may instead group it a tick later (or
+  // never emit a tabs.onUpdated groupId change). Belt-and-braces with the
+  // onUpdated handler so ejection no longer hinges on a single event firing.
+  if (eligible && tab?.id != null) {
+    ejectIfEligibleGrouped(tab.id, tab);
+    setTimeout(() => ejectIfEligibleGrouped(tab.id), 60);
+    setTimeout(() => ejectIfEligibleGrouped(tab.id), 300);
+  }
+
   if (tab?.windowId != null) touch(tab.windowId, 'onCreated');
 });
 
@@ -1396,20 +1432,11 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   log('EV onUpdated', { tabId, windowId: tab?.windowId, keys: Object.keys(changeInfo || {}) });
 
   // Keep groups clean: if an eligible "new" tab becomes grouped, immediately ungroup it.
-  // Event-driven (no sweeps) to avoid session-restore wipeouts.
+  // Event-driven (no sweeps) to avoid session-restore wipeouts. Shares the same
+  // helper as onCreated so the two cover both Brave timings (born grouped vs.
+  // grouped a tick later) without depending on this event alone.
   if (!inStartupGrace() && Object.prototype.hasOwnProperty.call(changeInfo || {}, 'groupId')) {
-    try {
-      const gid = tab?.groupId;
-      const isNowGrouped = (typeof gid === 'number' && gid !== chrome.tabGroups.TAB_GROUP_ID_NONE);
-
-      if (isNowGrouped && autoUngroupEligible.has(tabId) && !tab?.pinned) {
-        warn('DEGROUP new-tab (event)', { tabId, groupId: gid, url: effectiveUrl(tab) });
-        clearAutoUngroupEligible(tabId);
-        await chrome.tabs.ungroup(tabId);
-      }
-    } catch {
-      // ignore: restricted/timing errors
-    }
+    await ejectIfEligibleGrouped(tabId, tab);
   }
 
   if (tab?.windowId != null) touch(tab.windowId, 'onUpdated');

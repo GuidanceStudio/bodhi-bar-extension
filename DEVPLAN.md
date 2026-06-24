@@ -956,3 +956,31 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Dalla lista del popup si duplica un workspace con un click, ottenendo una copia indipendente con nome libero suggerito.
+
+---
+
+## M46 — Fix: i tab aperti da link dentro un gruppo non sempre vengono espulsi
+
+**Why:** Bug segnalato dall'utente. Aprendo un link in un nuovo tab da una pagina che sta dentro un gruppo, il nuovo tab dovrebbe essere espulso automaticamente dal gruppo ("keep groups clean"). Succede solo **a volte**.
+
+**Root cause:** l'espulsione del tab-figlio ha **un solo innesco**: il listener `chrome.tabs.onUpdated` (`background.js:1400-1413`), che chiama `chrome.tabs.ungroup` **solo quando `changeInfo` contiene un cambio di `groupId`**. `onCreated` marca il tab come *eligible* (ha `openerTabId`) e poi si aspetta quell'evento. Ma il timing di Brave è non deterministico:
+- **Nato già nel gruppo:** Brave crea il figlio già dentro il gruppo dell'opener → `groupId` è settato in `onCreated`, **nessun cambio successivo** → `onUpdated` non porta mai `groupId` → mai espulso. ❌
+- **Raggruppato un tick dopo:** creato fuori e spostato nel gruppo poco dopo → `onUpdated` con `groupId` scatta → espulso. ✅
+
+`tabs.onUpdated` sui groupId è inoltre notoriamente inaffidabile su Brave (vedi memoria progetto). Nessun altro percorso espelle il tab: `enforceRound`/`enforceUngroupedEjection` riposiziona solo tab *già senza gruppo*; l'unico altro `ungroup` (`background.js:354`) annulla solo l'auto-grouping causato dai propri move.
+
+**Approach:** rendere l'espulsione indipendente dal singolo evento `onUpdated`, leggendo il gruppo direttamente dal tab.
+- Helper condiviso `ejectIfEligibleGrouped(tabId, tabOpt)`: guard `!inStartupGrace()`, tab *eligible*, non pinned, attualmente raggruppato → `clearAutoUngroupEligible` + `chrome.tabs.ungroup` (best-effort, errori ignorati). Riusa il tab passato se disponibile, altrimenti `chrome.tabs.get`.
+- **`onCreated`:** dopo aver marcato eligible, se il tab nasce **già raggruppato** chiama l'helper subito (caso 1); inoltre schedula una **ri-verifica differita** (2 colpi a ~60ms e ~300ms via `chrome.tabs.get`) per coprire il "raggruppato un tick dopo" anche quando Brave non emette il `groupId` su `onUpdated`.
+- **`onUpdated`:** comportamento invariato, ma delega allo stesso helper (caso 2, già funzionante).
+- Guardie invariate: startup-grace + set `autoUngroupEligible` popolato solo per tab-figli/creati dall'estensione → nessun rischio sui tab di sessione ripristinata. Parte event-driven con tab reali → verifica manuale (non coperta dal vm harness).
+
+**Tasks:**
+- [x] `background.js`: helper `ejectIfEligibleGrouped(tabId, tabOpt)` (riusa le guard esistenti)
+- [x] `background.js`: in `onCreated`, eject immediato se nato già grouped + re-check differito (~60ms/~300ms)
+- [x] `background.js`: `onUpdated` groupId-branch delega all'helper
+- [x] `npm test` verde (nessuna regressione)
+- [ ] Verifica manuale (utente): aprendo link in nuovi tab da pagine dentro un gruppo, il nuovo tab viene **sempre** espulso (target=_blank, Ctrl/middle-click); i tab di sessione ripristinata restano nei gruppi
+- [x] Commit & push
+
+**Done when:** Un tab aperto da un link dentro un gruppo viene espulso automaticamente in modo affidabile, indipendentemente dal timing con cui Brave assegna il gruppo.
