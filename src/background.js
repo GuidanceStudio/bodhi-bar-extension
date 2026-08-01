@@ -150,6 +150,53 @@ const state = {
   startupAt: Date.now(),
 };
 
+// --- Startup grace clock -------------------------------------------------
+// The grace exists so session-restored tabs are left alone right after the
+// browser starts. It used to key off the plain `Date.now()` above, evaluated at
+// module load — but in MV3 the service worker is torn down after ~30s idle and
+// re-evaluated on the next event, so *every* wake-up restarted the 20s grace and
+// silently suppressed the new-tab ejection below (M47: the very event that wakes
+// the worker is the onCreated of the tab we are supposed to eject).
+// chrome.storage.session survives wake-ups and is cleared when the browser
+// closes, so it tells a real startup and a wake-up apart.
+const STARTUP_AT_SESSION_KEY = 'startupAt';
+
+// A usable stored timestamp means this browser session already started, so the
+// grace keeps elapsing across wake-ups; missing or nonsensical (NaN, <= 0, in
+// the future) means we are the first worker start of the session.
+function resolveStartupAt(stored, now) {
+  const ts = Number(stored);
+  if (!Number.isFinite(ts) || ts <= 0 || ts > now) return now;
+  return ts;
+}
+
+async function persistStartupAt(ts) {
+  try {
+    await chrome.storage.session.set({ [STARTUP_AT_SESSION_KEY]: ts });
+  } catch {
+    // storage.session unavailable — the in-memory value still guards this run
+  }
+}
+
+function markStartupNow() {
+  state.startupAt = Date.now();
+  persistStartupAt(state.startupAt);
+}
+
+// Resolves once the session's real start is known. Ejection awaits it so an
+// event arriving before the (async) read is not judged against a wrong clock.
+const startupClockReady = (async () => {
+  try {
+    const res = await chrome.storage.session.get(STARTUP_AT_SESSION_KEY);
+    const stored = res?.[STARTUP_AT_SESSION_KEY];
+    const resolved = resolveStartupAt(stored, Date.now());
+    state.startupAt = resolved;
+    if (resolved !== stored) await persistStartupAt(resolved);
+  } catch {
+    // storage.session unavailable: keep the load-time value (pre-M47 behaviour)
+  }
+})();
+
 // Tabs eligible for "keep groups clean" auto-ungroup.
 // We only add tabs when we have strong evidence they were user-created (or created by the extension UI).
 const autoUngroupEligible = new Set(); // tabId
@@ -164,30 +211,70 @@ function clearAutoUngroupEligible(tabId) {
   autoUngroupEligible.delete(tabId);
 }
 
+// Whole decision for "eject this new tab from its group", as a pure function so
+// it can be unit-tested: only an eligible (opener-created / extension-created),
+// unpinned tab that is currently in a group, outside the startup grace.
+function shouldEjectFromGroup({ inGrace, eligible, tab, noneGroupId = -1 }) {
+  if (inGrace || !eligible) return false;
+  if (!tab || tab.pinned) return false;
+  const gid = tab.groupId;
+  return typeof gid === 'number' && gid !== noneGroupId;
+}
+
 // Eject a freshly-created child tab from the group it inherited from its opener.
 // Reads the group state straight from the tab instead of depending on a single
 // tabs.onUpdated groupId event: Brave may create the child already inside the
 // group (no later groupId change ever fires) or emit that event unreliably, so
-// trusting one signal made ejection intermittent. Only acts on tabs we track as
-// eligible (opener-created / extension-created), never during startup grace, so
-// restored session tabs are left alone. Eligibility is cleared only on a
-// successful ungroup, so a failed attempt (edit-lock) is retried by later calls.
+// trusting one signal made ejection intermittent (M46).
+// Returns false when there is nothing left to watch (tab gone, or no longer
+// eligible), so the caller's re-check ladder can stop early.
 async function ejectIfEligibleGrouped(tabId, tabOpt) {
-  if (tabId == null) return;
-  if (inStartupGrace()) return;
-  if (!autoUngroupEligible.has(tabId)) return;
-  try {
-    const tab = tabOpt || await chrome.tabs.get(tabId);
-    if (!tab || tab.pinned) return;
-    const gid = tab.groupId;
-    const isGrouped = (typeof gid === 'number' && gid !== chrome.tabGroups.TAB_GROUP_ID_NONE);
-    if (!isGrouped) return;
-    warn('DEGROUP new-tab', { tabId, groupId: gid, url: effectiveUrl(tab) });
-    await chrome.tabs.ungroup(tabId);
-    clearAutoUngroupEligible(tabId);
-  } catch {
-    // ignore: tab gone / restricted / edit-lock — deferred re-checks will retry
+  if (tabId == null) return false;
+  await startupClockReady;
+  if (!autoUngroupEligible.has(tabId)) return false;
+
+  let tab = tabOpt;
+  if (!tab) {
+    try {
+      tab = await chrome.tabs.get(tabId);
+    } catch {
+      return false; // tab gone
+    }
   }
+
+  const eject = shouldEjectFromGroup({
+    inGrace: inStartupGrace(),
+    eligible: true,
+    tab,
+    noneGroupId: chrome.tabGroups.TAB_GROUP_ID_NONE,
+  });
+  if (!eject) return true; // nothing to do now; a later re-check may still find it grouped
+
+  try {
+    warn('DEGROUP new-tab', { tabId, groupId: tab.groupId, url: effectiveUrl(tab) });
+    await chrome.tabs.ungroup(tabId);
+  } catch {
+    // restricted / edit-lock (drag in progress) — the ladder retries
+  }
+  return true;
+}
+
+// Re-check gaps after onCreated; cumulative ≈ 60 / 300 / 900 / 2000 ms. Brave
+// may group the child at creation, a tick later, or only once the navigation
+// commits, so a single look (or a 300ms window) misses cases.
+const EJECT_RECHECK_GAPS_MS = [60, 240, 600, 1100];
+
+async function runEjectionLadder(tabId, bornTab) {
+  let watching = await ejectIfEligibleGrouped(tabId, bornTab);
+  for (const gap of EJECT_RECHECK_GAPS_MS) {
+    if (!watching) break;
+    await sleep(gap);
+    watching = await ejectIfEligibleGrouped(tabId);
+  }
+  // Eligibility deliberately outlives the first successful ungroup: Brave can
+  // put the tab straight back into the group. Drop it once the ladder is done,
+  // so the tab is no longer treated as new.
+  clearAutoUngroupEligible(tabId);
 }
 
 function inStartupGrace() {
@@ -1299,15 +1386,10 @@ chrome.tabs.onCreated.addListener(tab => {
     autoUngroupEligible: eligible
   });
 
-  // Eject now if the child tab was born already inside the opener's group; also
-  // re-check shortly after, since Brave may instead group it a tick later (or
-  // never emit a tabs.onUpdated groupId change). Belt-and-braces with the
-  // onUpdated handler so ejection no longer hinges on a single event firing.
-  if (eligible && tab?.id != null) {
-    ejectIfEligibleGrouped(tab.id, tab);
-    setTimeout(() => ejectIfEligibleGrouped(tab.id), 60);
-    setTimeout(() => ejectIfEligibleGrouped(tab.id), 300);
-  }
+  // Eject now if the child tab was born already inside the opener's group, then
+  // keep looking for ~2s in case Brave groups it later. Belt-and-braces with the
+  // onUpdated handler so ejection never hinges on a single event firing.
+  if (eligible && tab?.id != null) runEjectionLadder(tab.id, tab);
 
   if (tab?.windowId != null) touch(tab.windowId, 'onCreated');
 });
@@ -1435,7 +1517,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // Event-driven (no sweeps) to avoid session-restore wipeouts. Shares the same
   // helper as onCreated so the two cover both Brave timings (born grouped vs.
   // grouped a tick later) without depending on this event alone.
-  if (!inStartupGrace() && Object.prototype.hasOwnProperty.call(changeInfo || {}, 'groupId')) {
+  // The startup-grace check lives inside the helper, which awaits the persisted
+  // startup clock first — testing it here would read a clock that may not be
+  // resolved yet on a fresh service-worker start.
+  if (Object.prototype.hasOwnProperty.call(changeInfo || {}, 'groupId')) {
     await ejectIfEligibleGrouped(tabId, tab);
   }
 
@@ -1490,7 +1575,7 @@ async function reapplyGroupMeta() {
 }
 
 chrome.runtime.onStartup.addListener(() => {
-  state.startupAt = Date.now();
+  markStartupNow();
   log('EV onStartup');
   chrome.windows.getAll({}, wins => wins.forEach(w => scheduleDebounced(w.id, 'onStartup')));
   // Re-apply group titles/colors after session restore completes
@@ -1498,7 +1583,7 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 chrome.runtime.onInstalled.addListener(() => {
-  state.startupAt = Date.now();
+  markStartupNow();
   log('EV onInstalled');
   chrome.windows.getAll({}, wins => wins.forEach(w => scheduleDebounced(w.id, 'onInstalled')));
 });

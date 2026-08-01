@@ -113,9 +113,9 @@ function makeDocument(readyState = 'complete') {
 
 // --- Minimal chrome ------------------------------------------------------
 
-function makeChrome(initialData = {}) {
+function makeArea(initialData = {}) {
   const store = { ...initialData };
-  const local = {
+  return {
     _store: store,
     get(keys, cb) {
       const out = {};
@@ -130,13 +130,47 @@ function makeChrome(initialData = {}) {
       return Promise.resolve();
     },
   };
+}
+
+// Listeners are collected but never fired: sources are loaded to read their
+// top-level symbols, not to be driven as a live extension.
+const makeEvent = () => ({ _listeners: [], addListener(fn) { this._listeners.push(fn); } });
+
+function makeChrome(initialData = {}, sessionData = {}) {
+  const local = makeArea(initialData);
+  const session = makeArea(sessionData);
   return {
-    storage: { local },
+    storage: { local, session },
     runtime: {
-      onMessage: { addListener() {} },
+      onMessage: makeEvent(),
+      onConnect: makeEvent(),
+      onStartup: makeEvent(),
+      onInstalled: makeEvent(),
       sendMessage() { return Promise.resolve(null); },
     },
-    tabs: { sendMessage() { return Promise.resolve(); } },
+    // background.js registers these at load time; the stubs keep it loadable in
+    // the sandbox so its top-level functions can be unit-tested.
+    tabs: {
+      onCreated: makeEvent(),
+      onUpdated: makeEvent(),
+      onRemoved: makeEvent(),
+      onMoved: makeEvent(),
+      onAttached: makeEvent(),
+      onDetached: makeEvent(),
+      onActivated: makeEvent(),
+      onHighlighted: makeEvent(),
+      sendMessage() { return Promise.resolve(); },
+    },
+    tabGroups: {
+      TAB_GROUP_ID_NONE: -1,
+      onMoved: makeEvent(),
+      onUpdated: makeEvent(),
+    },
+    windows: {
+      WINDOW_ID_NONE: -1,
+      onFocusChanged: makeEvent(),
+      getAll(_q, cb) { if (typeof cb === 'function') cb([]); return Promise.resolve([]); },
+    },
   };
 }
 
@@ -173,7 +207,11 @@ function load(files, exportNames, opts = {}) {
   const sandbox = {
     window,
     document,
-    chrome: makeChrome(opts.storage || {}),
+    chrome: makeChrome(opts.storage || {}, opts.sessionStorage || {}),
+    // background.js is a service worker: it pulls constants.js in with
+    // importScripts. Tests concatenate the sources themselves, so this is a
+    // no-op — pass 'constants.js' first in `files`.
+    importScripts() {},
     getComputedStyle() { return {}; },
     requestAnimationFrame: window.requestAnimationFrame,
     cancelAnimationFrame: window.cancelAnimationFrame,
