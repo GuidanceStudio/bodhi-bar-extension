@@ -980,7 +980,40 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] `background.js`: in `onCreated`, eject immediato se nato già grouped + re-check differito (~60ms/~300ms)
 - [x] `background.js`: `onUpdated` groupId-branch delega all'helper
 - [x] `npm test` verde (nessuna regressione)
-- [ ] Verifica manuale (utente): aprendo link in nuovi tab da pagine dentro un gruppo, il nuovo tab viene **sempre** espulso (target=_blank, Ctrl/middle-click); i tab di sessione ripristinata restano nei gruppi
+- [ ] ❌ Verifica manuale (utente): **fallita** — il bug si ripresenta (SW addormentato → grace attiva → nessuna espulsione). Chiusura spostata su **M47**.
 - [x] Commit & push
 
 **Done when:** Un tab aperto da un link dentro un gruppo viene espulso automaticamente in modo affidabile, indipendentemente dal timing con cui Brave assegna il gruppo.
+
+---
+
+## M47 🔄 — Fix: la startup-grace annulla l'espulsione a ogni risveglio del service worker
+
+**Why:** Il bug di M46 **si ripresenta**: i tab aperti da link dentro un gruppo spesso restano nel gruppo. La verifica manuale di M46 (task rimasto aperto) è quindi **fallita**: M46 ha coperto i due timing di Brave, ma non la causa che li precede entrambi.
+
+**Root cause:** `state.startupAt = Date.now()` sta nel **top-level del modulo** (`background.js:150`). In MV3 il service worker viene terminato dopo ~30 s di inattività e **ri-valutato al primo evento**: `tabs.onCreated` del tab-figlio è proprio quell'evento. Al risveglio `startupAt` torna ad "adesso" → `inStartupGrace()` è vera per 20 s → la prima guardia di `ejectIfEligibleGrouped()` (`background.js:177`) esce subito. Saltano insieme l'eject immediato, i due re-check differiti (60/300 ms) e il ramo `onUpdated` (guardato a riga 1438): nessun percorso espelle il tab.
+
+Da qui l'intermittenza osservata: SW sveglio da >20 s (navigazione attiva) → espulso; SW dormiente (lettura di una pagina per mezzo minuto, poi click) → mai espulso. La grace serve solo a proteggere i tab del **ripristino di sessione** all'avvio del browser, ma oggi non distingue avvio-browser da risveglio-SW.
+
+Concause minori, incluse nel fix:
+- **Ladder di re-check troppo corta:** si ferma a 300 ms; se Brave raggruppa il figlio più tardi (commit di navigazione lento) resta solo `onUpdated`, inaffidabile su Brave.
+- **Eleggibilità cancellata al primo ungroup riuscito:** se il tab viene ri-raggruppato subito dopo (auto-grouping di Brave dopo un nostro move), nessuno lo riespelle.
+
+**Approach:**
+- **Orologio di avvio persistente in `chrome.storage.session`** (svuotata alla chiusura del browser, quindi distingue nativamente sessione-browser da risveglio-SW): all'eval del modulo `initStartupClock()` legge `startupAt`; se **presente** lo riusa (la grace scade dall'avvio reale), se **assente** è il primo avvio SW della sessione → lo scrive. `onStartup`/`onInstalled` lo sovrascrivono con `Date.now()`. Fallback al comportamento attuale se `storage.session` manca.
+- **Niente race:** `ejectIfEligibleGrouped()` attende `startupClockReady` prima di valutare la guardia (gli eventi possono precedere la lettura async). Il resto (`scheduleAfterStartupGrace`) resta sul valore in memoria: al più ritarda l'enforcement, non lo salta.
+- **Ladder più lunga e auto-terminante:** re-check a 0/60/300/900/2000 ms, che si ferma appena il tab risulta non raggruppato o non esiste più.
+- **Eleggibilità mantenuta fino a fine ladder** (non cancellata al primo successo), così un ri-raggruppamento dentro la finestra viene ricatturato. Cancellazione su `onRemoved` invariata.
+- **Testabilità:** la parte event-driven non è coperta dal vm harness, ma le due decisioni pure lo sono — estraggo `resolveStartupAt(stored, now)` e `shouldEjectFromGroup({...})` e le testo (è esattamente la logica che ha fallito).
+
+**Tasks:**
+- [x] `background.js`: `resolveStartupAt(stored, now)` + `initStartupClock()` su `chrome.storage.session` (+ `startupClockReady`)
+- [x] `background.js`: `onStartup`/`onInstalled` scrivono `startupAt` in `storage.session`
+- [x] `background.js`: `ejectIfEligibleGrouped()` attende `startupClockReady`; guardia estratta in `shouldEjectFromGroup(...)`
+- [x] `background.js`: ladder di re-check 0/60/300/900/2000 ms auto-terminante; eleggibilità cancellata a fine ladder
+- [x] `tests/`: unit test su `resolveStartupAt` (risveglio SW ≠ avvio browser) e `shouldEjectFromGroup`
+- [x] `npm test` verde (nessuna regressione)
+- [ ] Verifica manuale (utente): lasciare la pagina ferma >1 min (SW addormentato), poi aprire un link in un tab nuovo da dentro un gruppo → espulso; ripetere con Ctrl/middle-click e `target=_blank`; riavviare il browser → i tab di sessione ripristinata **restano** nei gruppi
+- [x] Commit & push
+
+**Done when:** L'espulsione funziona anche quando il service worker era spento, e la startup-grace protegge solo il vero ripristino di sessione.
