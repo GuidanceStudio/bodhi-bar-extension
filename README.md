@@ -79,7 +79,7 @@ In the background, Bodhi Bar keeps your tabs in a predictable structure:
 
 - **Stable ordering** — pinned tabs first, then tab groups (kept compact), then ungrouped tabs. Among ungrouped tabs, normal **web** tabs come before **system** tabs (`chrome://`, `brave://`, `about:`, …).
 - **Clean groups** — if a newly created tab ends up inside a group, it's automatically removed from the group. This is event-driven (no periodic sweeps) and only applies to tabs with strong evidence of being user-created (e.g. link-opened tabs, or tabs created via the Bodhi Bar UI), so session restore isn't mass-ungrouped.
-- **Group collapsing** — on each tab activation, all groups in the window collapse except the one containing the active tab. This affects the browser's native tab strip and is skipped during the startup/session-restore grace period.
+- **Group collapsing** — on each tab activation, two groups stay expanded: the one containing the active tab and the one containing the previously active tab. Every other group in the window collapses. Activating an ungrouped tab collapses nothing — the last group you were in stays open. This affects the browser's native tab strip and is skipped during the startup/session-restore grace period.
 
 > The in-page bar is injected only on normal `http(s)://` websites — not on browser-restricted pages like `chrome://extensions`, where content scripts can't run. System tabs are still managed by the background rules; they only appear in the bar (as a separate "system" section) when the bar is shown on a normal site.
 
@@ -136,6 +136,11 @@ State lives in `chrome.storage.local`:
 - `tz_pinned_by_tab` — per-tab pin state (`{ [tabId]: true }`; absent = collapsed). Dropped when the tab closes.
 - `tz_hidden_by_tab` — per-tab hidden state (`{ [tabId]: true }`; absent = visible). Dropped when the tab closes.
 - `tz_group_meta` — a `url → { title, color }` map written after each workspace restore. Brave doesn't persist extension-set group metadata across restarts, so on the next startup (≈10 s after session restore completes) Bodhi Bar re-applies group titles and colors to the restored groups. The label in Brave's sidebar/Quick Access may still need a manual click on the group to repaint — a Brave rendering limitation, not addressable via the extension API.
+
+Two keys live in `chrome.storage.session` instead. That area is cleared when the browser closes and — unlike a module-level variable — survives the MV3 service worker being torn down after ~30 s of idle:
+
+- `startupAt` — when the current browser session started, so the startup grace period keeps elapsing across service-worker wake-ups instead of restarting on each one.
+- `recentGroupsByWindow` — a `windowId → [groupId, …]` map (most recently used first, capped at 2) backing the group-collapsing rule above. Without it, a worker restart would forget the previous group and collapse it on the next click.
 
 The collapsed/expanded/hidden bar states are pure CSS: `#…:not(.tz-pinned):not(:hover)` shows only the leaf chip; `:hover` or `.tz-pinned` expands it; `.tz-hidden` hides it. The popup→page sync has no message listener — `content.js` watches `chrome.storage.onChanged` for `tz_hidden_by_tab`, so the show/hide toggle takes effect immediately.
 
