@@ -183,6 +183,24 @@ function markStartupNow() {
   persistStartupAt(state.startupAt);
 }
 
+// onInstalled also fires on a plain reload of the unpacked extension, mid-session,
+// with the browser running for hours — restarting the grace there opens 20s in
+// which the collapse policy and the ejection are suppressed, i.e. exactly the
+// window in which the freshly loaded build gets tested (M49). A timestamp already
+// in storage.session *is* the signal that this browser session started earlier,
+// so the clock is kept. onStartup, the explicit browser-start signal, still
+// resets it unconditionally.
+async function markStartupUnlessSessionStarted() {
+  try {
+    const res = await chrome.storage.session.get(STARTUP_AT_SESSION_KEY);
+    const resolved = resolveStartupAt(res?.[STARTUP_AT_SESSION_KEY], Date.now());
+    state.startupAt = resolved;
+    await persistStartupAt(resolved);
+  } catch {
+    markStartupNow(); // storage.session unavailable: keep the pre-M49 behaviour
+  }
+}
+
 // Resolves once the session's real start is known. Ejection awaits it so an
 // event arriving before the (async) read is not judged against a wrong clock.
 const startupClockReady = (async () => {
@@ -1459,6 +1477,18 @@ function planCollapse(groups, keepIds) {
   return { keep, updates };
 }
 
+// Whether an activation should repaint the groups state. `inGrace` must be read
+// *after* the persisted startup clock has resolved: judging it when the event
+// arrives reads the module-load value, which a service-worker wake-up has just
+// reset to "now", and the click that woke the worker is then skipped (M49).
+// Window/tab ids are validated by value so this stays independent of `chrome`.
+function shouldApplyCollapsePolicy({ inGrace, windowId, tabId } = {}) {
+  if (inGrace) return false;
+  if (!Number.isInteger(windowId) || windowId < 0) return false;
+  if (!Number.isInteger(tabId) || tabId < 0) return false;
+  return true;
+}
+
 // Applies the plan and returns the keep-list pruned to the groups that actually
 // exist, or null if the state could not be read/applied (so the caller can
 // retry on the next activation instead of caching a state it never reached).
@@ -1548,7 +1578,12 @@ chrome.tabs.onActivated.addListener((info) => {
   log('EV onActivated', { tabId: info.tabId, windowId: info.windowId });
 
   // Policy B: keep the active tab's group and the previous one expanded, collapse the rest.
-  if (!inStartupGrace() && info?.windowId != null && info?.tabId != null) {
+  // Only the ids are checked here — they are needed to key the debounce timer and
+  // cannot change. The startup grace is checked inside the timer instead, once the
+  // persisted clock has been read: this listener is often the very event that wakes
+  // the service worker, and at that instant the in-memory clock still says "now"
+  // (M49). Deciding here skipped the first click after every idle pause.
+  if (info?.windowId != null && info?.tabId != null) {
     const windowId = info.windowId;
 
     const prev = groupCollapsePolicy.timers.get(windowId);
@@ -1558,7 +1593,10 @@ chrome.tabs.onActivated.addListener((info) => {
       groupCollapsePolicy.timers.delete(windowId);
 
       try {
+        await startupClockReady;
         await recentGroupsReady;
+
+        if (!shouldApplyCollapsePolicy({ inGrace: inStartupGrace(), windowId, tabId: info.tabId })) return;
 
         const tab = await chrome.tabs.get(info.tabId);
         const gid = (typeof tab?.groupId === 'number') ? tab.groupId : chrome.tabGroups.TAB_GROUP_ID_NONE;
@@ -1682,7 +1720,7 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 chrome.runtime.onInstalled.addListener(() => {
-  markStartupNow();
+  markStartupUnlessSessionStarted();
   log('EV onInstalled');
   chrome.windows.getAll({}, wins => wins.forEach(w => scheduleDebounced(w.id, 'onInstalled')));
 });
