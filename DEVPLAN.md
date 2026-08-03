@@ -1057,3 +1057,30 @@ Concause minori, incluse nel fix:
 **Done when:** Cliccando un tab restano espansi il suo gruppo e quello del tab attivo in precedenza; tutti gli altri si collassano; il comportamento sopravvive al riaddormentarsi del service worker.
 
 **Aperto:** M47 resta 🔄 in attesa della verifica manuale dell'utente (espulsione dei tab aperti da link) — indipendente da M48.
+
+---
+
+## M49 🔄 — Fix: la policy di collasso salta il primo click dopo ogni risveglio del service worker
+
+**Why:** Verifica manuale di M48 fallita. Sequenza A → B → C: al terzo click **A non si collassa**, restano espansi A, B e C. Il codice di M48 non può tenerne aperti tre — `pushRecentGroup` capa la lista a `KEEP = 2` — quindi il sintomo dice che la policy non ha girato affatto, non che ha calcolato la lista sbagliata. Il difetto di M48 (task di verifica) resta aperto finché questo non è chiuso.
+
+**Root cause (due percorsi, entrambi sopprimono l'intera policy):**
+
+1. **Guardia sincrona su un orologio non ancora letto** (`background.js:1551`). `chrome.tabs.onActivated` valuta `inStartupGrace()` *nel momento dell'evento*. In MV3 il worker viene terminato dopo ~30 s di inattività e ri-valutato al primo evento utile: il click stesso. All'eval del modulo `state.startupAt = Date.now()` (riga 150) e la lettura persistita (`startupClockReady`, M47) è ancora in volo, quindi `inStartupGrace()` risponde `true` e il ramo non parte. È esattamente il difetto che M47 ha chiuso per l'espulsione dei tab — lì la guardia è stata spostata dentro `ejectIfEligibleGrouped()` dopo `await startupClockReady`, qui è rimasta com'era. Ogni primo click dopo una pausa di lettura salta il collasso.
+2. **`onInstalled` riazzera la grace anche su un reload dell'estensione** (`background.js:1684`). Ricaricando da `brave://extensions` a browser già acceso, `markStartupNow()` apre 20 s in cui la policy non gira — cioè proprio la finestra in cui si prova la modifica appena caricata. La grace esiste per proteggere i tab del ripristino di sessione all'**avvio del browser** (`onStartup`); un reload a metà sessione non ha nulla da proteggere, e i tab "eligible" per l'espulsione sono comunque solo quelli marcati da `onCreated`, insieme vuoto subito dopo un reload.
+
+**Approach:**
+- **La guardia si sposta dentro il callback debounced**, dopo `await startupClockReady` (e l'`await recentGroupsReady` già presente): il listener resta sincrono solo per schedulare, la decisione avviene su un orologio risolto. Il `touch(...)` fuori dal ramo non cambia.
+- **`onInstalled` non riazzera l'orologio se la sessione del browser è già iniziata:** scrive `startupAt` solo se `chrome.storage.session` non ne ha già uno (primo avvio o prima installazione). `onStartup` continua a riazzerarlo sempre — è il segnale esplicito di avvio browser. Riuso di `resolveStartupAt` per decidere se il valore letto è utilizzabile.
+- **Testabilità:** estraggo `shouldApplyCollapsePolicy({ inGrace, windowId, tabId })` (stessa forma di `shouldEjectFromGroup`) e `startupAtOnInstalled(stored, now)`, e testo quelle: sono le due decisioni che hanno fallito.
+
+**Tasks:**
+- [x] `background.js`: `shouldApplyCollapsePolicy({ inGrace, windowId, tabId })` puro
+- [x] `background.js`: `onActivated` schedula sempre; la guardia (grace + id validi) si valuta dentro il timer dopo `await startupClockReady`
+- [x] `background.js`: `markStartupUnlessSessionStarted()` — `onInstalled` non riazzera la grace a sessione già avviata; `onStartup` invariato. *(Il piano prevedeva una `startupAtOnInstalled(stored, now)` dedicata: la decisione è però letteralmente quella di `resolveStartupAt` — stored utilizzabile → tienilo, altrimenti `now` — quindi la riuso invece di duplicarla, e il test copre il caso reload attraverso di essa.)*
+- [x] `tests/collapse-grace.test.js`: unit test sulle due decisioni (risveglio worker → policy applicata; avvio browser → sospesa; reload estensione → non riazzera)
+- [x] `npm test` verde (52/52, nessuna regressione)
+- [ ] Verifica manuale (utente): A → B → C dopo un minuto di pagina ferma → A si collassa al terzo click; ricaricare l'estensione e riprovare subito → funziona senza aspettare 20 s; riavviare il browser → nei primi 20 s i gruppi del ripristino di sessione non vengono toccati
+- [x] Commit & push
+
+**Done when:** Il collasso avviene anche al primo click dopo che il service worker si è riaddormentato, e la grace resta attiva solo al vero avvio del browser.
