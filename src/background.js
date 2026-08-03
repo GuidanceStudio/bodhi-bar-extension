@@ -1425,13 +1425,13 @@ const groupCollapsePolicy = {
   KEEP: 2, // how many recently used groups stay expanded
 };
 
-// The recent-groups list has to survive service-worker teardown: MV3 kills the
+// The recent-slots list has to survive service-worker teardown: MV3 kills the
 // worker after ~30s idle, and an in-memory Map alone would be empty again in
 // exactly the reported case (read a page for a minute, then click into another
 // group) — the group we came from would already be forgotten and collapse
 // anyway. Same lesson as the startup clock in M47. storage.session is cleared
 // when the browser closes, so nothing is remembered across sessions.
-const RECENT_GROUPS_SESSION_KEY = 'recentGroupsByWindow';
+const RECENT_SLOTS_SESSION_KEY = 'recentSlotsByWindow';
 
 // Chrome group ids are positive integers; TAB_GROUP_ID_NONE (-1) means the tab
 // is ungrouped. Checked by value so the pure helpers below don't need `chrome`.
@@ -1439,32 +1439,53 @@ function isRealGroupId(id) {
   return Number.isInteger(id) && id > 0;
 }
 
-// LRU of the groups whose tabs were most recently active in a window, newest
-// first. Activating an *ungrouped* tab leaves the list untouched, so the group
-// you came from stays expanded instead of everything collapsing.
-function pushRecentGroup(recent, groupId, keep) {
-  const cap = Number.isInteger(keep) && keep > 0 ? keep : 1;
+// The whole ungrouped area — every tab outside a group, pinned ones included —
+// occupies a single slot in the list (M50). A pinned tab can't belong to a group
+// in Chromium (pinning removes it from one), so it needs no branch of its own.
+const NO_GROUP = -1;
 
-  const list = [];
-  for (const id of Array.isArray(recent) ? recent : []) {
-    if (isRealGroupId(id) && !list.includes(id)) list.push(id);
-  }
-
-  if (!isRealGroupId(groupId)) return list.slice(0, cap);
-  return [groupId, ...list.filter((id) => id !== groupId)].slice(0, cap);
+function isSlot(id) {
+  return isRealGroupId(id) || id === NO_GROUP;
 }
 
-// Decides which groups to collapse and which keep-ids are still alive.
-// Ids of groups the user has closed would otherwise keep occupying one of the
-// KEEP slots and leave a single group expanded, so they are dropped here.
-function planCollapse(groups, keepIds) {
+function sanitizeSlots(recent, keep) {
+  const cap = Number.isInteger(keep) && keep > 0 ? keep : 1;
+  const list = [];
+  for (const id of Array.isArray(recent) ? recent : []) {
+    if (isSlot(id) && !list.includes(id)) list.push(id);
+  }
+  return list.slice(0, cap);
+}
+
+// LRU of the last `keep` *activations* in a window, newest first. An activation
+// counts whether the tab is grouped or not: landing on a free (or pinned) tab
+// takes a slot like any group, so after two of them the group you started from
+// collapses. Consecutive activations within the same slot don't move the list.
+function pushRecentSlot(recent, slotId, keep) {
+  const cap = Number.isInteger(keep) && keep > 0 ? keep : 1;
+  const list = sanitizeSlots(recent, cap);
+  const slot = isRealGroupId(slotId) ? slotId : NO_GROUP;
+  return [slot, ...list.filter((id) => id !== slot)].slice(0, cap);
+}
+
+// Splits the recency list into what to store and what to expand, and lists the
+// group updates needed to get there.
+//
+// The distinction carries the behaviour: `recent` drops only the ids of groups
+// the user has closed — the NO_GROUP slot has to survive, because pruning it
+// (it is not a live group) would erase the free-tab step the moment it is
+// stored, and the group we came from would stay expanded forever.
+function planCollapse(groups, recentSlots) {
   const list = (Array.isArray(groups) ? groups : []).filter((g) => isRealGroupId(g?.id));
   const live = new Set(list.map((g) => g.id));
 
-  const keep = [];
-  for (const id of Array.isArray(keepIds) ? keepIds : []) {
-    if (live.has(id) && !keep.includes(id)) keep.push(id);
+  const recent = [];
+  for (const id of Array.isArray(recentSlots) ? recentSlots : []) {
+    if (recent.includes(id)) continue;
+    if (id === NO_GROUP || live.has(id)) recent.push(id);
   }
+
+  const keep = recent.filter(isRealGroupId);
   const keepSet = new Set(keep);
 
   const updates = [];
@@ -1474,7 +1495,7 @@ function planCollapse(groups, keepIds) {
     if (!!g.collapsed !== shouldCollapse) updates.push({ id: g.id, collapsed: shouldCollapse });
   }
 
-  return { keep, updates };
+  return { recent, keep, updates };
 }
 
 // Whether an activation should repaint the groups state. `inGrace` must be read
@@ -1489,33 +1510,34 @@ function shouldApplyCollapsePolicy({ inGrace, windowId, tabId } = {}) {
   return true;
 }
 
-// Applies the plan and returns the keep-list pruned to the groups that actually
-// exist, or null if the state could not be read/applied (so the caller can
-// retry on the next activation instead of caching a state it never reached).
-async function applyCleanGroupsState(windowId, keepIds) {
+// Applies the plan and returns { recent, keep } — the list to store back and the
+// groups now expanded — or null if the state could not be read/applied (so the
+// caller can retry on the next activation instead of caching a state it never
+// reached).
+async function applyCleanGroupsState(windowId, recentSlots) {
   if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return null;
 
   try {
     const groups = await chrome.tabGroups.query({ windowId });
-    const { keep, updates } = planCollapse(groups || [], keepIds);
+    const { recent, keep, updates } = planCollapse(groups || [], recentSlots);
 
     if (updates.length) {
       await Promise.allSettled(updates.map((u) => chrome.tabGroups.update(u.id, { collapsed: u.collapsed })));
     }
 
-    return keep;
+    return { recent, keep };
   } catch (e) {
     if (isDraggingError(e)) return null; // ignore edit-lock periods
-    warn('applyCleanGroupsState failed', { windowId, keepIds, message: String(e?.message || e) });
+    warn('applyCleanGroupsState failed', { windowId, recentSlots, message: String(e?.message || e) });
     return null;
   }
 }
 
-async function persistRecentGroups() {
+async function persistRecentSlots() {
   try {
     const out = {};
     for (const [windowId, list] of groupCollapsePolicy.recentByWindow) out[String(windowId)] = list;
-    await chrome.storage.session.set({ [RECENT_GROUPS_SESSION_KEY]: out });
+    await chrome.storage.session.set({ [RECENT_SLOTS_SESSION_KEY]: out });
   } catch {
     // storage.session unavailable — the in-memory map still covers this run
   }
@@ -1524,18 +1546,17 @@ async function persistRecentGroups() {
 // Resolves once the persisted list is loaded. The activation handler awaits it
 // so an event arriving before the (async) read doesn't decide against an empty
 // list and collapse the previous group.
-const recentGroupsReady = (async () => {
+const recentSlotsReady = (async () => {
   try {
-    const res = await chrome.storage.session.get(RECENT_GROUPS_SESSION_KEY);
-    const stored = res?.[RECENT_GROUPS_SESSION_KEY];
+    const res = await chrome.storage.session.get(RECENT_SLOTS_SESSION_KEY);
+    const stored = res?.[RECENT_SLOTS_SESSION_KEY];
     if (!stored || typeof stored !== 'object') return;
 
     for (const [key, value] of Object.entries(stored)) {
       const windowId = Number(key);
       if (!Number.isFinite(windowId)) continue;
       if (groupCollapsePolicy.recentByWindow.has(windowId)) continue; // a live event already knows better
-      // Passing no new group id re-uses the LRU helper purely to sanitize and cap.
-      const list = pushRecentGroup(value, null, groupCollapsePolicy.KEEP);
+      const list = sanitizeSlots(value, groupCollapsePolicy.KEEP);
       if (list.length) groupCollapsePolicy.recentByWindow.set(windowId, list);
     }
   } catch {
@@ -1567,7 +1588,7 @@ chrome.tabs.onRemoved.addListener((tabId, info) => {
     const tm = groupCollapsePolicy.timers.get(info.windowId);
     if (tm) clearTimeout(tm);
     groupCollapsePolicy.timers.delete(info.windowId);
-    if (groupCollapsePolicy.recentByWindow.delete(info.windowId)) persistRecentGroups();
+    if (groupCollapsePolicy.recentByWindow.delete(info.windowId)) persistRecentSlots();
   }
 
   log('EV onRemoved', { tabId, windowId: info.windowId, isWindowClosing: info.isWindowClosing });
@@ -1594,19 +1615,19 @@ chrome.tabs.onActivated.addListener((info) => {
 
       try {
         await startupClockReady;
-        await recentGroupsReady;
+        await recentSlotsReady;
 
         if (!shouldApplyCollapsePolicy({ inGrace: inStartupGrace(), windowId, tabId: info.tabId })) return;
 
         const tab = await chrome.tabs.get(info.tabId);
-        const gid = (typeof tab?.groupId === 'number') ? tab.groupId : chrome.tabGroups.TAB_GROUP_ID_NONE;
+        const gid = (typeof tab?.groupId === 'number') ? tab.groupId : NO_GROUP;
 
-        const recent = pushRecentGroup(groupCollapsePolicy.recentByWindow.get(windowId), gid, groupCollapsePolicy.KEEP);
+        const recent = pushRecentSlot(groupCollapsePolicy.recentByWindow.get(windowId), gid, groupCollapsePolicy.KEEP);
 
-        // Avoid redundant work if nothing changed. Keyed on the whole keep-list:
-        // keying on the active group alone would skip the repaint when only the
-        // *previous* group changed.
-        const key = recent.join('|');
+        // Avoid redundant work if nothing changed. Keyed on the groups that end
+        // up expanded, not on the raw list: moving only the free-tab slot around
+        // changes the list without changing anything the user can see.
+        const key = recent.filter(isRealGroupId).join('|');
         if (groupCollapsePolicy.lastKeyByWindow.get(windowId) === key) return;
 
         const applied = await applyCleanGroupsState(windowId, recent);
@@ -1617,9 +1638,9 @@ chrome.tabs.onActivated.addListener((info) => {
           return;
         }
 
-        groupCollapsePolicy.recentByWindow.set(windowId, applied);
-        groupCollapsePolicy.lastKeyByWindow.set(windowId, applied.join('|'));
-        persistRecentGroups();
+        groupCollapsePolicy.recentByWindow.set(windowId, applied.recent);
+        groupCollapsePolicy.lastKeyByWindow.set(windowId, applied.keep.join('|'));
+        persistRecentSlots();
       } catch (e) {
         if (isDraggingError(e)) return;
         // ignore other errors

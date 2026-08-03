@@ -1084,3 +1084,37 @@ Concause minori, incluse nel fix:
 - [x] Commit & push
 
 **Done when:** Il collasso avviene anche al primo click dopo che il service worker si è riaddormentato, e la grace resta attiva solo al vero avvio del browser.
+
+---
+
+## M50 🔄 — Contare anche le tab senza gruppo (e pinnate) nella profondita' di collasso
+
+**Why:** Richiesta utente dopo M48/M49. Oggi l'attivazione di una tab non raggruppata lascia la lista intatta, quindi il gruppo di partenza resta espanso indefinitamente finche' non si visitano due *altri gruppi*. Le sequenze volute:
+
+| Sequenza | Oggi (M48) | Con M50 |
+| --- | --- | --- |
+| A → B → tab libera | espansi A e B | espanso B; **A si chiude** |
+| A → tab libera → B | espansi A e B | espanso B; **A si chiude** |
+| A → tab libera | espanso A | espanso A (invariato: e' il passo precedente) |
+| A → B | espansi A e B | invariato |
+
+**Approach:** la lista LRU smette di essere "ultimi due gruppi" e diventa "**ultime due attivazioni**". Uno slot e' un group id oppure il sentinella `NO_GROUP`, che rappresenta l'intera area senza gruppo (una sola voce, non una per tab). I gruppi espansi sono i soli group id reali presenti nella lista, quindi a volte sono due e a volte uno.
+
+- **Tab pinnate:** in Chromium una tab pinnata non puo' stare in un gruppo (il pin la sgancia), quindi il suo `groupId` e' gia' `TAB_GROUP_ID_NONE` e ricade nello slot `NO_GROUP` senza codice dedicato. Nessun ramo speciale: sarebbe codice morto.
+- `pushRecentGroup` → **`pushRecentSlot(recent, slotId, keep)`**: normalizza qualunque id non-gruppo a `NO_GROUP` e **lo inserisce** invece di scartarlo. Dedup e cap invariati (due attivazioni consecutive nell'area libera restano un solo slot).
+- **`planCollapse(groups, recent)` restituisce anche la lista da ristorare**: `{ recent, keep, updates }`. Distinzione che regge tutto il comportamento: `recent` viene ripulita **solo dai group id morti**, il sentinella sopravvive; `keep` sono i soli group id vivi. Potare il sentinella insieme agli id morti — cosa che il codice attuale farebbe, perche' filtra su "gruppo vivo" — riporterebbe esattamente il comportamento di M48 (`A → libera → B` con A ancora aperto).
+- **Chiave di sessione rinominata** `recentGroupsByWindow` → `recentSlotsByWindow`: il valore ora contiene sentinelle, e un nome che dice "groups" su una lista che contiene `-1` e' una trappola per chi legge dopo. Nessuna migrazione: `storage.session` si svuota alla chiusura del browser, al piu' si perde la lista di una sessione.
+- **Test:** i casi di `tests/recent-groups.test.js` che oggi affermano "una tab non raggruppata lascia la lista intatta" descrivono il comportamento che stiamo cambiando e vanno riscritti, non aggiunti accanto. Le due sequenze dell'utente entrano come test espliciti.
+
+**Tasks:**
+- [x] `background.js`: `NO_GROUP` + `pushRecentSlot(recent, slotId, keep)` (sostituisce `pushRecentGroup`)
+- [x] `background.js`: `planCollapse(groups, recent)` restituisce `{ recent, keep, updates }`; il sentinella sopravvive alla potatura, i group id morti no
+- [x] `background.js`: `applyCleanGroupsState` e `onActivated` ristorano `recent` (non `keep`) e usano `keep` solo per la chiave di dedup
+- [x] `background.js`: chiave di sessione `recentSlotsByWindow`
+- [x] `tests/recent-groups.test.js`: riscrivere i casi sull'area libera; aggiungere `A → B → libera` e `A → libera → B`
+- [x] `README.md`: aggiornare "Group collapsing" e il nome della chiave di sessione
+- [x] `npm test` verde (56/56, nessuna regressione)
+- [ ] Verifica manuale (utente): le due sequenze sopra; piu' A → tab pinnata → B (stesso esito di "tab libera")
+- [x] Commit & push
+
+**Done when:** Ogni attivazione occupa un posto nella profondita' di due, tab senza gruppo e pinnate incluse, e il gruppo di partenza si collassa dopo due attivazioni fuori da esso.
