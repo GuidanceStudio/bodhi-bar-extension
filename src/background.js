@@ -1395,40 +1395,124 @@ chrome.tabs.onCreated.addListener(tab => {
 });
 
 // Native tab strip: keep a "clean" groups state on every tab activation.
-// Policy B: collapse all groups; if the active tab is grouped, expand its group.
+// Policy B (M48): keep expanded the active tab's group *and* the group of the
+// previously active tab; collapse everything else. Expanding only the active
+// group meant that going back and forth between two groups re-collapsed the one
+// you came from on every click, and it had to be reopened by hand.
 const groupCollapsePolicy = {
   timers: new Map(), // windowId -> timerId
   lastKeyByWindow: new Map(), // windowId -> string key to avoid redundant work
+  recentByWindow: new Map(), // windowId -> [groupId, ...] most recently used first
   DEBOUNCE_MS: 120,
+  KEEP: 2, // how many recently used groups stay expanded
 };
 
-async function applyCleanGroupsState(windowId, activeGroupId) {
-  if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return;
+// The recent-groups list has to survive service-worker teardown: MV3 kills the
+// worker after ~30s idle, and an in-memory Map alone would be empty again in
+// exactly the reported case (read a page for a minute, then click into another
+// group) — the group we came from would already be forgotten and collapse
+// anyway. Same lesson as the startup clock in M47. storage.session is cleared
+// when the browser closes, so nothing is remembered across sessions.
+const RECENT_GROUPS_SESSION_KEY = 'recentGroupsByWindow';
+
+// Chrome group ids are positive integers; TAB_GROUP_ID_NONE (-1) means the tab
+// is ungrouped. Checked by value so the pure helpers below don't need `chrome`.
+function isRealGroupId(id) {
+  return Number.isInteger(id) && id > 0;
+}
+
+// LRU of the groups whose tabs were most recently active in a window, newest
+// first. Activating an *ungrouped* tab leaves the list untouched, so the group
+// you came from stays expanded instead of everything collapsing.
+function pushRecentGroup(recent, groupId, keep) {
+  const cap = Number.isInteger(keep) && keep > 0 ? keep : 1;
+
+  const list = [];
+  for (const id of Array.isArray(recent) ? recent : []) {
+    if (isRealGroupId(id) && !list.includes(id)) list.push(id);
+  }
+
+  if (!isRealGroupId(groupId)) return list.slice(0, cap);
+  return [groupId, ...list.filter((id) => id !== groupId)].slice(0, cap);
+}
+
+// Decides which groups to collapse and which keep-ids are still alive.
+// Ids of groups the user has closed would otherwise keep occupying one of the
+// KEEP slots and leave a single group expanded, so they are dropped here.
+function planCollapse(groups, keepIds) {
+  const list = (Array.isArray(groups) ? groups : []).filter((g) => isRealGroupId(g?.id));
+  const live = new Set(list.map((g) => g.id));
+
+  const keep = [];
+  for (const id of Array.isArray(keepIds) ? keepIds : []) {
+    if (live.has(id) && !keep.includes(id)) keep.push(id);
+  }
+  const keepSet = new Set(keep);
+
+  const updates = [];
+  for (const g of list) {
+    const shouldCollapse = !keepSet.has(g.id);
+    // Only update if it would change something.
+    if (!!g.collapsed !== shouldCollapse) updates.push({ id: g.id, collapsed: shouldCollapse });
+  }
+
+  return { keep, updates };
+}
+
+// Applies the plan and returns the keep-list pruned to the groups that actually
+// exist, or null if the state could not be read/applied (so the caller can
+// retry on the next activation instead of caching a state it never reached).
+async function applyCleanGroupsState(windowId, keepIds) {
+  if (windowId == null || windowId === chrome.windows.WINDOW_ID_NONE) return null;
 
   try {
     const groups = await chrome.tabGroups.query({ windowId });
-    const list = groups || [];
+    const { keep, updates } = planCollapse(groups || [], keepIds);
 
-    const ops = [];
-    for (const g of list) {
-      if (g?.id == null) continue;
-
-      const shouldCollapse = (activeGroupId == null || activeGroupId === chrome.tabGroups.TAB_GROUP_ID_NONE)
-        ? true
-        : (g.id !== activeGroupId);
-
-      // Only update if it would change something.
-      if (!!g.collapsed !== shouldCollapse) {
-        ops.push(chrome.tabGroups.update(g.id, { collapsed: shouldCollapse }));
-      }
+    if (updates.length) {
+      await Promise.allSettled(updates.map((u) => chrome.tabGroups.update(u.id, { collapsed: u.collapsed })));
     }
 
-    if (ops.length) await Promise.allSettled(ops);
+    return keep;
   } catch (e) {
-    if (isDraggingError(e)) return; // ignore edit-lock periods
-    warn('applyCleanGroupsState failed', { windowId, activeGroupId, message: String(e?.message || e) });
+    if (isDraggingError(e)) return null; // ignore edit-lock periods
+    warn('applyCleanGroupsState failed', { windowId, keepIds, message: String(e?.message || e) });
+    return null;
   }
 }
+
+async function persistRecentGroups() {
+  try {
+    const out = {};
+    for (const [windowId, list] of groupCollapsePolicy.recentByWindow) out[String(windowId)] = list;
+    await chrome.storage.session.set({ [RECENT_GROUPS_SESSION_KEY]: out });
+  } catch {
+    // storage.session unavailable — the in-memory map still covers this run
+  }
+}
+
+// Resolves once the persisted list is loaded. The activation handler awaits it
+// so an event arriving before the (async) read doesn't decide against an empty
+// list and collapse the previous group.
+const recentGroupsReady = (async () => {
+  try {
+    const res = await chrome.storage.session.get(RECENT_GROUPS_SESSION_KEY);
+    const stored = res?.[RECENT_GROUPS_SESSION_KEY];
+    if (!stored || typeof stored !== 'object') return;
+
+    for (const [key, value] of Object.entries(stored)) {
+      const windowId = Number(key);
+      if (!Number.isFinite(windowId)) continue;
+      if (groupCollapsePolicy.recentByWindow.has(windowId)) continue; // a live event already knows better
+      // Passing no new group id re-uses the LRU helper purely to sanitize and cap.
+      const list = pushRecentGroup(value, null, groupCollapsePolicy.KEEP);
+      if (list.length) groupCollapsePolicy.recentByWindow.set(windowId, list);
+    }
+  } catch {
+    // storage.session unavailable: fall back to the in-memory map (the previous
+    // group is then forgotten on every worker restart, but nothing breaks)
+  }
+})();
 
 chrome.tabs.onMoved.addListener((tabId, info) => {
   log('EV onMoved', { tabId, windowId: info.windowId, from: info.fromIndex, to: info.toIndex });
@@ -1453,6 +1537,7 @@ chrome.tabs.onRemoved.addListener((tabId, info) => {
     const tm = groupCollapsePolicy.timers.get(info.windowId);
     if (tm) clearTimeout(tm);
     groupCollapsePolicy.timers.delete(info.windowId);
+    if (groupCollapsePolicy.recentByWindow.delete(info.windowId)) persistRecentGroups();
   }
 
   log('EV onRemoved', { tabId, windowId: info.windowId, isWindowClosing: info.isWindowClosing });
@@ -1462,7 +1547,7 @@ chrome.tabs.onRemoved.addListener((tabId, info) => {
 chrome.tabs.onActivated.addListener((info) => {
   log('EV onActivated', { tabId: info.tabId, windowId: info.windowId });
 
-  // Policy B: always collapse all groups; if active tab is grouped, keep its group expanded.
+  // Policy B: keep the active tab's group and the previous one expanded, collapse the rest.
   if (!inStartupGrace() && info?.windowId != null && info?.tabId != null) {
     const windowId = info.windowId;
 
@@ -1473,16 +1558,30 @@ chrome.tabs.onActivated.addListener((info) => {
       groupCollapsePolicy.timers.delete(windowId);
 
       try {
+        await recentGroupsReady;
+
         const tab = await chrome.tabs.get(info.tabId);
         const gid = (typeof tab?.groupId === 'number') ? tab.groupId : chrome.tabGroups.TAB_GROUP_ID_NONE;
 
-        // Avoid redundant work if nothing changed (same active group vs ungrouped).
-        const key = String(gid);
-        const lastKey = groupCollapsePolicy.lastKeyByWindow.get(windowId);
-        if (lastKey === key) return;
-        groupCollapsePolicy.lastKeyByWindow.set(windowId, key);
+        const recent = pushRecentGroup(groupCollapsePolicy.recentByWindow.get(windowId), gid, groupCollapsePolicy.KEEP);
 
-        await applyCleanGroupsState(windowId, gid);
+        // Avoid redundant work if nothing changed. Keyed on the whole keep-list:
+        // keying on the active group alone would skip the repaint when only the
+        // *previous* group changed.
+        const key = recent.join('|');
+        if (groupCollapsePolicy.lastKeyByWindow.get(windowId) === key) return;
+
+        const applied = await applyCleanGroupsState(windowId, recent);
+        if (!applied) {
+          // Never reached the browser (drag lock, transient error) — drop the
+          // cached key so the next activation retries instead of short-circuiting.
+          groupCollapsePolicy.lastKeyByWindow.delete(windowId);
+          return;
+        }
+
+        groupCollapsePolicy.recentByWindow.set(windowId, applied);
+        groupCollapsePolicy.lastKeyByWindow.set(windowId, applied.join('|'));
+        persistRecentGroups();
       } catch (e) {
         if (isDraggingError(e)) return;
         // ignore other errors

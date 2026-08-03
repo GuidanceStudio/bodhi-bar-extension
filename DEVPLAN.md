@@ -1017,3 +1017,43 @@ Concause minori, incluse nel fix:
 - [x] Commit & push
 
 **Done when:** L'espulsione funziona anche quando il service worker era spento, e la startup-grace protegge solo il vero ripristino di sessione.
+
+---
+
+## M48 🔄 — Tenere espanso anche il gruppo del tab precedente (Policy B a profondità 2)
+
+**Why:** Segnalazione utente: cliccando su un tab, "si chiudono le altre tab". Non vengono chiuse — è la Policy B (`background.js:1397-1496`) che a ogni `onActivated` collassa **tutti** i gruppi tranne quello del tab attivo, quindi nella strip verticale di Brave i tab degli altri gruppi spariscono alla vista. Il fastidio concreto: passando avanti e indietro fra due gruppi, quello da cui si arriva si richiude ogni volta e va riaperto a mano. Richiesta: restare espanso anche il gruppo che conteneva il tab attivo **prima** del click.
+
+**Comportamento attuale vs. voluto:**
+
+| Azione | Oggi | Con M48 |
+| --- | --- | --- |
+| Click su tab del gruppo A (arrivando da B) | espanso solo A | espansi A e B |
+| Click su un altro tab dentro A | espanso solo A | espansi A e B (B resta l'ultimo gruppo diverso) |
+| Click su tab del gruppo C (da A, prima B) | espanso solo C | espansi C e A; B si collassa |
+| Click su un tab **non** raggruppato | collassati tutti | resta espanso l'ultimo gruppo visitato |
+
+**Approach:** trasformare la policy da "un gruppo attivo" a "una lista LRU dei gruppi recenti, profondità 2".
+
+- **Stato per finestra:** lista di group id in ordine di uso, capata a `KEEP = 2`. `applyCleanGroupsState(windowId, keepIds)` cambia firma: collassa un gruppo se il suo id **non** è nella lista.
+- **Persistenza in `chrome.storage.session`** (chiave `tz_recent_groups_by_window`), stessa scelta di M47 e per la stessa ragione: in MV3 il service worker muore dopo ~30 s di inattività, e una `Map` in memoria si azzererebbe proprio nello scenario descritto dall'utente (pagina letta un minuto, poi click su un altro gruppo) — il gruppo precedente sarebbe già dimenticato e si collasserebbe comunque. `storage.session` si svuota alla chiusura del browser, quindi la memoria non sopravvive a una sessione. Fallback silenzioso alla sola `Map` in memoria se `storage.session` non è disponibile.
+- **Tab non raggruppato:** non azzera la lista, la lascia intatta (riga 4 della tabella). Oggi `activeGroupId == NONE` collassa tutto; con M48 il gruppo da cui si arriva resta aperto.
+- **Pulizia degli id morti:** i gruppi cancellati restano nella lista e occuperebbero uno dei due slot, lasciando di fatto un solo gruppo espanso. La lista viene intersecata con i gruppi vivi (`tabGroups.query`, già chiamata dentro `applyCleanGroupsState`) a ogni applicazione.
+- **Dedup del lavoro:** `lastKeyByWindow` oggi confronta il solo group id attivo; diventa la chiave dell'intera lista (`"7|3"`), altrimenti un cambio di *solo* il gruppo precedente non ridipingerebbe nulla.
+- **Invarianti:** debounce 120 ms, guardia `inStartupGrace()`, gestione `isDraggingError` e pulizia su `onRemoved`/`isWindowClosing` restano come sono. Il "minimize all groups" del restore workspace (`background.js:1284`) è un percorso diverso e non si tocca.
+- **Testabilità:** la parte a eventi non è coperta dall'harness `vm`, quindi estraggo le due decisioni pure — `pushRecentGroup(recent, groupId, keep)` (LRU: dedup, cap, `TAB_GROUP_ID_NONE` non entra) e `planCollapse(groups, keepIds)` (chi collassare, chi espandere, id morti scartati) — e testo quelle.
+
+**Tasks:**
+- [x] `background.js`: `pushRecentGroup(recent, groupId, keep)` puro + costante `RECENT_GROUPS_SESSION_KEY`
+- [x] `background.js`: `planCollapse(groups, keepIds)` puro; `applyCleanGroupsState(windowId, keepIds)` lo usa
+- [x] `background.js`: lista recenti per finestra in memoria + persistenza `chrome.storage.session` (read-through al risveglio, write dopo ogni cambio), fallback se assente
+- [x] `background.js`: `onActivated` aggiorna la lista e passa `keepIds`; `lastKeyByWindow` usa la chiave della lista
+- [x] `tests/recent-groups.test.js`: unit test su `pushRecentGroup` (dedup, cap a 2, tab non raggruppato, riattivazione dello stesso gruppo) e `planCollapse` (id morti, nessuna update inutile)
+- [x] `README.md`: aggiornare "Group collapsing" (descrive la policy a un solo gruppo) + documentare lo stato in `chrome.storage.session`
+- [x] `npm test` verde (45/45, nessuna regressione)
+- [ ] Verifica manuale (utente): A→B lascia A espanso; A→B→C collassa A; click su tab non raggruppato lascia espanso l'ultimo gruppo; lasciare il browser fermo >1 min e ripetere A→B (il service worker si è riaddormentato) → A resta espanso; riavvio browser → nessun gruppo "ricordato"
+- [x] Commit & push
+
+**Done when:** Cliccando un tab restano espansi il suo gruppo e quello del tab attivo in precedenza; tutti gli altri si collassano; il comportamento sopravvive al riaddormentarsi del service worker.
+
+**Aperto:** M47 resta 🔄 in attesa della verifica manuale dell'utente (espulsione dei tab aperti da link) — indipendente da M48.
