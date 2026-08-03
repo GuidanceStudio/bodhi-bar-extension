@@ -79,7 +79,7 @@ In the background, Bodhi Bar keeps your tabs in a predictable structure:
 
 - **Stable ordering** — pinned tabs first, then tab groups (kept compact), then ungrouped tabs. Among ungrouped tabs, normal **web** tabs come before **system** tabs (`chrome://`, `brave://`, `about:`, …).
 - **Clean groups** — if a newly created tab ends up inside a group, it's automatically removed from the group. This is event-driven (no periodic sweeps) and only applies to tabs with strong evidence of being user-created (e.g. link-opened tabs, or tabs created via the Bodhi Bar UI), so session restore isn't mass-ungrouped.
-- **Group collapsing** — on each tab activation, two groups stay expanded: the one containing the active tab and the one containing the previously active tab. Every other group in the window collapses. Activating an ungrouped tab collapses nothing — the last group you were in stays open. This affects the browser's native tab strip and is skipped during the startup/session-restore grace period.
+- **Group collapsing** — the window remembers its last two tab activations and keeps their groups expanded; every other group collapses. Ungrouped tabs (pinned ones included) count as one slot of their own, so going from a group to two tabs outside it collapses that group as well. In practice: activate a tab in group A, then one in group B, and both stay open; activate a third group, or two free tabs, and A closes. This affects the browser's native tab strip and is skipped during the startup/session-restore grace period.
 
 > The in-page bar is injected only on normal `http(s)://` websites — not on browser-restricted pages like `chrome://extensions`, where content scripts can't run. System tabs are still managed by the background rules; they only appear in the bar (as a separate "system" section) when the bar is shown on a normal site.
 
@@ -140,7 +140,7 @@ State lives in `chrome.storage.local`:
 Two keys live in `chrome.storage.session` instead. That area is cleared when the browser closes and — unlike a module-level variable — survives the MV3 service worker being torn down after ~30 s of idle:
 
 - `startupAt` — when the current browser session started, so the startup grace period keeps elapsing across service-worker wake-ups instead of restarting on each one.
-- `recentGroupsByWindow` — a `windowId → [groupId, …]` map (most recently used first, capped at 2) backing the group-collapsing rule above. Without it, a worker restart would forget the previous group and collapse it on the next click.
+- `recentSlotsByWindow` — a `windowId → [slot, …]` map (most recent activation first, capped at 2) backing the group-collapsing rule above. A slot is a group id, or `-1` for the ungrouped area. Without it, a worker restart would forget the previous activation and collapse its group on the next click.
 
 The collapsed/expanded/hidden bar states are pure CSS: `#…:not(.tz-pinned):not(:hover)` shows only the leaf chip; `:hover` or `.tz-pinned` expands it; `.tz-hidden` hides it. The popup→page sync has no message listener — `content.js` watches `chrome.storage.onChanged` for `tz_hidden_by_tab`, so the show/hide toggle takes effect immediately.
 
