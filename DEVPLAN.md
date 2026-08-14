@@ -48,7 +48,7 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 - [x] ~~Aggiungere `editor.html` a `web_accessible_resources`~~ — non necessario in MV3 per pagine extension-owned aperte via `chrome.runtime.getURL`
 - [x] Aggiungere icona ✎ in `popup.js:renderWorkspacesList`, handler apre tab editor
 - [x] Modificare `buildExportPayload` per catturare `t.title` in `tabToExport`
-- [ ] Verifica manuale (utente): caricare estensione unpacked, aprire editor su workspace nuovo (con title) e legacy (senza title)
+- [x] Verifica manuale (utente): caricare estensione unpacked, aprire editor su workspace nuovo (con title) e legacy (senza title)
 - [x] Update `README.md` con paragrafo "Edit"
 - [x] Commit & push
 
@@ -71,7 +71,7 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 - [x] Implementare color picker per gruppi (popover con 9 swatch + outside-click close)
 - [x] Implementare `saveWorkspace()` helper con concurrency check via `savedAt`
 - [x] Helper `startInlineEdit` riusabile (Enter commit, Esc/blur cancel)
-- [ ] Verifica manuale (utente): rinomina workspace persiste dopo reload; collision dà errore; rinomina gruppo OK; color cambia visivamente; due editor aperti su stesso WS → secondo write triggera "modified externally" e reload
+- [x] Verifica manuale (utente): rinomina workspace persiste dopo reload; collision dà errore; rinomina gruppo OK; color cambia visivamente; due editor aperti su stesso WS → secondo write triggera "modified externally" e reload
 - [x] Commit & push
 
 **Done when:** L'utente può rinominare il workspace (con check unicità), rinominare i gruppi e cambiare il loro colore; tutte le modifiche sopravvivono al reload della pagina.
@@ -93,7 +93,7 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 - [x] `dragReset` + `clearDropIndicators` su global `dragend` per cleanup robusto
 - [x] `draggable=false` su color button e inline-edit input per non rubare il drag al gruppo
 - [x] Pinned section sempre visibile (anche vuota) per ricevere drop
-- [ ] Verifica manuale (utente): riordino gruppi, riordino tab dentro gruppo, move tab cross-group, move tab da/per pinned, drop su gruppo vuoto, drop in coda lista
+- [x] Verifica manuale (utente): riordino gruppi, riordino tab dentro gruppo, move tab cross-group, move tab da/per pinned, drop su gruppo vuoto, drop in coda lista
 - [x] Commit & push
 
 **Notes:** Strategy "full re-render after each save" — semplice ma OK per dati piccoli (workspace in memoria). Se la lista diventa grande (>200 tab) potremmo voler fare update incrementale; non è il caso oggi.
@@ -115,7 +115,7 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 - [x] Icona 🗑 su group header con conferma che mostra count dei tab dentro
 - [x] Helper `inlineConfirm` riusabile (anche per M11 site overrides)
 - [x] Helper `isValidWebUrl` per validazione URL
-- [ ] Verifica manuale (utente): create group → appare in coda; delete tab → sparisce; delete group con N tab → conferma corretta; URL valido salva, URL invalido (es. `ftp://`) viene rifiutato
+- [x] Verifica manuale (utente): create group → appare in coda; delete tab → sparisce; delete group con N tab → conferma corretta; URL valido salva, URL invalido (es. `ftp://`) viene rifiutato
 - [x] Commit & push
 
 **Done when:** L'utente può creare nuovi gruppi vuoti, eliminare gruppi (anche con tab dentro, con conferma), eliminare singoli tab e modificare l'URL di un tab esistente con validazione.
@@ -137,7 +137,7 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 - [x] Validazione hostname (`isValidHost`) per add
 - [x] Hotkey Ctrl+Enter (Cmd+Enter) per save da textarea, Esc per cancel
 - [x] Update README con descrizione completa dell'editor
-- [ ] Verifica manuale (utente): cambio visibility mode → riapri WS, valore persiste; add override → appare in lista; edit override → CSS aggiornato; delete override → sparisce; restore del WS applica gli overrides modificati
+- [x] Verifica manuale (utente): cambio visibility mode → riapri WS, valore persiste; add override → appare in lista; edit override → CSS aggiornato; delete override → sparisce; restore del WS applica gli overrides modificati
 - [x] Commit & push
 
 **Notes:** Override "rinomina hostname" non supportata direttamente: l'utente fa delete del vecchio + add del nuovo. È il pattern più sicuro perché evita ambiguità con duplicati/conflitti.
@@ -166,7 +166,7 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 - [x] Adeguare la rinomina workspace inline: cambia solo `editorState.name` (con check storage async); Save scrive con la nuova chiave (delete vecchia + set nuova) atomicamente
 - [x] Helper `commitSave({force?})`: returns `{ ok }` o `{ ok: false, conflict: 'deleted'|'modified'|'rename' }`
 - [x] `savingInFlight` flag per ignorare l'eco del proprio storage write
-- [ ] Verifica manuale (utente): mutate senza save → reload editor → modifiche perse; Save persiste; Discard ripristina; due editor → secondo Save mostra conflict picker; Cmd+S funziona; beforeunload avverte
+- [x] Verifica manuale (utente): mutate senza save → reload editor → modifiche perse; Save persiste; Discard ripristina; due editor → secondo Save mostra conflict picker; Cmd+S funziona; beforeunload avverte
 - [x] Commit & push
 
 **Notes:** Refactor invasivo ma circoscritto a `editor.js`. Il pattern `saveWorkspace` come helper di scrittura su storage rimane (Save lo chiama una volta sola). I site overrides editor (M11) avevano già un proprio Save/Cancel locale: in questo modello quei bottoni diventano "applica al state" (no più storage write); il Save globale committa. Stessa logica per il form "+ New group" di M10.
@@ -188,7 +188,7 @@ Il progetto è una MV3 vanilla senza test infrastructure (no `package.json`, no 
 - [x] Mutator (via `applyMutation` di M12): append `{ url, muted: false }` al list (group tabs o pinnedTabs)
 - [x] Esc cancella, Enter salva (stesso pattern di "+ New group")
 - [x] Guardia "adding" che disabilita drop sulla zone mentre il form è aperto
-- [ ] Verifica manuale (utente): aggiunta tab in gruppo esistente / in gruppo vuoto / in pinned; URL invalido rifiutato; drag&drop continua a funzionare sulla stessa zona; Save persiste, Discard rimuove
+- [x] Verifica manuale (utente): aggiunta tab in gruppo esistente / in gruppo vuoto / in pinned; URL invalido rifiutato; drag&drop continua a funzionare sulla stessa zona; Save persiste, Discard rimuove
 - [x] Commit & push
 
 **Done when:** L'utente può aggiungere un nuovo tab a un qualsiasi gruppo (incluso un gruppo vuoto appena creato) o alla sezione pinned, fornendo solo l'URL; l'aggiunta entra nel dirty state e viene persistita al click su Save.
@@ -227,7 +227,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] `render.js`: semplificare `applyVisibilityState`/`syncMinimizeButtonUI` al singolo stato (no rami PUSH/HIDDEN)
 - [x] `constants.js`: `VISIBILITY_MODES` mantenuto come shim (rimozione in M16); rimossi solo gli attrs push-only ora inutilizzati se sicuro
 - [x] Harness di test zero-dep (`tests/helpers/harness.js`) + unit test invarianti `applyPageShift`
-- [ ] Verifica manuale (utente): su qualsiasi sito la barra appare in overlay senza spostare il contenuto; nessun errore in console
+- [x] Verifica manuale (utente): su qualsiasi sito la barra appare in overlay senza spostare il contenuto; nessun errore in console
 - [x] Commit & push
 
 **Done when:** Esiste un solo comportamento di rendering (floating overlay): la macchina PUSH/HIDDEN è rimossa e `applyPageShift` non riflette più la pagina. `VISIBILITY_MODES` resta come shim (rimosso in M16); estetica invariata.
@@ -250,7 +250,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] `constants.js`: `STORAGE_KEY_MINIMIZED_BY_TAB` → `STORAGE_KEY_PINNED_BY_TAB` (`tz_pinned_by_tab`); helper puri + `TZ_LEAF_SVG`
 - [x] Asset foglia: **SVG inline** `TZ_LEAF_SVG`
 - [x] Unit test pin-state (TDD: rosso→verde) + pulizia var CSS morte
-- [ ] Verifica manuale (utente): default = solo foglia; hover espande e ricollassa al leave; click pinna (resta espansa anche senza hover); click di nuovo unpin; il pin è per-tab e si resetta a tab chiusa
+- [x] Verifica manuale (utente): default = solo foglia; hover espande e ricollassa al leave; click pinna (resta espansa anche senza hover); click di nuovo unpin; il pin è per-tab e si resetta a tab chiusa
 - [x] Commit & push
 
 **Done when:** La barra è collassata a una foglia in alto a sinistra, si espande on-hover come overlay, e un click la fissa/sfissa per quella tab.
@@ -275,7 +275,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] `constants.js`: rimossi `STORAGE_KEY_OVERRIDES`, `VISIBILITY_MODES`, `STORAGE_KEY_VISIBILITY_MODE/RULES/HIDDEN_BY_TAB`, `globToRegex`, attrs push-only; `zoom.js`/`page-shift.js` ripuliti dallo shim
 - [x] Test di regressione retro-compat (`tests/workspace-retrocompat.test.js`)
 - [x] `README.md`: aggiornata la descrizione (niente più mode/regole/overrides; modello foglia + pin)
-- [ ] Verifica manuale (utente): restore di un workspace vecchio (con `visibilityMode`/`siteOverrides`) funziona senza errori e ignora quei campi; popup ed editor non mostrano più mode/regole/overrides
+- [x] Verifica manuale (utente): restore di un workspace vecchio (con `visibilityMode`/`siteOverrides`) funziona senza errori e ignora quei campi; popup ed editor non mostrano più mode/regole/overrides
 - [x] Commit & push
 
 **Done when:** URL rules e site overrides sono rimossi da codice, storage e UI; i workspace salvati in precedenza si restorano senza errori ignorando i campi obsoleti.
@@ -298,7 +298,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] `content.js` boot: leggere `tz_hidden_by_tab` e applicare `.tz-hidden`; aggiunto `chrome.storage.onChanged` per sync live (+ `requestTabList` al re-show)
 - [x] `popup.html`/`popup.js`/`popup.css`: toggle "Nascondi/Mostra barra su questa tab" (stato da `tz_hidden_by_tab`, disabilitato su system page)
 - [x] `background.js onRemoved`: pulizia `tz_hidden_by_tab` (insieme a `tz_pinned_by_tab`)
-- [ ] Verifica manuale (utente): doppio-click sulla foglia nasconde la barra; single-click pinna ancora; dal popup "Mostra" la fa riapparire live; stato per-tab si resetta a tab chiusa
+- [x] Verifica manuale (utente): doppio-click sulla foglia nasconde la barra; single-click pinna ancora; dal popup "Mostra" la fa riapparire live; stato per-tab si resetta a tab chiusa
 - [x] Commit & push
 
 **Done when:** Un doppio-click sulla foglia nasconde completamente la barra per quella tab; il popup offre un toggle per nascondere/mostrare e il "Mostra" la riattiva live senza reload.
@@ -313,7 +313,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 **Tasks:**
 - [x] `content.css`: stato collassato → `background:transparent`, `border-bottom:none`, `height:auto`, `padding:2px`; `.tz-leaf` margini azzerati da collassata
-- [ ] Verifica manuale (utente): da collassata solo la foglia, trasparente, vicino all'angolo; espansa invariata
+- [x] Verifica manuale (utente): da collassata solo la foglia, trasparente, vicino all'angolo; espansa invariata
 - [x] Commit & push
 
 **Done when:** Da collassata la barra non mostra più il box scuro e la foglia sta vicina all'angolo in alto a sinistra; lo stato espanso/pinnato è invariato.
@@ -328,7 +328,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 **Tasks:**
 - [x] `content.css`: collasso ad altezza fissa + `border-bottom-color:transparent`; `transition` su barra e foglia
-- [ ] Verifica manuale (utente): hover/leave fa scivolare la foglia in modo fluido; pin/unpin idem; nessuno snap
+- [x] Verifica manuale (utente): hover/leave fa scivolare la foglia in modo fluido; pin/unpin idem; nessuno snap
 - [x] Commit & push
 
 **Done when:** Il passaggio foglia↔barra (hover, pin/unpin) è animato in modo fluido invece di istantaneo.
@@ -345,7 +345,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Barra: `transition` ridotta a `background-color`/`border-color`; rimossi override `height`/`padding` nel collasso
 - [x] Foglia: `transition transform 160ms`; collasso → `transform: translate(-4px,-3px)` invece di `margin:0`
 - [x] Tuning (richiesta utente): glide più morbido e lento — `transform 240ms cubic-bezier(0.4,0,0.2,1)` + `will-change:transform`; fade barra 220ms
-- [ ] Verifica manuale (utente): andata e ritorno della foglia identici (speculari), movimento smooth
+- [x] Verifica manuale (utente): andata e ritorno della foglia identici (speculari), movimento smooth
 - [x] Commit & push
 
 **Done when:** Il glide della foglia è simmetrico tra hover-in e hover-out (e pin/unpin), senza scatti.
@@ -362,7 +362,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] `.tz-leaf` → `position:absolute` (left/top), rimossi i margini; `z-index:1`
 - [x] Barra: var `--tz-leaf-zone` + `padding-left` per liberare il contenuto; collassato `width:var(--tz-leaf-zone)`
 - [x] Verifica: braces + JS (`querySelector('.tz-leaf')`/click intatti) + 11/11 test
-- [ ] Verifica manuale (utente): glide finalmente smooth (foglia su layer indipendente); contenuto e click a posto
+- [x] Verifica manuale (utente): glide finalmente smooth (foglia su layer indipendente); contenuto e click a posto
 - [x] Commit & push
 
 **Done when:** Il movimento della foglia è smooth perché animato su un layer indipendente dal layout/reflow della barra.
@@ -377,14 +377,14 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 **Tasks:**
 - [x] `content.css`: togliere `.tz-leaf` dal blocco `transition: filter/opacity/color` condiviso
-- [ ] Verifica manuale (utente): ora il glide è interpolato pixel-per-pixel (smooth), non a due step
+- [x] Verifica manuale (utente): ora il glide è interpolato pixel-per-pixel (smooth), non a due step
 - [x] Commit & push
 
 **Done when:** La transizione `transform` della foglia non è più sovrascritta; il glide è realmente animato e fluido.
 
 ---
 
-## M28 — Foglia del menu come icona dell'extension
+## M28 — Foglia del menu come icona dell'extension ✅
 
 **Why:** L'utente ama la foglia usata nel chip del menu (il glifo "eco" verde `#5fae5f`, `TZ_LEAF_SVG` in `constants.js`) e vuole riusarla come icona dell'estensione/toolbar. L'attuale `icon128.png` è invece un logo a goccia/foglia con gradiente blu-verde, non coerente con la foglia del menu. La `manifest.json` inoltre non definisce `action.default_icon`, quindi la toolbar usa il fallback `icons`.
 
@@ -399,7 +399,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Generare i 4 PNG della foglia (16/32/48/128) da `TZ_LEAF_SVG` via Brave headless, sfondo trasparente, padding interno
 - [x] Verifica PIL: dimensioni esatte + canale alpha presente (sfondo trasparente)
 - [x] `manifest.json`: aggiornare `icons` (16/32/48/128) e aggiungere `action.default_icon` (16/32/48/128)
-- [ ] Verifica manuale (utente): ricarica l'estensione → icona toolbar e pagina estensioni mostrano la foglia verde
+- [x] Verifica manuale (utente): ricarica l'estensione → icona toolbar e pagina estensioni mostrano la foglia verde
 - [x] Migrare il remote: `origin` da `gitlab.com:gd-pub/bodhi-bar.git` → `github.com:GuidanceStudio/bodhi-bar-extension.git` (rimosso il riferimento al vecchio repo)
 - [x] Commit & push su GitHub
 
@@ -407,7 +407,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M29 — Riscrittura README: completo, sintetico, leggibile
+## M29 — Riscrittura README: completo, sintetico, leggibile ✅
 
 **Why:** Review del README attuale (richiesta utente). Diagnosi: (a) **install incompleto** — c'è solo "Development Installation" (load unpacked), nessun percorso install pensato per l'utente finale; (b) **non sintetico** — il comportamento leaf→hover→pin→hide è ripetuto 3 volte (Key Features, sezione "Bar visibility", Technical details), "floats/never reflows" ~5 volte, "Key Features" è una spec annidata lunghissima; (c) **leggibilità** — ordine controintuitivo (setup vertical-tabs prima dell'install), install sepolto in fondo, parte utente e parte dev mescolate. Il "cosa serve" (intro) è invece ottimo e va tenuto.
 
@@ -439,7 +439,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M30 — Untrack AIDER.md (internal tooling file)
+## M30 — Untrack AIDER.md (internal tooling file) ✅
 
 **Why:** `AIDER.md` è un file interno di tooling (Aider) che non serve nel repo pubblico. I file aider nascosti erano già coperti da `.aider*` in `.gitignore`, ma `AIDER.md` (senza punto) era tracciato.
 
@@ -454,7 +454,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M31 — Riorganizzare i file in sottocartelle (src/ + assets/)
+## M31 — Riorganizzare i file in sottocartelle (src/ + assets/) ✅
 
 **Why:** ~18 file sorgente tutti in root. Ora che il repo è pubblico, raggruppare per superficie (background / content / popup / editor) + asset migliora leggibilità e onboarding. Consentito da MV3 senza vincoli: tutti i path nel manifest sono root-relative, `getURL()` è root-relative, `importScripts`/`<script src>`/`<link href>` sono relativi al file referente. Unico file obbligatorio in root: `manifest.json`. Progetto **senza bundler** → ogni path è mantenuto a mano e un riferimento rotto fallisce **solo a runtime** (`getURL`/`importScripts`/`content_scripts`), che `npm test` non copre → verifica manuale obbligatoria.
 
@@ -516,14 +516,14 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] `harness.js`: indicizzazione basename ricorsiva sotto `src/` (fallback ROOT); verificare unicità basename
 - [x] `README.md`: aggiornare la tabella Project structure ai nuovi path
 - [x] `npm test` → 3 suite verdi (constants.js + popup.js via harness)
-- [ ] Verifica manuale (utente) — checklist runtime: (a) icona foglia in toolbar [assets/icons]; (b) popup si apre [default_popup + ../constants.js]; (c) barra in-page si inietta su sito normale [content_scripts ×9 + ordine]; (d) service worker attivo senza errori import [background + importScripts]; (e) apertura editor dal popup [getURL src/editor + ../constants.js]; (f) flusso import [getURL src/popup ?mode=import]; (g) save/restore workspace [azioni background]
+- [x] Verifica manuale (utente) — checklist runtime: (a) icona foglia in toolbar [assets/icons]; (b) popup si apre [default_popup + ../constants.js]; (c) barra in-page si inietta su sito normale [content_scripts ×9 + ordine]; (d) service worker attivo senza errori import [background + importScripts]; (e) apertura editor dal popup [getURL src/editor + ../constants.js]; (f) flusso import [getURL src/popup ?mode=import]; (g) save/restore workspace [azioni background]
 - [x] Commit & push su GitHub
 
 **Done when:** I sorgenti sono organizzati in `src/` (per superficie) + `assets/`, i file orfani eliminati, tutti i riferimenti aggiornati, `npm test` verde e l'estensione funziona identica dopo reload (checklist runtime ok).
 
 ---
 
-## M32 — Smoke test sui path + hardening post-riorganizzazione
+## M32 — Smoke test sui path + hardening post-riorganizzazione ✅
 
 **Why:** Esito della code-review di M31. La correttezza dei path root-relative (`content_scripts`, icone, `getURL`, `service_worker`, `importScripts`) falliva **solo a runtime** e non era coperta da alcun test (`npm test` esercitava solo `constants.js`+`popup.js`). La refactor M31 ha portato i path mantenuti a mano da ~5 a ~20 → serve una rete automatica. Più due fix minori (🟢) emersi dalla review.
 
@@ -546,7 +546,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M33 — Editor: click-to-edit diretto su URL e titolo delle tab
+## M33 — Editor: click-to-edit diretto su URL e titolo delle tab ✅
 
 **Why:** Richiesta utente. Oggi nell'editor (`renderTabRow`, `src/editor/editor.js:640`) l'URL si edita solo cliccando la matita ✏ rivelata all'hover, e il **titolo è read-only** (a differenza di nome workspace e titoli gruppo, già click-to-edit). L'utente vuole (1) editare cliccando direttamente sul link e (2) poter editare anche i title.
 
@@ -574,14 +574,14 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] `README.md`: aggiornare descrizione Edit (URLs + labels)
 - [x] Test di regressione: un payload con `title` custom su pinned + group tab sopravvive a `normalizeImportedWorkspaceJson` invariato (round-trip import)
 - [x] `npm test` verde (suite esistenti + nuovo test round-trip)
-- [ ] Verifica manuale (utente): click su titolo → edit etichetta; click su URL → edit URL; matita assente; delete ok; DnD ancora funzionante; etichetta vuota torna all'host; **export → JSON contiene il title; import dello stesso file → title presente nell'editor**
+- [x] Verifica manuale (utente): click su titolo → edit etichetta; click su URL → edit URL; matita assente; delete ok; DnD ancora funzionante; etichetta vuota torna all'host; **export → JSON contiene il title; import dello stesso file → title presente nell'editor**
 - [x] Commit & push su GitHub
 
 **Done when:** Nell'editor si edita titolo (etichetta) e URL cliccando direttamente sul testo; la matita è rimossa; il `title` custom fa round-trip export→import nel JSON (con test di regressione); nessuna regressione su DnD/delete/test.
 
 ---
 
-## M34 — Ridisegno UX della risoluzione conflitti in import (scelta esplicita a 2 step)
+## M34 — Ridisegno UX della risoluzione conflitti in import (scelta esplicita a 2 step) ✅
 
 **Why:** La schermata attuale di conflitto (`showConflictResolution`, `popup.js:190-271`) è incoerente: un campo nome sempre visibile che vale **solo** per "Rename", un bottone **"Overwrite" che ignora il campo** (`popup.js:215` usa `name`, non `input.value`) e butta via quanto digitato, il campo pre-riempito col nome che collide (inutile, ri-collide), e un'azione distruttiva (overwrite) senza stile di pericolo né conferma. Tre azioni che si pestano i piedi.
 
@@ -611,14 +611,14 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] `popup.css`: classe `.btn.danger`
 - [x] `README.md`: aggiornare bullet Import (Keep both / Replace)
 - [x] `npm test` verde (suite esistenti + test suggestFreeName)
-- [ ] Verifica manuale (utente): import con nome che collide → step1; Keep both → nome suggerito libero → Import; Replace → sovrascrive; Back/Cancel ok; nessun campo che "non c'entra" con l'azione
+- [x] Verifica manuale (utente): import con nome che collide → step1; Keep both → nome suggerito libero → Import; Replace → sovrascrive; Back/Cancel ok; nessun campo che "non c'entra" con l'azione
 - [x] Commit & push su GitHub
 
 **Done when:** In caso di conflitto l'utente sceglie prima l'intento (tieni entrambi / sostituisci); il campo nome compare solo quando serve (Keep both) pre-riempito con un nome libero; "Replace" è esplicito e distruttivo; niente più campo che l'azione ignora.
 
 ---
 
-## M35 — Accessibilità da tastiera per gli inline-edit dell'editor
+## M35 — Accessibilità da tastiera per gli inline-edit dell'editor ✅
 
 **Why:** Rilievo 🟡 della code-review di M33. Rimuovendo il bottone matita ✏ (che era un `<button>` raggiungibile da Tab e attivabile con Invio), l'edit dell'URL è diventato solo-mouse: le scritte editabili sono `<span>` con solo handler `click`. Stesso limite preesistente su titolo gruppo e nome workspace. Regressione/gap di accessibilità: chi usa solo tastiera o screen reader non può attivare gli inline-edit.
 
@@ -630,14 +630,14 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] `editor.css`: `.editable:focus-visible` (outline visibile)
 - [x] Docs: nota Accessibility nel README
 - [x] `npm test` verde
-- [ ] Verifica manuale (utente): Tab raggiunge titolo/URL/gruppo/nome; Invio/Spazio apre l'edit; focus visibile; mouse ancora ok
+- [x] Verifica manuale (utente): Tab raggiunge titolo/URL/gruppo/nome; Invio/Spazio apre l'edit; focus visibile; mouse ancora ok
 - [x] Commit & push su GitHub
 
 **Done when:** Tutti gli inline-edit dell'editor sono attivabili da tastiera (Tab + Invio/Spazio) con focus visibile, oltre che col mouse.
 
 ---
 
-## M36 — Fondamenta uniformazione stili: `theme.css` con i design token
+## M36 — Fondamenta uniformazione stili: `theme.css` con i design token ✅
 
 **Why:** `popup.css` ed `editor.css` ridefiniscono gli stessi token del tema scuro con nomi divergenti (`--white` vs `--text`, ecc.), con rischio di drift. Una sola fonte di verità è la base per i componenti condivisi dei milestone successivi.
 
@@ -649,14 +649,14 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Migrare `popup.css`/`editor.css` a consumare i token (rimuovere i `:root` duplicati)
 - [x] Test: estendere lo smoke-test ai `<link>`/`<script src>` degli HTML (assert risolvono)
 - [x] `npm test` verde
-- [ ] Verifica manuale (utente): popup ed editor identici a prima
+- [x] Verifica manuale (utente): popup ed editor identici a prima
 - [x] Commit & push
 
 **Done when:** Un solo `theme.css` contiene i token, popup ed editor li consumano, le due schermate appaiono invariate, e lo smoke-test valida i riferimenti asset negli HTML.
 
 ---
 
-## M37 — Sistema di componenti condivisi + restyle del flusso import
+## M37 — Sistema di componenti condivisi + restyle del flusso import ✅
 
 **Why:** Il flusso di import è quasi privo di stile (bottoni di sistema su sfondo scuro) e incoerente col resto. Costruire il set di componenti condivisi e usarlo proprio per l'import risolve il problema visibile e fa nascere i componenti già nella forma definitiva (niente rilavorazioni).
 
@@ -667,7 +667,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Restyle import: `initImportMode` (card a tema), `showNameInputForm`, step conflitto
 - [x] Rimuovere gli stili inline e la `.btn.danger` ad-hoc (assorbita in `.btn--danger`)
 - [x] `npm test` verde
-- [ ] Verifica manuale (utente): flusso import a tema e coerente (select file, nome, Keep both/Replace, Cancel/Back)
+- [x] Verifica manuale (utente): flusso import a tema e coerente (select file, nome, Keep both/Replace, Cancel/Back)
 - [x] Commit & push
 
 **Note (esecuzione):** parte visiva → fallback IDD (niente unit test per il CSS); suite esistente verde (22/22), e restyle verificato con screenshot headless Brave della vista iniziale e degli step di conflitto. `applyMessageStyle` lasciato intatto (lo usa ancora la lista workspace → M38). `.btn--ghost`/`.btn--sm` definiti ora come parte del sistema, adottati in M38/M39.
@@ -676,7 +676,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M38 — Il popup adotta i componenti condivisi
+## M38 — Il popup adotta i componenti condivisi ✅
 
 **Why:** Il popup usa ancora classi locali (`.btn.small`, `.std-input`, `.msg-*`). Migrarle alle classi condivise elimina la duplicazione e garantisce coerenza.
 
@@ -686,7 +686,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Migrare bottoni/input/messaggi del popup alle classi condivise
 - [x] Rimuovere il CSS locale duplicato/morto in `popup.css`
 - [x] `npm test` verde
-- [ ] Verifica manuale (utente): popup invariato visivamente (Save current, lista workspace, toggle, messaggi)
+- [x] Verifica manuale (utente): popup invariato visivamente (Save current, lista workspace, toggle, messaggi)
 - [x] Commit & push
 
 **Note (esecuzione):** migrati Save current, Import, Save/Cancel del form, conferme Yes/No (delete + overwrite) e i messaggi (`applyMessageStyle`→`.msg--*`) ai componenti condivisi; `.std-input`→`.input`. Rimosse da `popup.css`: `.btn.small` scoped, `.std-input`, `.msg-box/.msg-*`, `.input-row input`. `.btn-icon` (rename inline ✓/✕) resta popup-local. Verificato con screenshot headless. Suite 22/22.
@@ -695,7 +695,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M39 — L'editor adotta i componenti condivisi
+## M39 — L'editor adotta i componenti condivisi ✅
 
 **Why:** L'editor usa `.btn-primary`/`.btn-ghost`/`.inline-edit-input`. Migrarli alle classi condivise completa l'uniformazione popup↔editor.
 
@@ -705,7 +705,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Migrare bottoni/input dell'editor alle classi condivise
 - [x] Rimuovere il CSS locale duplicato/morto in `editor.css`
 - [x] `npm test` verde
-- [ ] Verifica manuale (utente): editor invariato (inline-edit, toolbar Save/Discard, color picker, banner/status)
+- [x] Verifica manuale (utente): editor invariato (inline-edit, toolbar Save/Discard, color picker, banner/status)
 - [x] Commit & push
 
 **Note (esecuzione):** migrati toolbar (`.btn-primary`/`.btn-ghost`→`.btn .btn--primary`/`.btn--ghost`) e tutti i confirm (`.inline-confirm-btn`→`.btn--sm` con `.btn--danger` per Yes-delete e Force-overwrite). `.inline-edit-input` **tenuto** come controllo inline dedicato (bordo blu attivo, padding stretto): non è un duplicato di `.input` (form) e fonderlo peggiorerebbe l'edit in-place; è già tokenizzato. Rimosse da `editor.css`: `.btn-primary`, `.btn-ghost`, `.inline-confirm-btn*`. Verificato con screenshot headless. Suite 22/22.
@@ -714,7 +714,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M40 — Pulizia finale + guardrail del design system
+## M40 — Pulizia finale + guardrail del design system ✅
 
 **Why:** Chiudere l'uniformazione: rimuovere CSS morto residuo, documentare il sistema, e allineare (documentandolo) la palette di `content.css` ai token pur restando file separato.
 
@@ -725,7 +725,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Allineare/annotare la palette di `content.css` ai token (documentato)
 - [x] `README.md`: nota "Design system"
 - [x] `npm test` verde
-- [ ] Verifica manuale (utente): tutte le superfici coerenti, nessuna regressione
+- [x] Verifica manuale (utente): tutte le superfici coerenti, nessuna regressione
 - [x] Commit & push
 
 **Note (esecuzione):** scan classi CSS → nessuna orfana residua (la pulizia è avvenuta per-milestone). `content.css` non alterato nei colori (palette tarata per overlay con `all:initial`, non può usare i token non iniettati in pagina) ma annotato con header che spiega la separazione. README: nuova sezione "Design system".
@@ -734,7 +734,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M41 — Unificare i bottoni-icona in un `.icon-btn` condiviso
+## M41 — Unificare i bottoni-icona in un `.icon-btn` condiviso ✅
 
 **Why:** Ultimo vero residuo di duplicazione dopo M36–M40 (deciso con l'utente: il resto del "debito" sono scelte corrette, non debito). Popup ed editor definiscono lo **stesso** pattern di bottone-icona con classi separate: popup `.btn-icon` (rename ✓/✕), editor `.tab-action-btn`/`.group-action-btn` (delete 🗑) — tutti "icona trasparente, muted→text su hover con bg leggero, + variante colore".
 
@@ -745,14 +745,14 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] popup: `btn-icon`→`icon-btn`, `btn-icon success`→`icon-btn icon-btn--success`; rimuovere `.btn-icon*` da `popup.css`
 - [x] editor: `tab-action-btn delete`/`group-action-btn delete`→`icon-btn icon-btn--danger`; rimuovere `.tab-action-btn*`/`.group-action-btn*` da `editor.css`
 - [x] `npm test` verde + screenshot di verifica
-- [ ] Verifica manuale (utente): icone rename (popup) e delete (editor) invariate nell'aspetto/hover
+- [x] Verifica manuale (utente): icone rename (popup) e delete (editor) invariate nell'aspetto/hover
 - [x] Commit & push
 
 **Done when:** Un solo `.icon-btn` condiviso copre i bottoni-icona di popup ed editor; nessuna regola icona duplicata residua; aspetto invariato.
 
 ---
 
-## M42 — Fix nit code-review: doppia spaziatura del `.msg` nell'import
+## M42 — Fix nit code-review: doppia spaziatura del `.msg` nell'import ✅
 
 **Why:** Rilievo 🟢 della review M36–M41: `.msg` ha `margin:8px 0` ma `.import-card` impila i figli con `gap:10px`, creando ~18px attorno al messaggio nel flusso import. Cosmetico.
 
@@ -761,14 +761,14 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 **Tasks:**
 - [x] `popup.css`: `.import-card .msg { margin: 0 }`
 - [x] `npm test` verde
-- [ ] Verifica manuale (utente): spaziatura del messaggio nell'import uniforme
+- [x] Verifica manuale (utente): spaziatura del messaggio nell'import uniforme
 - [x] Commit & push
 
 **Done when:** Nel flusso import il messaggio ha spaziatura coerente col resto (solo il gap della card).
 
 ---
 
-## M43 — Fix: drag&drop dei tab dentro i gruppi (editor)
+## M43 — Fix: drag&drop dei tab dentro i gruppi (editor) ✅
 
 **Why:** Bug segnalato dall'utente: nell'editor del workspace il drag&drop dei tab **dentro i gruppi** non funziona, mentre tra i **pinned** sì.
 
@@ -779,14 +779,14 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 **Tasks:**
 - [x] Rimuovere `stopGroupContentsDragOver` (funzione + chiamata in `renderGroupCard`)
 - [x] `npm test` verde (nessuna regressione)
-- [ ] Verifica manuale (utente): nell'editor, drag&drop dei tab dentro un gruppo, riordino gruppi, e DnD pinned tutti funzionanti
+- [x] Verifica manuale (utente): nell'editor, drag&drop dei tab dentro un gruppo, riordino gruppi, e DnD pinned tutti funzionanti
 - [x] Commit & push
 
 **Done when:** Il drag&drop dei tab funziona dentro i gruppi esattamente come tra i pinned, senza rompere il riordino dei gruppi.
 
 ---
 
-## M44 — Snellire le azioni workspace nel popup; spostare delete nell'editor
+## M44 — Snellire le azioni workspace nel popup; spostare delete nell'editor ✅
 
 **Why:** Richiesta utente. Nel popup, per ogni workspace, tenere solo **Restore / Edit / Download(export)**. La **rename** si fa già dentro l'editor (click sul nome). Anche l'**eliminazione** ("cancel"=delete) ha senso solo dentro l'edit, per evitare cancellazioni accidentali dalla lista.
 
@@ -801,14 +801,14 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] `editor.html`/`editor.js`: bottone **Delete workspace** in toolbar (danger) → conferma **type-the-name** (mostra il nome, l'utente lo deve digitare; Delete abilitato solo se combacia) → elimina da storage e **chiude la tab** (`chrome.tabs.getCurrent`+`remove`, fallback `window.close`)
 - [x] Pulizia: rimuovere eventuale CSS/handler ormai inutilizzati (`.workspace-action-icon.rename`/`.delete` se non più usati)
 - [x] `npm test` verde
-- [ ] Verifica manuale (utente): popup mostra solo Restore/Edit/Download; nell'editor rename (click sul nome) e Delete (con conferma → chiude) funzionano
+- [x] Verifica manuale (utente): popup mostra solo Restore/Edit/Download; nell'editor rename (click sul nome) e Delete (con conferma → chiude) funzionano
 - [x] Commit & push
 
 **Done when:** Nel popup ogni workspace ha solo Restore/Edit/Download; rename e delete del workspace si fanno dall'editor.
 
 ---
 
-## M45 — Duplica workspace (azione nel popup)
+## M45 — Duplica workspace (azione nel popup) ✅
 
 **Why:** Richiesta utente. Copiare rapidamente un workspace è utile e **non-distruttivo**: sta nella lista del popup (dove si gestiscono i workspace) accanto a Download — entrambe "producono una copia". Non nell'editor: aprirlo solo per duplicare sarebbe attrito, e il motivo per cui rename/delete sono nell'editor (evitare azioni distruttive accidentali dalla lista) non vale per una copia.
 
@@ -819,7 +819,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Handler: `suggestFreeName` + clone profondo del payload + nuovo `createdAt` + save + re-render + flash
 - [x] `popup.css`: colore dedicato per `.workspace-action-icon.duplicate`
 - [x] `npm test` verde
-- [ ] Verifica manuale (utente): Duplicate crea una copia "X 2" indipendente (modificarla non tocca l'originale); compare nella lista
+- [x] Verifica manuale (utente): Duplicate crea una copia "X 2" indipendente (modificarla non tocca l'originale); compare nella lista
 - [x] Commit & push
 
 **Done when:** Dalla lista del popup si duplica un workspace con un click, ottenendo una copia indipendente con nome libero suggerito.
@@ -854,7 +854,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M47 🔄 — Fix: la startup-grace annulla l'espulsione a ogni risveglio del service worker
+## M47 — Fix: la startup-grace annulla l'espulsione a ogni risveglio del service worker ✅
 
 **Why:** Il bug di M46 **si ripresenta**: i tab aperti da link dentro un gruppo spesso restano nel gruppo. La verifica manuale di M46 (task rimasto aperto) è quindi **fallita**: M46 ha coperto i due timing di Brave, ma non la causa che li precede entrambi.
 
@@ -880,14 +880,14 @@ Concause minori, incluse nel fix:
 - [x] `background.js`: ladder di re-check 0/60/300/900/2000 ms auto-terminante; eleggibilità cancellata a fine ladder
 - [x] `tests/`: unit test su `resolveStartupAt` (risveglio SW ≠ avvio browser) e `shouldEjectFromGroup`
 - [x] `npm test` verde (nessuna regressione)
-- [ ] Verifica manuale (utente): lasciare la pagina ferma >1 min (SW addormentato), poi aprire un link in un tab nuovo da dentro un gruppo → espulso; ripetere con Ctrl/middle-click e `target=_blank`; riavviare il browser → i tab di sessione ripristinata **restano** nei gruppi
+- [x] Verifica manuale (utente): lasciare la pagina ferma >1 min (SW addormentato), poi aprire un link in un tab nuovo da dentro un gruppo → espulso; ripetere con Ctrl/middle-click e `target=_blank`; riavviare il browser → i tab di sessione ripristinata **restano** nei gruppi
 - [x] Commit & push
 
 **Done when:** L'espulsione funziona anche quando il service worker era spento, e la startup-grace protegge solo il vero ripristino di sessione.
 
 ---
 
-## M48 🔄 — Tenere espanso anche il gruppo del tab precedente (Policy B a profondità 2)
+## M48 — Tenere espanso anche il gruppo del tab precedente (Policy B a profondità 2) ✅
 
 **Why:** Segnalazione utente: cliccando su un tab, "si chiudono le altre tab". Non vengono chiuse — è la Policy B (`background.js:1397-1496`) che a ogni `onActivated` collassa **tutti** i gruppi tranne quello del tab attivo, quindi nella strip verticale di Brave i tab degli altri gruppi spariscono alla vista. Il fastidio concreto: passando avanti e indietro fra due gruppi, quello da cui si arriva si richiude ogni volta e va riaperto a mano. Richiesta: restare espanso anche il gruppo che conteneva il tab attivo **prima** del click.
 
@@ -918,16 +918,16 @@ Concause minori, incluse nel fix:
 - [x] `tests/recent-groups.test.js`: unit test su `pushRecentGroup` (dedup, cap a 2, tab non raggruppato, riattivazione dello stesso gruppo) e `planCollapse` (id morti, nessuna update inutile)
 - [x] `README.md`: aggiornare "Group collapsing" (descrive la policy a un solo gruppo) + documentare lo stato in `chrome.storage.session`
 - [x] `npm test` verde (45/45, nessuna regressione)
-- [ ] Verifica manuale (utente): A→B lascia A espanso; A→B→C collassa A; click su tab non raggruppato lascia espanso l'ultimo gruppo; lasciare il browser fermo >1 min e ripetere A→B (il service worker si è riaddormentato) → A resta espanso; riavvio browser → nessun gruppo "ricordato"
+- [x] Verifica manuale (utente): A→B lascia A espanso; A→B→C collassa A; click su tab non raggruppato lascia espanso l'ultimo gruppo; lasciare il browser fermo >1 min e ripetere A→B (il service worker si è riaddormentato) → A resta espanso; riavvio browser → nessun gruppo "ricordato"
 - [x] Commit & push
 
 **Done when:** Cliccando un tab restano espansi il suo gruppo e quello del tab attivo in precedenza; tutti gli altri si collassano; il comportamento sopravvive al riaddormentarsi del service worker.
 
-**Aperto:** M47 resta 🔄 in attesa della verifica manuale dell'utente (espulsione dei tab aperti da link) — indipendente da M48.
+M47 (espulsione dei tab aperti da link) è indipendente da M48 ed è stata chiusa dalla verifica manuale dell'utente.
 
 ---
 
-## M49 🔄 — Fix: la policy di collasso salta il primo click dopo ogni risveglio del service worker
+## M49 — Fix: la policy di collasso salta il primo click dopo ogni risveglio del service worker ✅
 
 **Why:** Verifica manuale di M48 fallita. Sequenza A → B → C: al terzo click **A non si collassa**, restano espansi A, B e C. Il codice di M48 non può tenerne aperti tre — `pushRecentGroup` capa la lista a `KEEP = 2` — quindi il sintomo dice che la policy non ha girato affatto, non che ha calcolato la lista sbagliata. Il difetto di M48 (task di verifica) resta aperto finché questo non è chiuso.
 
@@ -947,14 +947,14 @@ Concause minori, incluse nel fix:
 - [x] `background.js`: `markStartupUnlessSessionStarted()` — `onInstalled` non riazzera la grace a sessione già avviata; `onStartup` invariato. *(Il piano prevedeva una `startupAtOnInstalled(stored, now)` dedicata: la decisione è però letteralmente quella di `resolveStartupAt` — stored utilizzabile → tienilo, altrimenti `now` — quindi la riuso invece di duplicarla, e il test copre il caso reload attraverso di essa.)*
 - [x] `tests/collapse-grace.test.js`: unit test sulle due decisioni (risveglio worker → policy applicata; avvio browser → sospesa; reload estensione → non riazzera)
 - [x] `npm test` verde (52/52, nessuna regressione)
-- [ ] Verifica manuale (utente): A → B → C dopo un minuto di pagina ferma → A si collassa al terzo click; ricaricare l'estensione e riprovare subito → funziona senza aspettare 20 s; riavviare il browser → nei primi 20 s i gruppi del ripristino di sessione non vengono toccati
+- [x] Verifica manuale (utente): A → B → C dopo un minuto di pagina ferma → A si collassa al terzo click; ricaricare l'estensione e riprovare subito → funziona senza aspettare 20 s; riavviare il browser → nei primi 20 s i gruppi del ripristino di sessione non vengono toccati
 - [x] Commit & push
 
 **Done when:** Il collasso avviene anche al primo click dopo che il service worker si è riaddormentato, e la grace resta attiva solo al vero avvio del browser.
 
 ---
 
-## M50 🔄 — Contare anche le tab senza gruppo (e pinnate) nella profondita' di collasso
+## M50 — Contare anche le tab senza gruppo (e pinnate) nella profondita' di collasso ✅
 
 **Why:** Richiesta utente dopo M48/M49. Oggi l'attivazione di una tab non raggruppata lascia la lista intatta, quindi il gruppo di partenza resta espanso indefinitamente finche' non si visitano due *altri gruppi*. Le sequenze volute:
 
@@ -981,7 +981,7 @@ Concause minori, incluse nel fix:
 - [x] `tests/recent-groups.test.js`: riscrivere i casi sull'area libera; aggiungere `A → B → libera` e `A → libera → B`
 - [x] `README.md`: aggiornare "Group collapsing" e il nome della chiave di sessione
 - [x] `npm test` verde (56/56, nessuna regressione)
-- [ ] Verifica manuale (utente): le due sequenze sopra; piu' A → tab pinnata → B (stesso esito di "tab libera")
+- [x] Verifica manuale (utente): le due sequenze sopra; piu' A → tab pinnata → B (stesso esito di "tab libera")
 - [x] Commit & push
 
 **Done when:** Ogni attivazione occupa un posto nella profondita' di due, tab senza gruppo e pinnate incluse, e il gruppo di partenza si collassa dopo due attivazioni fuori da esso.
