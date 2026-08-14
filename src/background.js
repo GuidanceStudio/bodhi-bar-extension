@@ -152,11 +152,10 @@ const state = {
 
 // --- Startup grace clock -------------------------------------------------
 // The grace exists so session-restored tabs are left alone right after the
-// browser starts. It used to key off the plain `Date.now()` above, evaluated at
-// module load — but in MV3 the service worker is torn down after ~30s idle and
-// re-evaluated on the next event, so *every* wake-up restarted the 20s grace and
-// silently suppressed the new-tab ejection below (M47: the very event that wakes
-// the worker is the onCreated of the tab we are supposed to eject).
+// browser starts. In MV3 the service worker is torn down after ~30s idle and
+// re-evaluated on the next event — often the very onCreated event of the tab
+// the grace is meant to protect — so the clock cannot key off Date.now() at
+// module load: every wake-up would restart the grace and suppress ejection.
 // chrome.storage.session survives wake-ups and is cleared when the browser
 // closes, so it tells a real startup and a wake-up apart.
 const STARTUP_AT_SESSION_KEY = 'startupAt';
@@ -184,11 +183,11 @@ function markStartupNow() {
 }
 
 // onInstalled also fires on a plain reload of the unpacked extension, mid-session,
-// with the browser running for hours — restarting the grace there opens 20s in
-// which the collapse policy and the ejection are suppressed, i.e. exactly the
-// window in which the freshly loaded build gets tested (M49). A timestamp already
-// in storage.session *is* the signal that this browser session started earlier,
-// so the clock is kept. onStartup, the explicit browser-start signal, still
+// with the browser running for hours — restarting the grace there would open 20s
+// in which the collapse policy and the ejection are suppressed, exactly the
+// window a freshly loaded build gets exercised in. A timestamp already in
+// storage.session is the signal that this browser session started earlier, so
+// the clock is kept. onStartup, the explicit browser-start signal, still
 // resets it unconditionally.
 async function markStartupUnlessSessionStarted() {
   try {
@@ -197,7 +196,7 @@ async function markStartupUnlessSessionStarted() {
     state.startupAt = resolved;
     await persistStartupAt(resolved);
   } catch {
-    markStartupNow(); // storage.session unavailable: keep the pre-M49 behaviour
+    markStartupNow(); // storage.session unavailable: fall back to marking startup now
   }
 }
 
@@ -211,7 +210,7 @@ const startupClockReady = (async () => {
     state.startupAt = resolved;
     if (resolved !== stored) await persistStartupAt(resolved);
   } catch {
-    // storage.session unavailable: keep the load-time value (pre-M47 behaviour)
+    // storage.session unavailable: keep the load-time value
   }
 })();
 
@@ -243,7 +242,7 @@ function shouldEjectFromGroup({ inGrace, eligible, tab, noneGroupId = -1 }) {
 // Reads the group state straight from the tab instead of depending on a single
 // tabs.onUpdated groupId event: Brave may create the child already inside the
 // group (no later groupId change ever fires) or emit that event unreliably, so
-// trusting one signal made ejection intermittent (M46).
+// a single signal is not enough to trust.
 // Returns false when there is nothing left to watch (tab gone, or no longer
 // eligible), so the caller's re-check ladder can stop early.
 async function ejectIfEligibleGrouped(tabId, tabOpt) {
@@ -1413,10 +1412,10 @@ chrome.tabs.onCreated.addListener(tab => {
 });
 
 // Native tab strip: keep a "clean" groups state on every tab activation.
-// Policy B (M48): keep expanded the active tab's group *and* the group of the
+// Policy B: keep expanded the active tab's group *and* the group of the
 // previously active tab; collapse everything else. Expanding only the active
-// group meant that going back and forth between two groups re-collapsed the one
-// you came from on every click, and it had to be reopened by hand.
+// group would re-collapse the one you came from on every click when going back
+// and forth between two groups, forcing it to be reopened by hand.
 const groupCollapsePolicy = {
   timers: new Map(), // windowId -> timerId
   lastKeyByWindow: new Map(), // windowId -> string key to avoid redundant work
@@ -1426,11 +1425,11 @@ const groupCollapsePolicy = {
 };
 
 // The recent-slots list has to survive service-worker teardown: MV3 kills the
-// worker after ~30s idle, and an in-memory Map alone would be empty again in
-// exactly the reported case (read a page for a minute, then click into another
-// group) — the group we came from would already be forgotten and collapse
-// anyway. Same lesson as the startup clock in M47. storage.session is cleared
-// when the browser closes, so nothing is remembered across sessions.
+// worker after ~30s idle, and an in-memory Map alone would be empty again after
+// any idle gap (read a page for a minute, then click into another group) — the
+// group we came from would already be forgotten and collapse anyway.
+// storage.session is cleared when the browser closes, so nothing is remembered
+// across sessions.
 const RECENT_SLOTS_SESSION_KEY = 'recentSlotsByWindow';
 
 // Chrome group ids are positive integers; TAB_GROUP_ID_NONE (-1) means the tab
@@ -1440,7 +1439,7 @@ function isRealGroupId(id) {
 }
 
 // The whole ungrouped area — every tab outside a group, pinned ones included —
-// occupies a single slot in the list (M50). A pinned tab can't belong to a group
+// occupies a single slot in the list. A pinned tab can't belong to a group
 // in Chromium (pinning removes it from one), so it needs no branch of its own.
 const NO_GROUP = -1;
 
@@ -1501,7 +1500,8 @@ function planCollapse(groups, recentSlots) {
 // Whether an activation should repaint the groups state. `inGrace` must be read
 // *after* the persisted startup clock has resolved: judging it when the event
 // arrives reads the module-load value, which a service-worker wake-up has just
-// reset to "now", and the click that woke the worker is then skipped (M49).
+// reset to "now" — deciding synchronously there would skip the click that woke
+// the worker.
 // Window/tab ids are validated by value so this stays independent of `chrome`.
 function shouldApplyCollapsePolicy({ inGrace, windowId, tabId } = {}) {
   if (inGrace) return false;
@@ -1602,8 +1602,8 @@ chrome.tabs.onActivated.addListener((info) => {
   // Only the ids are checked here — they are needed to key the debounce timer and
   // cannot change. The startup grace is checked inside the timer instead, once the
   // persisted clock has been read: this listener is often the very event that wakes
-  // the service worker, and at that instant the in-memory clock still says "now"
-  // (M49). Deciding here skipped the first click after every idle pause.
+  // the service worker, and at that instant the in-memory clock still says "now" —
+  // deciding here would skip the first click after every idle pause.
   if (info?.windowId != null && info?.tabId != null) {
     const windowId = info.windowId;
 

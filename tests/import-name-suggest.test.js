@@ -4,7 +4,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./helpers/harness');
 
-// M34: on an import name collision, "Keep both" pre-fills the name field with
+// On an import name collision, "Keep both" pre-fills the name field with
 // the first free "<base> N". suggestFreeName is the pure helper behind that.
 
 function loadHelper() {

@@ -13,7 +13,7 @@ function loadPin() {
 // this realm so structural comparison is what's actually tested.
 const plain = (obj) => ({ ...obj });
 
-// M15: per-tab pin state. A tab is pinned only if explicitly stored `true`;
+// Per-tab pin state: a tab is pinned only if explicitly stored `true`;
 // the default (absent key) is unpinned (collapsed leaf). Unpinning deletes the
 // key so the common default costs no storage.
 

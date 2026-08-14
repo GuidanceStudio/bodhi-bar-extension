@@ -4,8 +4,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./helpers/harness');
 
-// M16: the visibility-mode / site-overrides / visibility-rules features were
-// removed. Workspaces saved by older versions still carry those fields; import
+// The visibility-mode / site-overrides / visibility-rules features are gone.
+// Workspaces saved by older versions still carry those fields; import
 // validation must ACCEPT them (and they are simply ignored on restore), never
 // reject them.
 
@@ -50,7 +50,7 @@ test('a current workspace without the removed fields is accepted', () => {
   assert.equal(res.ok, true, res.error || 'should be accepted');
 });
 
-// M17: be lenient — accept any version and ignore unknown fields, so older
+// Be lenient — accept any version and ignore unknown fields, so older
 // AND newer workspace files stay compatible.
 
 test('a future version with unknown fields is accepted, extras preserved', () => {
@@ -82,7 +82,7 @@ test('a non-object (e.g. array or string) is still rejected', () => {
   assert.equal(normalizeImportedWorkspaceJson([1, 2, 3]).ok, false);
 });
 
-// M33: custom tab labels edited in the editor are stored as `title` in the
+// Custom tab labels edited in the editor are stored as `title` in the
 // payload. Export serializes the payload verbatim, so the round-trip guarantee
 // is that import preserves `title` on both pinned and grouped tabs untouched.
 

@@ -4,12 +4,11 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./helpers/harness');
 
-// M49: the group-collapse policy was skipped on the first tab click after every
-// idle pause. The listener judged the startup grace synchronously, and in MV3
-// that click is often the event that re-evaluates the service worker — at which
-// point the in-memory clock has just been reset to "now" and the persisted one
-// (M47) has not been read back yet. The guard now runs inside the debounced
-// callback, after the clock resolves; the two decisions behind it are here.
+// shouldApplyCollapsePolicy and resolveStartupAt are the two decisions that
+// keep the group-collapse guard correct across a MV3 service-worker wake-up:
+// the guard must run inside the debounced callback, after the persisted
+// startup clock resolves, not synchronously on the event that may itself be
+// the wake-up.
 function loadGrace() {
   return load(
     ['constants.js', 'background.js'],

@@ -4,9 +4,9 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./helpers/harness');
 
-// M47: a tab opened from a link inside a group must be ejected from that group.
-// The two decisions below are the ones that failed in the field, so they are
-// pulled out of the event plumbing and tested directly.
+// A tab opened from a link inside a group must be ejected from that group.
+// The two decisions behind that are pulled out of the event plumbing so they
+// can be tested directly.
 function loadEject() {
   return load(
     ['constants.js', 'background.js'],
@@ -15,8 +15,8 @@ function loadEject() {
 }
 
 // resolveStartupAt decides whether the 20s startup grace restarts. In MV3 the
-// service worker is re-evaluated on every wake-up, so restarting the grace there
-// suppressed every ejection for 20s — the root cause of the M46 regression.
+// service worker is re-evaluated on every wake-up, so the grace must not
+// restart there — doing so would suppress every ejection for 20s.
 
 test('resolveStartupAt: a stored timestamp survives a service-worker wake-up', () => {
   const { resolveStartupAt } = loadEject();

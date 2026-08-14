@@ -5,21 +5,18 @@
  * (STORAGE_KEY_WORKSPACES) and renders a tree view:
  *   workspace -> [pinned] -> [groups -> tabs]
  *
- * M7: read-only render + tab.title fallback to hostname.
- * M8: inline rename (workspace + group), color picker, saveWorkspace
- *     helper with savedAt concurrency check.
- * M9: HTML5 drag & drop — reorder groups, reorder tabs within a list,
- *     move tabs across groups (and to/from pinned).
- * M10: structural CRUD — add a new group, delete groups, delete tabs,
- *     edit a tab's URL inline (with WEB_URL_RE validation).
- * M11: (removed in M16) per-tab visibility mode select and site-overrides
- *     panel — the visibility-mode and site-override features no longer exist.
- * M12: switch from autosave to explicit Save/Discard. Mutations now
- *     update an in-memory editorState; the user commits to storage
- *     by clicking Save (or Cmd/Ctrl+S). Concurrency conflicts surface
- *     a discard-or-overwrite picker. beforeunload warns if dirty.
- * M13: add new tabs to any group or pinned list — the drop-end zone
- *     doubles as a "+ Add tab" inline form trigger.
+ * Renders the tree (tab.title falls back to hostname), then layers editing
+ * on top: inline rename (workspace + group) with a color picker; HTML5
+ * drag & drop to reorder groups, reorder tabs within a list, and move tabs
+ * across groups or to/from pinned; structural CRUD (add/delete groups,
+ * delete tabs, inline URL edit validated against WEB_URL_RE); and adding
+ * new tabs to any group or the pinned list, where the drop-end zone doubles
+ * as a "+ Add tab" inline form trigger.
+ *
+ * Saving is explicit, not automatic: mutations update an in-memory
+ * editorState, and the user commits to storage via Save (or Cmd/Ctrl+S).
+ * A concurrency conflict (savedAt mismatch) surfaces a discard-or-overwrite
+ * picker; beforeunload warns if the state is dirty.
  */
 
 const els = {};

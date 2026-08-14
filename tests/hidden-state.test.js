@@ -12,7 +12,7 @@ function loadHidden() {
 // sandbox's Object.prototype, so re-spread before structural comparison.
 const plain = (obj) => ({ ...obj });
 
-// M18: per-tab hidden state. A tab's bar is hidden only if explicitly stored
+// Per-tab hidden state: a tab's bar is hidden only if explicitly stored
 // `true`; the default (absent key) is visible. Set via double-click on the
 // leaf; cleared from the popup toggle.
 

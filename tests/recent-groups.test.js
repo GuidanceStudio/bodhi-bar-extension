@@ -4,9 +4,9 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./helpers/harness');
 
-// M48/M50: on tab activation the tab strip keeps the last two *activations*
-// expanded. A slot is either a group or NO_GROUP — the whole ungrouped area,
-// pinned tabs included — so landing on a free tab takes a slot like any group.
+// On tab activation the tab strip keeps the last two *activations* expanded.
+// A slot is either a group or NO_GROUP — the whole ungrouped area, pinned
+// tabs included — so landing on a free tab takes a slot like any group.
 // The event plumbing (debounce, storage, tabGroups calls) is not reachable from
 // the vm harness, so the two decisions it wraps are tested directly.
 function loadRecent() {

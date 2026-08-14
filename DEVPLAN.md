@@ -1118,3 +1118,26 @@ Concause minori, incluse nel fix:
 - [x] Commit & push
 
 **Done when:** Ogni attivazione occupa un posto nella profondita' di due, tab senza gruppo e pinnate incluse, e il gruppo di partenza si collassa dopo due attivazioni fuori da esso.
+
+---
+
+## M51 ✅ — Comment hygiene: drop milestone-ID/incident narrative from source comments
+
+**Why:** forge-flow's comment compliance pass found `background.js`, `editor.js`
+and several test files carrying bug narratives and bare milestone IDs (M46-M50)
+in comments — content that belongs in commit bodies and the devplan, not
+re-told beside the code every time it is read.
+
+**Approach:** Rewrite each flagged comment to state the current invariant in
+present tense, dropping the ID and the "used to fail because..." framing.
+`editor.js`'s top doc-comment (a milestone-by-milestone changelog) becomes a
+description of current behavior instead.
+
+**Tasks:**
+- [x] `background.js`: rewrite 9 comments (grace clock, ejection, collapse policy) to drop M46/M47/M48/M49/M50 references and incident framing
+- [x] `editor.js`: rewrite the top doc-comment from an M7-M13 changelog to current-behavior description
+- [x] Test files (`collapse-grace`, `eject-new-tab`, `hidden-state`, `import-name-suggest`, `pin-state`, `recent-groups`, `workspace-retrocompat`): drop milestone-ID/bug-story headers, keep only what test names can't hold
+- [x] `npm test` green (56/56, no regressions)
+- [x] Commit & push
+
+**Done when:** No source file carries a bare milestone-ID or incident-narrative comment; `npm test` is green.
