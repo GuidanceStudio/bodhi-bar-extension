@@ -1,46 +1,6 @@
-# Devplan — Fix workspace restore duplicating groups
-
-## Problem
-
-When restoring a workspace, tab groups get duplicated (tripled in the reported case).
-The browser's tab strip shows e.g. Tech×3, Office×3, Comms×3 instead of one of each.
-
-### Root causes
-
-1. **Placeholder tab never removed** — created to prevent 0-tab window, but never deleted. *(Fixed in M1-M3)*
-2. **No concurrency guard** — restore could run in parallel. *(Fixed in M1)*
-3. **Brave ghost groups** — Brave may not destroy groups on bulk tab remove. *(Fixed in M4)*
-4. **Corrupted workspace data** — If the workspace was saved AFTER a previous buggy restore, the payload itself contains tripled groups. Every subsequent restore faithfully recreates them. *(Fixed in M5+M6)*
-
----
-
-## M1 — Add concurrency guard to APPLY_WORKSPACE ✅
-
-- [x] `restoreInProgress` flag + `finally` block
-- [x] Disable confirm buttons in popup after click
-
-## M2 — Verify tab closure before creating new tabs ✅
-
-- [x] Re-query after `chrome.tabs.remove()`, retry once, abort if tabs survive
-
-## M3 — Clean up placeholder tab after restore ✅
-
-- [x] `chrome.tabs.remove(placeholderTabId)` instead of move-to-end
-
-## M4 — Explicitly destroy groups before closing tabs (Brave fix) ✅
-
-- [x] `chrome.tabs.ungroup()` on all grouped tabs before closing
-
-## M5 — Deduplicate groups in payload before restore ✅
-
-- [x] In `APPLY_WORKSPACE`, after parsing `allTabGroups`, merge groups that share the same `title` + `color` key
-- [x] Combine their `tabs` arrays (deduplicate by URL to avoid duplicate tabs within the merged group)
-- [x] Log a warning when dedup occurs so the user knows the snapshot was dirty
-
-## M6 — Deduplicate on save (prevent corruption at source) ✅
-
-- [x] In `buildExportPayload()`, after building `allTabGroups`, merge groups with same title+color
-- [x] Deduplicate tabs by URL within each merged group
+**M1-M6, M17, M20-M22, M24 and M51 are closed and archived — see
+`DEVPLAN-ARCHIVE.md`.** Each line there is `MNN | title | date | sha`; the
+sha is the pointer to the full detail.
 
 ---
 
@@ -322,25 +282,6 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M17 — Cleanup sender `REFRESH_BAR` orfani + import JSON tollerante ✅
-
-**Why:** Dopo M16 i broadcast `REFRESH_BAR`/`REFRESH_TAB` non hanno più alcun consumer lato content (erano consumati solo da `site_overrides.js`): sono no-op guardati che sporcano `background.js`. Inoltre l'import dei workspace fa controlli rigidi (versione `wv`, tipi di `pinnedTabs`/`allTabGroups`) che rifiutano file con "roba nuova": vogliamo invece **ignorare serenamente** i campi sconosciuti, così vecchi e futuri JSON restano compatibili.
-
-**Approach:** In `background.js` rimuovere l'intero chain di refresh-broadcast: `broadcastRefresh`, `broadcastRefreshWithRetry`, `scheduleUiRefresh` (+ 7 call site), le costanti `UI_REFRESH_RETRY_MS`/`UI_REFRESH_DEBOUNCE_MS`, la mappa `uiRefreshTimers`, e l'handler messaggio `REFRESH_TAB`. La barra continua ad aggiornarsi via focus/azioni utente (non è mai dipesa da `REFRESH_BAR` lato content). In `popup.js`, `normalizeImportedWorkspaceJson` diventa tollerante: richiede solo che il JSON sia un oggetto; accetta qualsiasi `wv`; usa `raw.payload` se è un oggetto, altrimenti tratta `raw` stesso come payload; nessun reject su campi extra o tipi (il restore in `background.js` già guarda con `Array.isArray`). Rimuovere `SUPPORTED_VERSIONS`/check di versione.
-
-**Esecuzione:** TDD sulla logica pura `normalizeImportedWorkspaceJson` (estende `tests/workspace-retrocompat.test.js`: versione futura + campi extra → accettati; non-oggetto → rifiutato; payload "bare" senza wrapper → accettato). Il cleanup di `background.js` è strutturale (verifica: sintassi + grep-guard, nessun ref orfano a `REFRESH_BAR`/`REFRESH_TAB`/`scheduleUiRefresh`).
-
-**Tasks:**
-- [x] `background.js`: rimuovere `broadcastRefresh`/`broadcastRefreshWithRetry`/`scheduleUiRefresh` + 7 call site + costanti `UI_REFRESH_*` + `uiRefreshTimers` + handler `REFRESH_TAB`
-- [x] `popup.js`: `normalizeImportedWorkspaceJson` tollerante (no version check, no type-reject, ignora campi sconosciuti); rimuovere `SUPPORTED_VERSIONS`
-- [x] Estendere i test (forward-compat: versione/campi nuovi ignorati; non-oggetto rifiutato; bare payload ok)
-- [x] Verifica: sintassi tutti i file + grep-guard + test verdi (10/10)
-- [x] Commit & push
-
-**Done when:** Nessun sender `REFRESH_BAR`/`REFRESH_TAB` resta in `background.js`; l'import accetta qualunque JSON workspace-shaped ignorando i campi che non conosce (vecchi e futuri file compatibili).
-
----
-
 ## M18 — Doppio-click sulla foglia = nascondi del tutto (per-tab) + toggle nel popup ✅
 
 **Why:** Reintroduce un modo per azzerare del tutto il footprint della barra su una tab specifica (l'equivalente del vecchio "hidden", ma come gesto diretto). La foglia, una volta nascosta, non c'è più: la riattivazione avviene dal popup.
@@ -379,54 +320,6 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M20 — Pulizia CSS/marker morti residui ✅
-
-**Why:** Dopo M16/M18 sono rimaste regole CSS morte (UI rules/overrides rimossa) più alcune feature CSS pre-esistenti mai più usate, e un class-marker `tz-mode-overlay` aggiunto in JS ma senza regola né lettori.
-
-**Approach:** Cross-reference dei selettori con l'uso reale in tutti i `*.js`/`*.html` (no tests). `popup.css` riscritto tenendo solo le regole vive (container, workspaces, `.workspace-action-icon`, `.note`, `.std-input`, msg-box, `.control-group` [form import], `.panel`/`.vis-toggle`, `.btn-icon`+`.success`, `.rule-actions`, `.input-row` — questi ultimi tre ancora usati dai form inline rename/import/conferma). Rimossi: `#toggleBar`, `a.export-link`, `.presets-*`/`.preset-*`, `select#visibilityModeSelect`, `.workspace-row`/`-view-state`/`-actions-state`, `.gear-btn`, `#tz-rule-mode-select`, `.domain-rules-section`/`.section-header`/`.domain-badge`, `.active-rules-list`/`.rule-row`/`.mode-*`/`.pattern-*`/`.edit-mode-select`, `.btn-icon.add`/`.delete`, `details.advanced-section`/`.advanced-content`. Rimosse anche le 2 aggiunte di `tz-mode-overlay` in `content.js`/`render.js` (marker morto). `content.css`/`editor.css` già privi di selettori della rework.
-
-**Tasks:**
-- [x] `popup.css`: riscritto, sole regole vive
-- [x] `content.js`/`render.js`: rimosso `classList.add('tz-mode-overlay')` (marker senza CSS né lettori)
-- [x] Verifica: grep-guard zero-orfani + sintassi + 13/13 test verdi
-- [x] Commit & push
-
-**Done when:** Niente più CSS/marker morti legati alla rework (o a feature rimosse in precedenza); UI viva invariata.
-
----
-
-## M21 — Eliminazione di `page-shift.js` (interamente vestigiale) ✅
-
-**Why:** Dopo M14 `applyPageShift` era un no-op e `isInternalResize` non veniva mai più messo a `true` (costante `false`): l'intero `page-shift.js` era codice morto, e le sue chiamate/guardie erano rumore.
-
-**Approach:** Rimosse le 4 chiamate `applyPageShift()` (`render.js` ×2, `content.js`, `zoom.js`) e le 2 guardie su `isInternalResize` (`content.js` resize handler, `render.js updateDynamicLayout`, sempre nel ramo "non interno"). `page-shift.js` risultava vuoto → **file eliminato** e tolto dal manifest `content_scripts`. Rimosso `tests/page-shift.test.js` (l'invariante "no reflow" è ora banalmente vera: non esiste più codice di reflow). `content.css`/`editor.css` già puliti; costanti tutte ancora usate (`SYSTEM_PREFIXES` lo usa `isSystemPage`). Scelto di NON rinominare `.btn-icon`/`.rule-actions` (componenti vivi) né fare audit completo di `content.css` (rischio/poco valore).
-
-**Tasks:**
-- [x] Rimuovere chiamate `applyPageShift()` + guardie `isInternalResize`
-- [x] Eliminare `page-shift.js` + entry nel manifest + `tests/page-shift.test.js`
-- [x] README: rimosse le menzioni di `page-shift.js`
-- [x] Verifica: sintassi + manifest + grep-guard + 11/11 test verdi
-- [x] Commit & push
-
-**Done when:** `page-shift.js` non esiste più, nessun riferimento residuo, e l'estensione resta funzionante (la barra è overlay puro, mai reflow).
-
----
-
-## M22 — Rimozione funzioni morte ✅
-
-**Why:** Scan delle funzioni top-level mai referenziate: due funzioni morte (pre-esistenti, non dalla rework).
-
-**Approach:** Rimosse `promptForUniqueWorkspaceName` (`popup.js`, usava `prompt()` nativo, mai chiamata — la UI usa form inline) e `openNewTab` (`background.js`, duplicato inutilizzato: l'handler `OPEN_NEW_TAB` fa già `chrome.tabs.create` inline).
-
-**Tasks:**
-- [x] Rimuovere `promptForUniqueWorkspaceName` (popup.js) e `openNewTab` (background.js)
-- [x] Verifica: sintassi + grep-guard + 11/11 test verdi
-- [x] Commit & push
-
-**Done when:** Nessuna funzione top-level morta nei moduli principali; UI/comportamento invariati.
-
----
-
 ## M23 — Transizione fluida collasso↔espansione della foglia ✅
 
 **Why:** Il passaggio collassato↔hover era istantaneo (snap della posizione della foglia), perché lo stato collassato usava `height:auto` (non animabile) e `border:none`.
@@ -439,32 +332,6 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] Commit & push
 
 **Done when:** Il passaggio foglia↔barra (hover, pin/unpin) è animato in modo fluido invece di istantaneo.
-
----
-
-## M24 — Review/tidy CSS ✅
-
-**Why:** Richiesta una review del CSS per ordine/ottimizzazione.
-
-**Approach:** Analisi di `content.css` (≈968 righe), `editor.css`, `popup.css`. `!important`/`all:initial` in `content.css` sono **difensivi e voluti** (iniettato in pagine arbitrarie) → non toccati. Applicate solo modifiche sicure e verificabili (brace-balance + grep), il resto segnalato.
-
-**Applicato:**
-- `content.css`: `.tz-search.expanded` era frammentato in **3 blocchi** (con `padding-left/right` letteralmente duplicati) → unificato in un solo blocco.
-- `content.css`: brand blue `#0078d4` (13 occorrenze) centralizzato in custom property `--tz-accent` definita sulla regola base della barra (namespaced per evitare clash nel contesto iniettato; cascata ai discendenti). Funzionalmente identico (la var risolve allo stesso valore).
-
-**Segnalato, NON applicato (richiede verifica nel browser / poco valore):**
-- Selettori "duplicati" residui (`.tz-close-x`, `.tz-group-btn`, `.tz-leaf`, `.tz-search:not(.expanded) .icon`) sono **falsi positivi**: stesso selettore una volta standalone e una volta in un gruppo `,` condiviso (transition/hover-brighten) — pattern normale, non ridondante.
-- Selettori identici definiti in **sezioni distanti** (es. `.tz-close-x` riga ~33 "struttura/colore" e ~681 "sizing"): unibili ma settano proprietà non sovrapposte, separati per concern — merge rischioso senza browser, lasciati.
-- Altri colori ripetuti (`#fff` 15×, `#3a3a3a` 9×, `#444`/`#333` 6×): centralizzabili in var, ma valore marginale → lasciati.
-- `editor.css` già ordinato (usa già `--accent`).
-
-**Tasks:**
-- [x] Consolidare `.tz-search.expanded` (3→1 blocchi)
-- [x] Centralizzare `#0078d4` → `var(--tz-accent)` (13×) con def sulla barra
-- [x] Verifica: brace-balance + grep + 11/11 test verdi
-- [x] Commit & push
-
-**Done when:** Rimosse le duplicazioni CSS sicure e centralizzato il colore accent; il resto documentato come scelte consapevoli.
 
 ---
 
@@ -1121,23 +988,28 @@ Concause minori, incluse nel fix:
 
 ---
 
-## M51 ✅ — Comment hygiene: drop milestone-ID/incident narrative from source comments
+## M52 ✅ — Archive the closed milestones
 
-**Why:** forge-flow's comment compliance pass found `background.js`, `editor.js`
-and several test files carrying bug narratives and bare milestone IDs (M46-M50)
-in comments — content that belongs in commit bodies and the devplan, not
-re-told beside the code every time it is read.
+**Why:** the plan had grown to ~14,700 words across 28 closed milestones whose
+detail already lives in the commits that shipped them; nothing reads that prose
+again, and it was pushing the pending work (M47-M50) out of easy reach.
 
-**Approach:** Rewrite each flagged comment to state the current invariant in
-present tense, dropping the ID and the "used to fail because..." framing.
-`editor.js`'s top doc-comment (a milestone-by-milestone changelog) becomes a
-description of current behavior instead.
+**Approach:** for each closed milestone, find and verify its shipping commit
+(`git cat-file -e`), compress it to one pointer line (`MNN | title | date |
+sha`) in a new `DEVPLAN-ARCHIVE.md`. Any milestone with an open task (`- [ ]`
+or `- [~]`) — including the "Verifica manuale (utente)" gate several closed-
+heading milestones still carry — is left untouched, per the archiving rule
+that an open task means not closed. M47-M50 (in-progress headings, one
+remaining manual-verification acceptance gate each) are left alone per
+explicit instruction.
 
 **Tasks:**
-- [x] `background.js`: rewrite 9 comments (grace clock, ejection, collapse policy) to drop M46/M47/M48/M49/M50 references and incident framing
-- [x] `editor.js`: rewrite the top doc-comment from an M7-M13 changelog to current-behavior description
-- [x] Test files (`collapse-grace`, `eject-new-tab`, `hidden-state`, `import-name-suggest`, `pin-state`, `recent-groups`, `workspace-retrocompat`): drop milestone-ID/bug-story headers, keep only what test names can't hold
-- [x] `npm test` green (56/56, no regressions)
-- [x] Commit & push
+- [x] Enumerate closed milestones (heading marker + all tasks `- [x]`), find and verify each one's shipping commit.
+- [x] Write `DEVPLAN-ARCHIVE.md` with one pointer line per milestone.
+- [x] Remove the archived blocks from `DEVPLAN.md`, leaving one pointer note near the top.
+- [x] Verify the ID-set diff is empty (nothing lost).
+- [x] Run `npm test` and commit.
 
-**Done when:** No source file carries a bare milestone-ID or incident-narrative comment; `npm test` is green.
+**Done when:** `DEVPLAN-ARCHIVE.md` holds one pointer line per archived
+milestone, every sha verified; the before/after ID-set diff is empty;
+`npm test` is green.
