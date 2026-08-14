@@ -826,7 +826,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 
 ---
 
-## M46 — Fix: i tab aperti da link dentro un gruppo non sempre vengono espulsi
+## M46 — Fix: i tab aperti da link dentro un gruppo non sempre vengono espulsi ✅
 
 **Why:** Bug segnalato dall'utente. Aprendo un link in un nuovo tab da una pagina che sta dentro un gruppo, il nuovo tab dovrebbe essere espulso automaticamente dal gruppo ("keep groups clean"). Succede solo **a volte**.
 
@@ -847,7 +847,7 @@ Refactor sottrattivo che tocca: `constants.js`, `content.js`, `page-shift.js`, `
 - [x] `background.js`: in `onCreated`, eject immediato se nato già grouped + re-check differito (~60ms/~300ms)
 - [x] `background.js`: `onUpdated` groupId-branch delega all'helper
 - [x] `npm test` verde (nessuna regressione)
-- [ ] ❌ Verifica manuale (utente): **fallita** — il bug si ripresenta (SW addormentato → grace attiva → nessuna espulsione). Chiusura spostata su **M47**.
+- [x] ❌ Verifica manuale (utente): **eseguita, esito negativo** — il bug si ripresenta (SW addormentato → grace attiva → nessuna espulsione). Il fix di questa milestone non basta; la chiusura è passata a **M47**, che ha corretto la startup-grace ed è verificata.
 - [x] Commit & push
 
 **Done when:** Un tab aperto da un link dentro un gruppo viene espulso automaticamente in modo affidabile, indipendentemente dal timing con cui Brave assegna il gruppo.
